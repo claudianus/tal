@@ -970,8 +970,9 @@ CONST A_LINE = 7          // 남은 힘이 이만큼 있어야 맨얼굴로 내�
         지운다.
     }
 }
-* [대화방을 나간다 # game: leave left]
-- 대화방을 하나씩 나갔다. 나가기. 나가기. 한 번에. 토토의 방에서 엄지가 멈췄다.
+* {connection >= C_LINE} [대화방을 나간다 # game: leave left]
+* {connection < C_LINE} [대화방을 나간다 # game: leaveall left]
+- 대화방을 하나씩 나갔다. 나가기. 나가기. 한 번에.{connection >= C_LINE: 토토의 방에서 엄지가 멈췄다.|목록이 비었다.}
 { connection >= C_LINE:
     # sfx: phone_buzz
     마지막 방을 나가려는데 손 안에서 휴대폰이 떤다.
