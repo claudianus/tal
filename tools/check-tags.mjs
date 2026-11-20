@@ -44,6 +44,7 @@ for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.ink'))) {
         name === 'room' ? T.ROOM_MARKS.includes(val) :
         name === 'warn' ? val === 'end' || val in T.WARNS :
         name === 'face' ? T.FACES.includes(val) :
+        name === 'turn' ? T.FACES.includes(val.split(/\s+/)[1] || '') :
         name === 'pause' ? !Number.isNaN(Number(val)) :
         name === 'timer' ? !Number.isNaN(Number(val)) :
         name === 'crowd' ? ['on', 'off'].includes(val) :

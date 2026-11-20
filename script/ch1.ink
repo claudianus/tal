@@ -334,6 +334,7 @@ VAR c1_dressed = 0
 * [고개를 갸웃한다]
     # emote: tilt
     하은: 진짜예요. 넘어졌어요. # say
+    # turn: haeun down
     아이가 내 눈구멍을 피해 모래를 본다.
 * [웅크린다]
     # emote: curl
@@ -431,6 +432,7 @@ VAR c1_dressed = 0
 * [숨을 죽인다]
     벽에 등을 붙인다. 고양이 머리를 끌어안는다.
     빛이 바닥을 훑는다. 내 발치에서, 삐져나온 꼬리 끝에서 잠깐 멈춘다.
+    # emote: point guard
     박씨: …고양이네. # say
     # npc: guard off
     # sfx: footsteps_away
@@ -441,6 +443,7 @@ VAR c1_dressed = 0
     # suit: head_on
     # voice_stop
     뜨거운 폼이 다시 얼굴을 덮는다. 숨이 모자라다. 그래도 얼굴을 보이는 것보다는 낫다.
+    # emote: point guard
     빛이 벽을 넘어와 나를 비춘다. 처진 귀까지.
     박씨: …허. # say
     박씨: 요즘은 별게 다 있네. # say
@@ -574,7 +577,8 @@ VAR c1_dressed = 0
     채널 '완성 자랑'. 사진을 붙인다. 글을 쓴다.
     '완성했습니다. 오늘 처음으로 밖에'.
     지운다. 다시 쓴다.
-    삼색이: 완성했습니다. # msg_me
+    * * [쓴다: "완성했습니다." # game: type sent]
+    - - 삼색이: 완성했습니다. # msg_me
     전송.
     # pause: 2
     -> c1_hearts
@@ -613,7 +617,14 @@ VAR c1_dressed = 0
 # pause: 2
 하트가 세 개.
 화면을 본다. 하트를 본다.
-기뻐야 하는 거겠지.
+-> c1_heart_look
+= c1_heart_look
+* [하트를 센다 # at: wait]
+    하나. 둘. 셋. 다시 센다. 그대로 셋이다.
++ [(잠김) 화면을 끈다 # at: move]
+    엄지가 전원 버튼 위에서 멈춘다. # fail
+    -> c1_heart_look
+- 기뻐야 하는 거겠지.
 기쁜 것 같다. 아마.
 기쁠 때 몸 어디가 어떻게 되는 거였는지, 잘 기억나지 않는다.
 예의상 누른 거야. # voice

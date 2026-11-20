@@ -48,6 +48,7 @@ const MOOD: Record<string, [number, boolean, string]> = {
   white: [0.03, true, '#e2e4d6'],    // 응급실 천장
   few: [0.8, false, '#2e3e58'],      // 엔딩 C 의 장례식장 (밤, 화환이 둘)
   tv: [0.9, false, '#2e3e58'],       // 4장의 기억: 불 꺼진 거실, TV 빛만
+  inside: [0.55, false, '#2e3e58'],  // 탈 안에서 본 방: 눈구멍 밖은 검게 덮는다
   openday: [0.4, true, '#aab2ac'],   // 3장 다음 날 아침: 부서진 문이 한 뼘 열려 있다
 };
 
@@ -61,12 +62,13 @@ export class World {
   private dark = document.createElement('canvas');
   private dc: CanvasRenderingContext2D;
   private W = 320; private H = 180;
+  private mask: HTMLCanvasElement | null = null; // 탈 안 시점의 눈구멍 가림막
   mapId = ''; map: MapDef | null = null; mood = 'night';
   player: Actor = actor('player', { kind: 'yunjae' }, 0, 0, 'down');
   npcs = new Map<string, Actor>();
   haeunEyes = false; // 2장부터 하은에게 희미한 눈이 생긴다
   swings: Record<string, string> = {}; // 그네 자리 → still / gentle / high
-  flags = { monitor: false, eyes: false, lampOff: false, headGone: false, headDone: true, mark: '' as '' | 'torn' | 'sewn', box: '' as '' | 'shut' | 'open', tidy: false, ajar: false, headAt: '' as '' | 'bed' | 'floor', pile: '' as '' | 'torn' | 'folded' };
+  flags = { monitor: false, eyes: false, lampOff: false, headGone: false, headDone: true, mark: '' as '' | 'torn' | 'sewn', box: '' as '' | 'shut' | 'open', tidy: false, ajar: false, headAt: '' as '' | 'bed' | 'floor', pile: '' as '' | 'torn' | 'folded', closet: '' as '' | 'left' | 'mirror' };
   fast = false; autopilot = false;
   rain = false; // 바깥 맵에 비가 내린다
   train = { state: '' as '' | 'arrive' | 'stop' | 'open' | 'leave' | 'gone', x: 0, v: 0, done: null as (() => void) | null };
@@ -432,7 +434,7 @@ export class World {
         out.push({ x: l.x, y: l.y, r: l.r, a, col: l.col, tint: l.tint });
       }
       const g0 = this.npcs.get('guard');
-      if (g0) out.push({ x: g0.px - 26 + Math.sin(t * 1.3) * 22, y: g0.py + 2 + Math.cos(t * 0.9) * 8, r: 30, a: 0.95, col: 'rgba(240,235,210,A)' });
+      if (g0) out.push(this.beam(g0, t));
       return out;
     }
     if (this.mapId === 'room') {
@@ -457,8 +459,15 @@ export class World {
     }
     if (this.mapId === 'recycle') out.push({ x: 150, y: 50, r: 60, a: 0.6, col: 'rgba(232,160,80,A)' });
     const g = this.npcs.get('guard');
-    if (g) out.push({ x: g.px - 26 + Math.sin(t * 1.3) * 22, y: g.py + 2 + Math.cos(t * 0.9) * 8, r: 30, a: 0.95, col: 'rgba(240,235,210,A)' });
+    if (g) out.push(this.beam(g, t));
     return out;
+  }
+  /** 경비의 손전등: 보는 쪽을 천천히 훑는다. 겨누면(emote point) 나에게 멈춘다. */
+  private beam(g: Actor, t: number): { x: number; y: number; r: number; a: number; col: string } {
+    if (g.emote === 'point') { const p = this.player; return { x: p.px + 8 + Math.sin(t * 7) * 1.5, y: p.py + 4, r: 22, a: 1, col: 'rgba(250,246,226,A)' }; }
+    const [dx, dy] = DELTA[g.dir], sx = dx === 0 ? 1 : 0, sy = dy === 0 ? 1 : 0;
+    const sw = Math.sin(t * 1.3) * 22, sw2 = Math.cos(t * 0.9) * 8;
+    return { x: g.px + 8 + dx * 34 + sx * sw, y: g.py + 2 + dy * 30 + sy * sw2 * 2, r: 30, a: 0.95, col: 'rgba(240,235,210,A)' };
   }
   private draw(): void {
     const m = this.map;
@@ -472,7 +481,7 @@ export class World {
     const k = { t, monitor: this.flags.monitor, day, slit, x: 0, y: 0, open: this.mood === 'open' || this.mood === 'openday', headGone: this.flags.headGone };
     if (this.mapId === 'room') {
       const lie = this.player.pose === 'lie';
-      const room = paintRoom({ monitor: this.flags.monitor, headGone: this.flags.headGone, headDone: this.flags.headDone, open: this.mood === 'open' || this.mood === 'openday', slit, day, lie, mark: this.flags.mark, box: this.flags.box, tidy: this.flags.tidy, ajar: this.flags.ajar, headAt: this.flags.headAt, pile: this.flags.pile });
+      const room = paintRoom({ monitor: this.flags.monitor, headGone: this.flags.headGone, headDone: this.flags.headDone, open: this.mood === 'open' || this.mood === 'openday', slit, day, lie, mark: this.flags.mark, box: this.flags.box, tidy: this.flags.tidy, ajar: this.flags.ajar, headAt: this.flags.headAt, pile: this.flags.pile, closet: this.flags.closet });
       c.drawImage(canvasOf(room), -cx, -cy - ROOM_OY);
       if (this.mood === 'doorshadow' || this.mood === 'dark' || this.mood === 'black') { // 문틈 아래로 거실 불빛이 샌다
         c.fillStyle = '#d6be8c'; c.fillRect(159 - cx, 49 - cy, 1, 14);
@@ -524,7 +533,7 @@ export class World {
       drawn.push({ foot: 7 * TILE, draw: () => { for (let k = -1; k < 2; k++) c.drawImage(canvasOf(img), Math.round(this.train.x + k * img.w - cx), ty - cy); } });
     }
     const er = this.mapId === 'er' || this.ghost; // 응급실 천장: 나는 보이지 않고, 눈길만 있다. 엔딩 C 도 그렇다
-    for (const a of [this.player, ...this.npcs.values()]) if (a.pose !== 'gone' && !(er && a === this.player)) drawn.push({ foot: a.py + 13, draw: () => {
+    for (const a of [this.player, ...this.npcs.values()]) if (a.pose !== 'gone' && !(er && a === this.player) && !(this.mood === 'inside' && a === this.player)) drawn.push({ foot: a.py + 13, draw: () => {
       if (this.mapId === 'er' && a.id.startsWith('feet')) { const f = ART.feet?.[a.id.includes('white') ? 'sneakers' : a.id.includes('slip') ? 'slippers' : 'shoes']; if (f) c.drawImage(canvasOf(f), Math.round(a.px + 2 - cx), Math.round(116 - cy)); return; }
       const moving = a.px !== a.x * TILE || a.py !== a.y * TILE;
       const step = moving ? Math.floor(a.walked / 6) % 4 : 0;
@@ -575,6 +584,21 @@ export class World {
       const gx = this.player.px + 8 - cx, gy = this.player.py + 4 - cy, br = 0.08 + 0.05 * Math.sin(t * 1.3);
       c.fillStyle = `rgba(220,226,236,${br})`;
       for (let a = 0; a < 28; a++) { if (a % 2) continue; const th = (a / 28) * Math.PI * 2; c.fillRect(Math.round(gx + Math.cos(th) * 6), Math.round(gy + Math.sin(th) * 11), 1, 1); }
+    }
+    // 탈 안 (inside): 폼과 털 너머로는 아무것도 안 보인다. 눈구멍 두 개만큼만 방이 보인다. 숨 따라 조금씩 흔들린다.
+    if (this.mood === 'inside') {
+      const [fx, fy] = DELTA[this.player.dir]; // 보는 쪽으로 한 칸 앞이 눈구멍 너머다
+      const bx = this.player.px + 8 - cx + fx * 22 + Math.sin(t * 0.9) * 1.5, by = this.player.py - 6 - cy + fy * 22 + Math.sin(t * 2.1) * 1;
+      const m = this.mask || (this.mask = document.createElement('canvas')); if (m.width !== W || m.height !== H) { m.width = W; m.height = H; } const q = m.getContext('2d')!;
+      q.globalCompositeOperation = 'source-over'; q.fillStyle = '#050407'; q.fillRect(0, 0, W, H);
+      q.globalCompositeOperation = 'destination-out';
+      for (const dx of [-17, 17]) {
+        const g = q.createRadialGradient(bx + dx, by, 3, bx + dx, by, 15);
+        g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.7, 'rgba(0,0,0,0.85)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+        q.fillStyle = g; q.beginPath(); q.ellipse(bx + dx, by, 15, 11, 0, 0, Math.PI * 2); q.fill();
+      }
+      c.drawImage(m, 0, 0);
+      c.fillStyle = 'rgba(232,140,60,0.10)'; c.fillRect(0, 0, W, H); // 털 사이로 드는 주황빛
     }
     // 눈길: 응급실 천장을 훑는 시선
     if (this.mapId === 'er') {

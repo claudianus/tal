@@ -7,6 +7,7 @@ export type SceneSpec = { f: string; mood: string; amb: string; map?: string; li
 
 export const SCENES: Record<string, SceneSpec> = {
   black: { f: 'black', mood: 'night', amb: 'room' },
+  inside_head: { f: 'black', mood: 'night', amb: 'room', map: 'room', lit: 'inside' }, // 탈 안: 방은 거의 안 보이고, 눈구멍만큼만 보인다
   room_black: { f: 'black', mood: 'night', amb: 'room', map: 'room', lit: 'black' },
   room_night: { f: 'room', mood: 'night', amb: 'room', map: 'room', lit: 'night' },
   room_dark: { f: 'room', mood: 'dark', amb: 'room', map: 'room', lit: 'dark' },
@@ -168,7 +169,7 @@ export const LINE_KINDS = [
 ];
 // 혼자 서는 태그 (연출 지시)
 export const DIRECTIVES = [
-  'chapter', 'scene', 'sfx', 'suit', 'voice_stop', 'voice_back', 'ui', 'emote', 'cut', 'time',
+  'chapter', 'scene', 'sfx', 'suit', 'voice_stop', 'voice_back', 'ui', 'emote', 'cut', 'time', 'turn',
   'pause', 'views', 'posture', 'pov', 'chapter_end',
   'help',  // help: short / long   도움 창구 안내. long 은 엔딩 C 뒤, 10초 동안 넘길 수 없다
   // 걸어 다니는 맵에서 쓰는 것
@@ -186,7 +187,7 @@ export const DIRECTIVES = [
   'warn',  // warn: 경고 이름 / end   장면 경고 (설정에서 켰을 때만). 넘기면 end 까지 감고 요약을 보여 준다
   'room',  // room: torn / sewn / box / box_open / tidy / ajar / head_bed|floor|held|desk / suit_torn|folded|none   방에 남는 자국
 ];
-export const ROOM_MARKS = ['torn', 'sewn', 'box', 'box_open', 'tidy', 'ajar', 'head_bed', 'head_floor', 'head_held', 'head_desk', 'suit_torn', 'suit_folded', 'suit_none'];
+export const ROOM_MARKS = ['torn', 'sewn', 'box', 'box_open', 'tidy', 'ajar', 'head_bed', 'head_floor', 'head_held', 'head_desk', 'suit_torn', 'suit_folded', 'suit_none', 'closet_open', 'mirror_open', 'closet_shut'];
 // 선택지에 붙는 태그. "[모니터를 본다 # at: monitor]" → 맵의 그 물건을 조사하면 골라진다.
 // at: move 는 방향키, at: wait 는 아무것도 없는 데서 누르는 Z 다.
 export const CHOICE_TAGS = ['at'];

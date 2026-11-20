@@ -11,6 +11,7 @@ export type RoomState = {
   ajar?: boolean;              // 3장: 잠금쇠가 뜯긴 문. 닫아도 한 뼘 도로 열린다
   headAt?: '' | 'bed' | 'floor'; // 머리가 받침대가 아닌 데 있다: 침대 밑에 걸렸다 / 바닥에 던져졌다
   pile?: '' | 'torn' | 'folded'; // 삼색이의 몸: 바닥에 찢긴 채 / 책상 위에 개어 둔 채
+  closet?: '' | 'left' | 'mirror'; // 옷장 문이 열려 있다: 왼쪽(상자 넣는 쪽) / 오른쪽(안쪽에 거울)
 };
 /** 그림을 시계 방향으로 90도 돌린다 (점이 뭉개지지 않는다) */
 function rot90(src: Pix): Pix {
@@ -194,7 +195,7 @@ function trash(p: Pix, s: RoomState): void {
   p.rect(121, 41, 5, 5, '#e8e6e0'); p.dots('121,41 125,41', '#3e5a56'); p.dots('123,40 122,39 124,39', '#f6f4f0'); p.dots('122,44 124,43', '#c8c6c0');
 }
 
-function closet(p: Pix): void {
+function closet(p: Pix, s: RoomState): void {
   const W0 = '#766150', W1 = '#8a7462', W2 = '#5f4d3f', W3 = '#43362c';
   p.rect(128, 1, 32, 46, W0);
   p.rect(128, 1, 32, 3, W1); p.hl(128, 1, 32, '#a18a76'); p.hl(128, 4, 32, W2);         // 윗면
@@ -206,6 +207,16 @@ function closet(p: Pix): void {
   p.rect(140, 22, 2, 6, '#b8b6b0'); p.vl(141, 22, 6, '#7d7b76'); p.rect(146, 22, 2, 6, '#b8b6b0'); p.vl(147, 22, 6, '#7d7b76');
   p.rect(128, 45, 32, 2, W3); p.hl(128, 47, 32, '#2a211a');
   p.rect(133, 12, 4, 4, '#b8a888', 0.6); p.set(134, 13, '#8a7a5a');                    // 뜯다 만 스티커
+  if (s.closet) { // 문 한 짝이 열렸다. 안은 어둡고 옷이 걸려 있다. 문짝은 경첩 쪽에 세로로 선다.
+    const L = s.closet === 'left', x0 = L ? 129 : 144, w = 15;
+    p.rect(x0, 5, w, 40, '#1b161c'); p.hl(x0, 9, w, '#5e5146');                         // 안쪽 그늘, 옷걸이 봉
+    const cols = ['#3f4455', '#5d6376', '#4c5266', '#6b5a4a', '#3a3c48'];
+    for (let i = 0; i < 5; i++) { const x = x0 + 1 + i * 3; p.rect(x, 10, 2, 18 + ((i * 7) % 9), cols[i]); p.set(x, 9, '#8d8a84'); } // 걸린 옷 (긴소매뿐이다)
+    if (L) p.rect(x0 + 2, 36, 10, 8, '#8a7250'), p.hl(x0 + 2, 36, 10, '#a08660'); // 바닥에 상자
+    const hx = L ? 126 : 158; // 문짝: 경첩에 붙어 앞으로 열렸다 (옆에서 보면 얇다)
+    p.rect(hx, 4, 3, 46, W2); p.vl(hx + (L ? 0 : 2), 4, 46, W3); p.hl(hx, 4, 3, '#a18a76');
+    if (!L) { for (let y = 7; y < 46; y++) p.set(hx, y, y % 7 < 2 ? '#c8d4dc' : '#8d9aa6'); } // 안쪽 면의 거울이 방 쪽으로 번득인다
+  }
 }
 
 function bed(p: Pix, s: RoomState): void {
@@ -348,7 +359,7 @@ export function paintRoom(s: RoomState): Pix {
   floor(p, 16, 32, 159, 111);
   windowAndCurtain(p, s);
   shadows(p);
-  closet(p);
+  closet(p, s);
   trash(p, s);
   desk(p, s);
   bed(p, s);

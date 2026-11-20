@@ -72,7 +72,7 @@ export class Game {
     const droopy = (this.story.variablesState['eye_shape'] as unknown) === 'droopy';
     ui.render(p, vars, w.active);
     Object.assign(this.view.state, { spec, suit: p.suit, gaze: p.gaze ? vars.gaze : 0, eyes: p.eyes, cat: p.cat, monitor: p.monitor, droopy });
-    w.flags.monitor = p.monitor; w.flags.eyes = p.eyes; w.flags.lampOff = p.lampOff; w.flags.headGone = p.suit || p.suitFull || p.carry === 'head' || p.headAt === 'held'; w.flags.headAt = p.headAt === 'bed' || p.headAt === 'floor' ? p.headAt : ''; w.flags.ajar = !!p.ajar; w.flags.pile = p.pile || ''; w.flags.headDone = p.headDone; w.flags.mark = p.mark || ''; w.flags.box = p.box || ''; w.flags.tidy = !!p.tidy; w.ghost = p.pov === 'world'; w.haeunEyes = p.pov === 'yunjae' && !/^(프롤로그|1장)/.test(p.chapter); // 윤재가 본 사람이라서. 윤재가 없는 엔딩 C 에는 없다
+    w.flags.monitor = p.monitor; w.flags.eyes = p.eyes; w.flags.lampOff = p.lampOff; w.flags.headGone = p.suit || p.suitFull || p.carry === 'head' || p.headAt === 'held'; w.flags.headAt = p.headAt === 'bed' || p.headAt === 'floor' ? p.headAt : ''; w.flags.ajar = !!p.ajar; w.flags.pile = p.pile || ''; w.flags.closet = p.closet || ''; w.flags.headDone = p.headDone; w.flags.mark = p.mark || ''; w.flags.box = p.box || ''; w.flags.tidy = !!p.tidy; w.ghost = p.pov === 'world'; w.haeunEyes = p.pov === 'yunjae' && !/^(프롤로그|1장)/.test(p.chapter); // 윤재가 본 사람이라서. 윤재가 없는 엔딩 C 에는 없다
     const look: Look = { kind: p.pov === 'yunseo' ? 'yunseo' : p.suitFull ? (p.suit ? 'cat' : 'cat_nohead') : p.suit ? 'yunjae_cathead' : 'yunjae', droopy, bare: p.bare, bag: p.carry === 'bag' && !p.suit && !p.suitFull, hold: p.carry === 'head' && !p.suit && !p.suitFull, mark: p.mark || '' };
     w.posture = spec.past ? '' : p.posture || '';
     w.setLook(look);
@@ -151,6 +151,7 @@ export class Game {
         if (prevPov !== p.pov) { ui.clearFlow(); ui.clearGhosts(); }
         break;
       case 'emote': { if (quiet) break; const [e, who] = d.val.split(/\s+/); w.emote(e, who); break; }
+      case 'turn': { const [who, dir] = d.val.split(/\s+/); const a = w.npcs.get(who); if (a) a.dir = dir as Dir; break; } // 사람이 고개를 돌린다 (자리에 선 채)
       case 'help': await ui.help(d.val === 'long'); break;
       case 'warn': {
         if (d.val === 'end') {
@@ -222,7 +223,8 @@ export class Game {
       const id = games[gi]![0];
       const ghosts = this.pres.tail.filter((t) => t.kind === 'voice').map((t) => t.text);
       if (!GAME_IDS.includes(id)) ui.hint(WORLD_GAME_HINT[id] || '');
-      const out = GAME_IDS.includes(id) ? await playGame(id, { ghosts: ghosts.length ? ghosts : undefined }) : await w.runGame(id);
+      const said = /"(.+)"/.exec(texts[gi]); // 선택지 글에 따옴표로 적은 말 (타자 게임이 그 말을 친다)
+      const out = GAME_IDS.includes(id) ? await playGame(id, { ghosts: ghosts.length ? ghosts : undefined, text: said ? said[1] : undefined }) : await w.runGame(id);
       ui.hint('');
       const k = games.findIndex((g) => g && g[1] === out);
       return k >= 0 ? k : gi;

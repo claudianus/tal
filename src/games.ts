@@ -34,7 +34,7 @@ const ell = (c: Ctx, x: number, y: number, rx: number, ry: number, col: string):
 const px = (c: Ctx, x: number, y: number, w: number, h: number, col: string): void => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
 
 /** 판을 띄우고 끝날 때까지 기다린다. */
-export function playGame(id: string, opt: { ghosts?: string[] } = {}): Promise<string> {
+export function playGame(id: string, opt: { ghosts?: string[]; text?: string } = {}): Promise<string> {
   const mk = GAMES[id];
   if (!mk) return Promise.resolve('');
   if (ui.isFast()) return Promise.resolve(FAST[id] || '');
@@ -69,7 +69,7 @@ const FAST: Record<string, string> = { breath: 'calm', bill: 'done', coins: 'don
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
-function breath(opt: { ghosts?: string[] }): Play {
+function breath(opt: { ghosts?: string[]; text?: string }): Play {
   const PH = 4, R0 = 10, R1 = 40;
   let mine = R0, bpm = 138, beat = 0, cycles = 0, lastPh = -1, off = 0, ghostAt = 0, calm = 0;
   const lines = opt.ghosts && opt.ghosts.length ? opt.ghosts : ['거 봐.', '이것도 못 해.', '다 보고 있어.'];
@@ -280,7 +280,7 @@ function still(): Play {
 
 // ═══════════ 알림 (3장: 영상이 퍼진 날들) ═══════════
 // 알림이 쏟아진다. 좌우로 밀어서 지우지만, 지우는 것보다 빨리 온다. 결국 화면을 끈다.
-function flood(opt: { ghosts?: string[] }): Play {
+function flood(opt: { ghosts?: string[]; text?: string }): Play {
   const lines = opt.ghosts && opt.ghosts.length ? opt.ghosts : ['새 댓글', '새 댓글', '공유됨'];
   type N = { y: number; x: number; vx: number; text: number; born: number };
   const ns: N[] = []; let tt = 0, next = 0.6, cleared = 0, gone = 0, off = -1;
@@ -322,9 +322,11 @@ function flood(opt: { ghosts?: string[] }): Play {
 
 // ═══════════ 타자 (막간: 윤서가 그 문장을 친다) ═══════════
 // 한 번 누를 때마다 한 글자. 화는 손가락보다 빠르다. 다 치면 Z 로 보낸다. 안 보내는 길은 없다.
-const TYPED = '제발 죽든지, 그런 짓 좀 하지 말든지 해.';
-function type(opt: { ghosts?: string[] }): Play {
+const TYPED_YS = '제발 죽든지, 그런 짓 좀 하지 말든지 해.'; // 막간: 윤서가 오빠에게
+function type(opt: { ghosts?: string[]; text?: string }): Play {
   const ghosts = opt.ghosts || [];
+  const TYPED = opt.text || TYPED_YS; // 선택지에 "…" 로 적힌 말이 있으면 그 말을 친다
+  const srv = !!opt.text; // 그때는 카톡이 아니라 퍼리 서버 창이다 (어두운 화면, 방금 붙인 사진)
   let n = 0, sent = -1, key = -1, keyT = 0, said = 0;
   return {
     hint: '아무 키나 누르면 한 글자씩 써진다',
@@ -342,19 +344,23 @@ function type(opt: { ghosts?: string[] }): Play {
     draw(c, t) {
       c.fillStyle = 'rgba(4,5,8,0.72)'; c.fillRect(0, 0, W, H);
       const X = W / 2 - 46, Y = 4, PW = 92, PH = H - 8;
-      px(c, X - 3, Y - 3, PW + 6, PH + 6, '#0e0f13'); px(c, X, Y, PW, PH, '#b9c3cf');
-      px(c, X, Y, PW, 9, '#a3afbc'); px(c, X + 4, Y + 3, 22, 3, '#59626e'); // 위 칸: 오빠
-      // 지난 말풍선: '나 이번에 안 내려감' (내 것, 오른쪽, 노랑)
-      px(c, X + PW - 46, Y + 14, 42, 9, '#f4e04a'); px(c, X + PW - 42, Y + 17, 30, 2, '#6e6420');
-      px(c, X + PW - 54, Y + 20, 6, 2, '#59626e'); // 읽음 시각
+      px(c, X - 3, Y - 3, PW + 6, PH + 6, '#0e0f13'); px(c, X, Y, PW, PH, srv ? '#30333b' : '#b9c3cf');
+      px(c, X, Y, PW, 9, srv ? '#25272d' : '#a3afbc'); px(c, X + 4, Y + 3, 22, 3, srv ? '#8e94a8' : '#59626e'); // 위 칸: 오빠 / 채널 이름
+      if (srv) { // 퍼리 서버: 방금 붙인 사진 한 장 (거울 앞의 고양이)
+        px(c, X + PW - 40, Y + 12, 36, 16, '#1d1f24'); px(c, X + PW - 30, Y + 14, 14, 12, '#f2ece2'); px(c, X + PW - 30, Y + 14, 5, 5, '#ee9440'); px(c, X + PW - 20, Y + 14, 4, 4, '#3a2c3a'); px(c, X + PW - 26, Y + 20, 2, 2, '#4a9a5a'); px(c, X + PW - 21, Y + 20, 2, 2, '#4a9a5a');
+      } else {
+        // 지난 말풍선: '나 이번에 안 내려감' (내 것, 오른쪽, 노랑)
+        px(c, X + PW - 46, Y + 14, 42, 9, '#f4e04a'); px(c, X + PW - 42, Y + 17, 30, 2, '#6e6420');
+        px(c, X + PW - 54, Y + 20, 6, 2, '#59626e'); // 읽음 시각
+      }
       // 지금 치는 말풍선: 글자 수만큼 자란다
       if (n > 0) {
         const lines = Math.ceil(n / 11), last = n - (lines - 1) * 11;
         const bw = lines > 1 ? 66 : 10 + last * 5, bh = 5 + lines * 6;
         const by = Y + 30;
-        px(c, X + PW - 4 - bw, by, bw, bh, sent >= 0 ? '#f4e04a' : '#efe7a8');
-        for (let i = 0; i < lines; i++) { const w = i < lines - 1 ? 58 : Math.max(2, last * 5 - 2); px(c, X + PW - 4 - bw + 4, by + 3 + i * 6, Math.min(w, bw - 8), 2, '#6e6420'); }
-        if (sent > 0.4) px(c, X + PW - 4 - bw - 5, by + bh - 4, 3, 3, '#e8c020'); // 숫자 1 이 사라진 자리
+        px(c, X + PW - 4 - bw, by, bw, bh, srv ? (sent >= 0 ? '#5865c8' : '#454c78') : sent >= 0 ? '#f4e04a' : '#efe7a8');
+        for (let i = 0; i < lines; i++) { const w = i < lines - 1 ? 58 : Math.max(2, last * 5 - 2); px(c, X + PW - 4 - bw + 4, by + 3 + i * 6, Math.min(w, bw - 8), 2, srv ? '#e2e5f4' : '#6e6420'); }
+        if (sent > 0.4 && !srv) px(c, X + PW - 4 - bw - 5, by + bh - 4, 3, 3, '#e8c020'); // 숫자 1 이 사라진 자리
       }
       // 입력창과 자판
       const KY = Y + PH - 50;
@@ -374,7 +380,7 @@ function type(opt: { ghosts?: string[] }): Play {
 // ═══════════ 옷장 (막간: 윤서의 기억) ═══════════
 // 옷장 안. 문틈의 빛을 오빠의 등이 막고 있다. 밖에서 문이 울린다. 숨을 참는다(Z 를 누르고 있는다).
 // 숨이 모자라 내쉬면 소리가 난다. 그때마다 등이 문에 더 세게 붙는다. 들킨 적은 없다. 오빠가 안 비켰으니까.
-function closet(opt: { ghosts?: string[] }): Play {
+function closet(opt: { ghosts?: string[]; text?: string }): Play {
   const ghosts = opt.ghosts || [];
   let air = 1, tt = 0, bangs = 0, nextBang = 3.2, warn = 0, shake = 0, press = 0, gasp = 0, said = 0;
   return {
@@ -427,13 +433,14 @@ function closet(opt: { ghosts?: string[] }): Play {
 
 // ═══════════ 다이얼 (에필로그 A: 112) ═══════════
 // 떨리는 손가락으로 세 자리를 누른다. 손끝이 저절로 미끄러진다. 잘못 누르면 지우고 다시. 다 누르면 통화.
-function dial(opt: { ghosts?: string[] }): Play {
+function dial(opt: { ghosts?: string[]; text?: string }): Play {
   const ghosts = opt.ghosts || [];
   const PAD = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
-  const goal = '112';
+  const goal = opt.text && /^\d{3}$/.test(opt.text) ? opt.text : '112'; // 엔딩 A 의 두 번째 전화는 109
+  const spaced = goal.split('').join(' ');
   let typed = '', cx = 1, cy = 1, jx = 0, jy = 0, tt = 0, flash = -1, flashT = 0, calling = -1, said = 0, wrong = 0;
   return {
-    hint: '방향키로 손가락을 옮기고 Z 로 누른다 · 1 1 2',
+    hint: `방향키로 손가락을 옮기고 Z 로 누른다 · ${spaced}`,
     step(dt, _t, _k, hit) {
       tt += dt; flashT -= dt;
       if (calling >= 0) { calling += dt; return calling > 1.3 ? 'call' : null; }
@@ -453,7 +460,7 @@ function dial(opt: { ghosts?: string[] }): Play {
           if (!goal.startsWith(typed)) { // 틀렸다: 지우고 다시
             wrong++; typed = '';
             if (ghosts.length) ui.ghost(ghosts[(said++) % ghosts.length]);
-            ui.hint(wrong > 1 ? '천천히. 1 1 2' : '틀렸다. 지우고 다시');
+            ui.hint(wrong > 1 ? `천천히. ${spaced}` : '틀렸다. 지우고 다시');
           } else if (typed === goal) ui.hint('↓ 통화');
         }
       }
@@ -489,7 +496,7 @@ function dial(opt: { ghosts?: string[] }): Play {
 // ═══════════ 거울 (프롤로그: 사 년 만에 보는 얼굴) ═══════════
 // 눈길이 자꾸 아래로, 옆으로 미끄러진다. ↑ 로 고개를 들어 거울 속 얼굴(위 가운데)에 눈길을 붙들어 둔다.
 // 벗어나면 목소리가 커진다. 다 본 뒤에야(붙든 시간이 쌓이면) 끝난다. 끝까지 못 봐도 시간이 지나면 끝난다.
-function gaze(opt: { ghosts?: string[] }): Play {
+function gaze(opt: { ghosts?: string[]; text?: string }): Play {
   const ghosts = opt.ghosts || [];
   const FX = W / 2, FY = 40; // 거울 속 얼굴 자리
   let x = FX - 30, y = H - 30, held = 0, tt = 0, said = 0, lastGhost = 0, done = -1;
@@ -526,7 +533,7 @@ function gaze(opt: { ghosts?: string[] }): Play {
   };
 }
 
-const GAMES: Record<string, (opt: { ghosts?: string[] }) => Play> = { breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze };
+const GAMES: Record<string, (opt: { ghosts?: string[]; text?: string }) => Play> = { breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;

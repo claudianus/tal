@@ -123,9 +123,12 @@ VAR p_acts = 0
 모카: 사람은 왜 잠수를 타는가 # msg
 답을 안다. 말해 주지는 않는다.
 곰표: 어린이날 복지관 사진 이제 올려요. 석 달 늦었네 # msg
-# cut: server_photo_bear
-불곰이 서 있다. 아이 넷이 매달려 있다. 하나는 곰의 귀를 잡고 있다. 곰은 넘어지지 않으려고 다리를 벌렸다.
-감자: 슈트 하나에 얼마쯤 해요? 그거 없으면 퍼리 아닌가 # msg
+* [사진을 누른다]
+    # cut: server_photo_bear
+    불곰이 서 있다. 아이 넷이 매달려 있다. 하나는 곰의 귀를 잡고 있다. 곰은 넘어지지 않으려고 다리를 벌렸다.
+* [스크롤을 내린다]
+    사진이 작게 지나간다. 곰의 귀를 잡은 작은 손만 눈에 남는다.
+- 감자: 슈트 하나에 얼마쯤 해요? 그거 없으면 퍼리 아닌가 # msg
 모카: 저 없는데요 ㅋㅋ 귀랑 꼬리만 있음 # msg
 모카: 여기 열에 여덟은 없을걸요. 그림 보고 떠드는 사람이 제일 많음 # msg
 곰표: 나도 처음 십 년은 없었어요. 있으면 더운 거고 없으면 시원한 거지 # msg
@@ -235,6 +238,7 @@ VAR p_acts = 0
 
 // ── 과거 조각 1: 옷장 안쪽의 날짜들 ──
 === p_closet ===
+# room: closet_open
 옷장을 열었다.
 옷은 몇 벌 없다. 대신 문짝 안쪽에 뭔가가 새겨져 있다.
 -> p_closet_dates
@@ -255,6 +259,7 @@ VAR p_acts = 0
 나중에 누가 세어 줄 줄 알았나 보다.
 ~ frag_1 = true
 ~ strength++
+# room: closet_shut
 옷장을 닫는다.
 -> p_room
 
@@ -312,6 +317,7 @@ VAR p_hidden = 0
 몸이 옷장 쪽으로 가 있다. 언제 움직였는지 모른다.
 스물여섯 살은 옷장에 들어가지 않는다. 들어갈 사람도 이제 이 집에 없다.
 * {not frag_1} [옷장 문을 연다 # at: closet]
+    # room: closet_open
     옷장을 열었다. 숨을 곳을 찾은 건 아니다. 손이 먼저 갔다.
     어둠 속에서 문짝 안쪽을 더듬는다. 손끝에 긁힌 자국이 걸린다.
     -> p_shadow_dates
@@ -331,6 +337,7 @@ VAR p_hidden = 0
 오늘 날짜는 새기지 않는다. 새기기 시작하면 문짝이 모자란다.
 ~ frag_1 = true
 ~ strength++
+# room: closet_shut
 -> p_door
 
 === p_door ===
@@ -446,6 +453,7 @@ TV 속에서 사람들이 웃는다.
 - # go: mirror_front
 # face: up
 # sfx: door_open_soft
+# room: mirror_open
 연다.
 남자가 있다.
 머리가 눈을 덮었다. 목이 늘어난 티셔츠. 한여름인데 긴소매.
@@ -469,7 +477,9 @@ TV 속에서 사람들이 웃는다.
 # face: up
 # carry: off
 # suit: head_on
-# scene: black
+# scene: inside_head
+# pos: mirror_front
+# face: up
 # sfx: breath_inside
 어둡다.
 폼 냄새. 본드 냄새. 내 숨소리.
@@ -480,12 +490,12 @@ TV 속에서 사람들이 웃는다.
 고양이가 있다.
 주황, 검정, 흰색. 한쪽 귀가 처진 고양이가 이쪽을 본다.
 * [고개를 기울인다]
-- 고양이가 고개를 기울인다.
-내가 기울였으니까.
-# scene: room_night
+- # scene: room_night
 # pos: mirror_front
 # face: up
 # emote: tilt
+고양이가 고개를 기울인다.
+내가 기울였으니까.
 # voice_stop
 # pause: 3
 조용하다.

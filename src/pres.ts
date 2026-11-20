@@ -35,6 +35,7 @@ export type Pres = {
   ajar?: boolean;               // 3장 뒤: 부서진 방문이 한 뼘 열려 있다
   headAt?: '' | 'bed' | 'floor' | 'held'; // 삼색이 머리가 받침대 밖에 있다 (held: 아버지 손에)
   pile?: '' | 'torn' | 'folded'; // 삼색이 몸: 바닥에 찢긴 채 / 개어 둔 채
+  closet?: '' | 'left' | 'mirror'; // 옷장 문 (장이 바뀌면 닫힌다)
   npcs: Record<string, string>; // 누가 어느 자리에 있는가
   swings?: Record<string, string>; // 그네 자리 → still / gentle / high
   px?: number; py?: number; pdir?: string; // 저장할 때의 실제 칸
@@ -69,7 +70,7 @@ export function parseTags(tags: string[] | null): { kind: string; dirs: Tag[] } 
 /** 태그 하나를 상태에 반영한다. 소리·카드 같은 '한 번 지나가는' 연출은 여기서 다루지 않는다. */
 export function applyTag(p: Pres, { name, val }: Tag): void {
   switch (name) {
-    case 'chapter': p.chapter = val; p.tail = []; p.bare = false; p.lampOff = false; p.carry = ''; if (!val.startsWith('프롤로그')) p.headDone = true; break;
+    case 'chapter': p.chapter = val; p.tail = []; p.closet = ''; p.bare = false; p.lampOff = false; p.carry = ''; if (!val.startsWith('프롤로그')) p.headDone = true; break;
     case 'sfx': if (val === 'switch_off') p.lampOff = true; else if (val === 'switch_on') p.lampOff = false; break;
     case 'scene':
       if ((SCENES[p.scene]?.map || '') !== (SCENES[val]?.map || '')) { p.pos = ''; p.pose = 'stand'; p.face = ''; p.npcs = {}; p.swings = {}; }
@@ -87,6 +88,9 @@ export function applyTag(p: Pres, { name, val }: Tag): void {
       else if (val === 'head_desk') p.headAt = '';
       else if (val === 'suit_torn' || val === 'suit_folded') p.pile = val.slice(5) as 'torn' | 'folded';
       else if (val === 'suit_none') p.pile = '';
+      else if (val === 'closet_open') p.closet = 'left';
+      else if (val === 'mirror_open') p.closet = 'mirror';
+      else if (val === 'closet_shut') p.closet = '';
       break;
     case 'suit':
       p.headDone = true;

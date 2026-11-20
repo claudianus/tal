@@ -21,7 +21,7 @@ for (let r = 0; r < runs; r++) {
       if (!text) continue;
       const spec = SCENES[p.scene];
       if (!spec?.map && p.skin === 'none') { const k = `[${p.chapter}] ${p.scene}`; still.set(k, (still.get(k) || 0) + 1); }
-      if (!run) runKnot = `[${p.chapter}] ${(s.state.currentPathString || '').split('.')[0]}`;
+      if (!run) runKnot = `[${p.chapter}] ${(s.state.currentPathString || '').split('.')[0]} «${text.slice(0, 24)}»`;
       run++;
     }
     const ch = s.currentChoices;
