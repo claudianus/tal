@@ -228,7 +228,8 @@ VAR c1_dressed = 0
 # npc: haeun edge
 누가 있다.
 모래밭 끝, 가로등 빛이 겨우 닿는 자리에 작은 사람이 서 있다.
-# swing: swing1 still
+* [발로 모래를 짚어 그네를 세운다 # at: wait]
+- # swing: swing1 still
 몸이 굳는다. 사람이다. 사람이 나를 보고 있다.
 숨이 막혀야 한다.
 막히지 않는다.
@@ -307,7 +308,7 @@ VAR c1_dressed = 0
     고양이는 말을 하지 않는다. 말을 하면 그건 고양이가 아니라 스물여섯 살 남자다. # fail
     -> c1_name
 - 하은: 말 못 해요? 고양이라서? # say
-* [끄덕인다]
+* [끄덕인다 # at: wait]
     # emote: nod
 - 하은: 그럼 내가 지어 줄게요. # say
 아이가 나를 위아래로 본다. 심사하는 눈이다.
@@ -370,9 +371,9 @@ VAR c1_dressed = 0
     나는, 고양이가 아니었어도 못 물었을 것이다. # fail
     -> c1_bruise_choice
 - # go: swing_front
-# pos: swing1
+* [그네에 다시 앉는다 # at: swing1]
+- # pos: swing1
 # pose: sit
-# pause: 1
 # sfx: swing_creak
 그네가 삐걱인다. 둘 다 아무 말도 하지 않는다.
 한 명은 못 하고, 한 명은 안 한다.
@@ -454,8 +455,8 @@ VAR c1_dressed = 0
 벗자마자.
 -> c1_recycle_hands
 = c1_recycle_hands
-* [손 파츠를 뺀다]
-+ [(잠김) 귀를 막는다]
+* [손 파츠를 뺀다 # at: wait]
++ [(잠김) 귀를 막는다 # at: move]
     손바닥이 귀에 닿는다. # fail
     목소리는 귀로 들어오는 게 아니다. # fail
     -> c1_recycle_hands
@@ -600,7 +601,8 @@ VAR c1_dressed = 0
 아직은.
 ~ frag_2 = true
 ~ strength++
-앨범을 덮는다.
+* [앨범을 덮는다 # at: wait]
+- 덮는다. 공책 조각이 손에 남는다.
 * [공책 조각을 책상 위에 둔다]
     공책 조각은 넣지 않는다. 책상 위, 통장 옆에 둔다.
 * [공책 조각을 앨범에 도로 끼운다]

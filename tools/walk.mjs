@@ -68,7 +68,7 @@ console.log('walk-mode choice sets', walkSets, '· unreachable', unreachable.siz
 [...unreachable.entries(), ...menuOnMap.entries()].sort().forEach(([k, n]) => console.log(String(n).padStart(4), k));
 // 길목(z_ 로 시작하는 밟는 자리)은 맵을 둘로 갈라야 한다. 안 그러면 옆으로 돌아가서 대본을 건너뛴다.
 // 맵 끝의 도착 자리(DEST)는 가를 필요가 없다.
-const DEST = new Set(['cafeteria.z_out', 'campus.z_away', 'dorm.z_out', 'playground.z_recycle', 'complex.z_play', 'party.z_center', 'party.z_edge', 'road.z_station', 'playground.z_slide', 'playground.z_rainside', 'subway.z_corner', 'subway.z_seat', 'concourse.z_down', 'platform.z_line', 'restroom.z_out', 'funeral.z_back', 'store.z_out', 'grandma.z_gate']); // 사진 자리 둘은 가르지 않고 고르기만 한다
+const DEST = new Set(['cafeteria.z_out', 'campus.z_away', 'dorm.z_out', 'playground.z_recycle', 'complex.z_play', 'party.z_center', 'party.z_edge', 'party.z_mid', 'road.z_station', 'playground.z_slide', 'playground.z_rainside', 'subway.z_corner', 'subway.z_seat', 'concourse.z_down', 'platform.z_line', 'restroom.z_out', 'funeral.z_back', 'store.z_out', 'grandma.z_gate']); // 사진 자리 둘은 가르지 않고 고르기만 한다
 const leaks = [];
 for (const [id, m] of Object.entries(MAPS)) for (const o of m.objs) {
   if (!o.touch || !o.id.startsWith('z_') || DEST.has(`${id}.${o.id}`)) continue;

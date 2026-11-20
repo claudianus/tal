@@ -9,10 +9,10 @@ const { Story } = require('inkjs');
 const json = fs.readFileSync(root + 'src/story.json', 'utf8');
 const runs = Number(process.argv[2] || 200);
 const act = (c) => (c.tags || []).some((t) => /^(at|game):/.test(t.trim()));
-const worst = new Map(), chMax = new Map(), acts = new Map(), lines = new Map();
+const worst = new Map(), ends = new Map(), chMax = new Map(), acts = new Map(), lines = new Map();
 for (let r = 0; r < runs; r++) {
-  const s = new Story(json); const p = newPres(); let run = 0, key = '', start = '';
-  const close = () => { if (run > (worst.get(key) || 0)) worst.set(key, run); if (run > (chMax.get(p.chapter) || 0)) chMax.set(p.chapter, run); run = 0; };
+  const s = new Story(json); const p = newPres(); let run = 0, key = '', start = '', last = '';
+  const close = () => { if (run > (worst.get(key) || 0)) { worst.set(key, run); ends.set(key, last); } if (run > (chMax.get(p.chapter) || 0)) chMax.set(p.chapter, run); run = 0; };
   for (let steps = 0; steps < 3000; steps++) {
     while (s.canContinue) {
       const text = s.Continue().trim();
@@ -20,7 +20,7 @@ for (let r = 0; r < runs; r++) {
       if (!text) continue;
       lines.set(p.chapter, (lines.get(p.chapter) || 0) + 1);
       if (!run) key = `[${p.chapter}] ${(s.state.currentPathString || '').split('.')[0]} «${text.slice(0, 18)}»`;
-      run++;
+      run++; last = `${(s.state.currentPathString || '').split('.')[0]} «${text.slice(0, 14)}»`;
     }
     const ch = s.currentChoices; if (!ch.length) break;
     if (ch.some(act)) { close(); acts.set(p.chapter, (acts.get(p.chapter) || 0) + 1); }
@@ -31,4 +31,4 @@ for (let r = 0; r < runs; r++) {
 }
 console.log('장별: 줄/판 · 행동/판 · 행동 하나당 줄 · 가장 긴 무행동 구간');
 for (const [c, n] of lines) console.log(`  ${c.padEnd(14)} ${(n / runs).toFixed(0).padStart(4)} ${((acts.get(c) || 0) / runs).toFixed(1).padStart(6)} ${(n / Math.max(1, acts.get(c) || 0)).toFixed(1).padStart(6)} ${String(chMax.get(c) || 0).padStart(5)}`);
-console.log('가장 긴 무행동 구간'); [...worst.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).forEach(([k, n]) => console.log(String(n).padStart(4), k));
+console.log('가장 긴 무행동 구간'); [...worst.entries()].sort((a, b) => b[1] - a[1]).slice(0, Number(process.argv[3] || 20)).forEach(([k, n]) => console.log(String(n).padStart(4), k, process.env.END ? '→ ' + ends.get(k) : ''));

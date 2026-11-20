@@ -112,7 +112,7 @@ export const MAPS: Record<string, MapDef> = {
     },
     objs: [
       { id: 'frontdoor', x: 4, y: 4 }, { id: 'table', x: 12, y: 3, w: 3 },
-      { id: 'fan', x: 18, y: 1, w: 2 }, { id: 'z_center', x: 7, y: 2, touch: true }, { id: 'z_edge', x: 13, y: 2, touch: true }, // 끝: 강아지 너머, 프레임에서 반쯤 나가는 자리
+      { id: 'fan', x: 18, y: 1, w: 2 }, { id: 'z_mid', x: 16, y: 3, touch: true }, { id: 'z_center', x: 7, y: 2, touch: true }, { id: 'z_edge', x: 13, y: 2, touch: true }, // 끝: 강아지 너머, 프레임에서 반쯤 나가는 자리
     ],
     lights: [
       { x: 40, y: -48, r: 40, a: 0.6, col: 'rgba(205,220,205,A)', fx: 'flicker' },  // 계단참 형광등
