@@ -16,6 +16,7 @@ const kindOf = (c) => { for (const t of c.tags || []) { const m = /^(at|game):\s
 const per = new Map(); // 장 → { lines, still, walk, press, game, maxStill }
 const plain = new Map(); // 메뉴만 있는 묶음 → { ch, n }
 const stillRuns = new Map(); // 시작 자리 → 가장 긴 still 줄 수
+const mixed = new Map(); // 방향키 몸짓과 물건이 섞인 묶음
 const get = (c) => { if (!per.has(c)) per.set(c, { lines: 0, still: 0, walk: 0, gesture: 0, press: 0, game: 0, maxStill: 0 }); return per.get(c); };
 for (let r = 0; r < runs; r++) {
   const s = new Story(json); const p = newPres(); let run = 0, key = '';
@@ -38,6 +39,8 @@ for (let r = 0; r < runs; r++) {
     const ats = ch.map((c) => { for (const t of c.tags || []) { const m = /^at:\s*(\S+)/.exec(t.trim()); if (m) return m[1]; } return ''; });
     const hasMap = !!SCENES[p.scene]?.map;
     const walkable = ats.every((a) => a) && new Set(ats).size === ats.length && hasMap && (p.skin === 'none' || ats.every((a) => KEYED.test(a)));
+    // 걸어 다니는 맵에서 방향키·move 몸짓과 물건이 한 묶음이면, 물건으로 걸어가려고 누른 방향키가 몸짓으로 먼저 잡힌다
+    if (walkable && p.skin === 'none' && ats.some((a) => /^(move|up|down|left|right)$/.test(a)) && ats.some((a) => !KEYED.test(a))) { const id = `[${p.chapter}] ${(s.state.currentPathString || '').split('.')[0]} : ${ch.map((c, i) => c.text.slice(0, 12) + '@' + ats[i]).join(' / ')}`; mixed.set(id, (mixed.get(id) || 0) + 1); }
     const kinds = ch.map(kindOf);
     const k = kinds.includes('game') ? 'game' : walkable ? kinds.find((x) => x) : '';
     if (k) { close(); get(p.chapter)[k]++; }
@@ -52,6 +55,8 @@ for (const [c, v] of per) console.log(`  ${c.padEnd(14)} ${(v.lines / runs).toFi
 const pl = [...plain.keys()];
 console.log(`\n메뉴만 있는 선택지 묶음: ${pl.length}개`);
 pl.slice(0, top).forEach((k) => console.log('  ' + k));
+console.log(`\n방향키 몸짓과 물건이 섞인 묶음: ${mixed.size}개`);
+[...mixed.keys()].slice(0, top).forEach((k) => console.log('  ' + k));
 console.log('\n가장 긴 still 구간');
 [...stillRuns.entries()].sort((a, b) => b[1] - a[1]).slice(0, top).forEach(([k, n]) => console.log(String(n).padStart(4), k));
 if (process.env.DUMP) fs.writeFileSync(process.env.DUMP, JSON.stringify([...plain.values()], null, 1));

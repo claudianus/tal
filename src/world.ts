@@ -230,8 +230,9 @@ export class World {
     if (!this.map) return Promise.resolve('');
     if (this.fast) return Promise.resolve('passed');
     return new Promise((res) => {
-      const p = this.player;
-      const st = { t: 0, meter: 0, snore: true, phase: 2.2, lx: p.px, ly: p.py, game: true, end: (o: string): void => { if (!st.game) return; st.game = false; this.sneak = null; this.cancelWalk(); res(o); } };
+      const p = this.player, speed0 = p.speed;
+      p.speed = speed0 * 0.5; // 발끝으로 걷는다
+      const st = { t: 0, meter: 0, snore: true, phase: 0.9, lx: p.px, ly: p.py, game: true, end: (o: string): void => { if (!st.game) return; st.game = false; this.sneak = null; p.speed = speed0; this.cancelWalk(); res(o); } };
       this.sneak = st;
       sfx('snore');
       void this.waitChoice([{ at: 'z_entry', idx: 0 }]).then(() => st.end('passed'));

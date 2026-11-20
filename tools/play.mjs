@@ -47,9 +47,10 @@ try {
   await evalJs(`(async () => { for (let i = 0; i < 50 && !window.talBegin; i++) await new Promise(r => setTimeout(r, 100)); window.talBegin({ mode: 'chapter', title: ${JSON.stringify(title)} }); await new Promise(r => setTimeout(r, 2500)); window.__play_ = window.__kb({ ms: ${MIN * 60000}, gap: 110, stop: ${next} }); return 1; })()`, 30000);
   const r = await evalJs(`(async () => { const r = await window.__play_; return { stop: r.stop, hint: r.hint, log: r.log, tail: document.body.innerText.slice(-160).replace(/\\s+/g, ' ') }; })()`, (MIN * 60 + 60) * 1000);
   const n = (p) => r.log.filter((x) => x.startsWith(p)).length;
-  console.log(`${r.stop === 'text' ? 'OK  ' : 'FAIL'} ${title}  ${((Date.now() - t0) / 1000).toFixed(0)}s  게임 ${n('G:')} · 걷기·몸짓 ${n('W:')} · 메뉴 ${n('M:')}  끝 ${r.stop}${r.stop === 'text' ? '' : '  화면 «' + r.tail + '»' + (r.hint ? '  힌트 ' + r.hint : '')}`);
+  const ok = r.stop === 'text' && n('M:') === 0; // 메뉴가 한 번이라도 뜨면 실패
+  console.log(`${ok ? 'OK  ' : 'FAIL'} ${title}  ${((Date.now() - t0) / 1000).toFixed(0)}s  게임 ${n('G:')} · 걷기·몸짓 ${n('W:')} · 메뉴 ${n('M:')}  끝 ${r.stop}${r.stop === 'text' ? '' : '  화면 «' + r.tail + '»' + (r.hint ? '  힌트 ' + r.hint : '')}`);
   console.log('  ' + r.log.join(' '));
-  process.exitCode = r.stop === 'text' ? 0 : 1;
+  process.exitCode = ok ? 0 : 1;
 } finally {
   try { ws?.close(); } catch { /* */ }
   chrome.kill();

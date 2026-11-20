@@ -74,7 +74,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', swing3: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail', history: 'read', longmsg: 'read', buzz: 'caught', lining: 'held', headoff: 'off', tape: 'matched', book: 'off', bookok: 'booked', erase: 'gone', dates: 'counted', leak: 'seen', react: 'heart', unsend: 'erased', hush: 'held' };
+const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', swing3: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail', history: 'read', longmsg: 'read', buzz: 'caught', lining: 'held', headoff: 'off', tape: 'matched', book: 'off', bookok: 'booked', erase: 'gone', dates: 'counted', leak: 'seen', react: 'heart', unsend: 'erased', hush: 'held', curtain: 'hid' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -474,33 +474,39 @@ function closet(opt: { ghosts?: string[]; text?: string }): Play {
 // 비틀거리는 발소리가 거실을 오가며 그 쐐기를 끊는다. 그림자가 틈에 걸릴 때 숨을 쉬면 소리가 난다.
 // Z 를 누르고 있으면 숨을 참는다. 숨은 모자라고, 모자라면 터진다. 마지막에 발소리는 거실에서 멈춘다.
 function hush(): Play {
-  let air = 1, tt = 0, heard = 0, gasp = 0, shake = 0, stopT = -1, said = 0, lastStep = 0;
+  let air = 1, tt = 0, heard = 0, gasp = 0, shake = 0, stopT = -1, said = 0, lastStep = 0, open = 0, pass_ = -1;
   // 그림자 위치: 0 = 틈 한가운데. 세 번 지나가고, 네 번째에 틈 언저리에서 멈춘다.
   const pass = (t: number) => {
     if (t < 2) return -2;
     if (t < 5) return -1.6 + (t - 2) * 1.1;          // 왼쪽에서 오른쪽으로
     if (t < 6.5) return 2;
-    if (t < 9.5) return 1.7 - (t - 6.5) * 1.15;      // 되돌아온다 (비틀거려서 느렸다 빨랐다)
+    if (t < 9.5) return 1.7 - (t - 6.5) * 1.15;      // 되돌아온다
     if (t < 10.5) return -2;
-    return Math.max(0.55, -1.6 + (t - 10.5) * 0.9);  // 들어오다가 틈 오른쪽 언저리에서 멈춘다
+    return Math.min(0.45, -1.6 + (t - 10.5) * 0.9);  // 들어오다가 틈 언저리에서 멈춘다 (12.8초쯤)
   };
+  const STOP = 12.8;
   return {
     hint: 'Z 를 누르고 있으면 숨을 참는다 · 그림자가 문틈을 지날 때 숨을 쉬면 들린다',
     step(dt, _t, k) {
       tt += dt; gasp = Math.max(0, gasp - dt * 2); shake = Math.max(0, shake - dt * 3);
       const x = pass(tt), near = Math.abs(x) < 0.6;
-      if (k.z) air = Math.max(0, air - dt * 0.2);
+      const which = tt < 6 ? 0 : tt < 10.5 ? 1 : 2;
+      if (k.z) air = Math.max(0, air - dt * 0.17);
       else { if (air < 0.97 && Math.random() < dt * 3) gasp = 1; air = Math.min(1, air + dt * 0.45); }
-      if (k.z && air <= 0) { gasp = 1; air = 0.2; sfx('breath_fast'); if (near) { heard++; shake = 1; } }
-      if (near && !k.z && gasp > 0.9) { heard++; shake = 1; sfx('heartbeat'); gasp = 0.8; }
+      if (k.z && air <= 0) { gasp = 1; air = 0.2; sfx('breath_fast'); }
+      // 그림자가 틈에 걸려 있는 동안 숨을 쉬고 있으면 (참지 않으면) 잠깐 뒤에 들린다. 한 번 지나갈 때 한 번.
+      open = near && (!k.z || gasp > 0.9) ? open + dt : 0;
+      if (open > 0.35 && pass_ !== which) { pass_ = which; heard++; shake = 1; gasp = 1; sfx('heartbeat'); ui.hint(which === 2 ? '…들렸다' : '발소리가 멈칫한다'); }
       // 발소리: 그림자가 움직이는 동안만, 비틀거리는 박자로
-      if (stopT < 0 && Math.abs(pass(tt) - pass(tt - dt)) > 1e-4 && tt - lastStep > 0.55 + Math.sin(tt * 3) * 0.2) { lastStep = tt; sfx('footsteps_near'); }
-      if (tt > 6 && said === 0) { said = 1; ui.hint('다시 온다'); }
-      if (tt > 11.5 && said === 1) { said = 2; ui.hint('멈췄다'); }
-      if (tt > 12.5 && stopT < 0) stopT = 0;
+      if (tt < STOP && Math.abs(pass(tt) - pass(tt - dt)) > 1e-4 && tt - lastStep > 0.55 + Math.sin(tt * 3) * 0.2) { lastStep = tt; sfx('footsteps_near'); }
+      if (tt > 6 && said === 0) { said = 1; if (pass_ !== 0) ui.hint('다시 온다'); }
+      if (tt > 10.6 && said === 1) { said = 2; ui.hint('또 온다 · 이번엔 느리다'); }
+      if (tt > STOP + 0.3 && said === 2) { said = 3; ui.hint('멈췄다 · 문 앞이다'); }
+      if (tt > STOP && stopT < 0) stopT = 0;
       if (stopT >= 0) { stopT += dt; if (stopT > 3) return heard ? 'heard' : 'held'; }
       return null;
     },
+    peek: () => ({ x: pass(tt), tt, air, heard }),
     draw(c, t) {
       const sx = Math.round(Math.sin(t * 50) * 2 * shake);
       c.fillStyle = '#060507'; c.fillRect(0, 0, W, H);
@@ -549,6 +555,69 @@ function hush(): Play {
       px(c, 20, H - 10, 50, 2, '#1a171a'); px(c, 20, H - 10, Math.round(50 * air), 2, air < 0.25 ? '#c45050' : '#8a8078');
       if (gasp > 0) ell(c, 120, 112 - gasp * 6, 3 + (1 - gasp) * 4, 2, `rgba(220,214,206,${0.22 * gasp})`);
       if (stopT >= 0) { c.fillStyle = `rgba(6,5,7,${Math.min(0.5, stopT * 0.25)})`; c.fillRect(0, 0, W, H); }
+    },
+  };
+}
+
+// ═══════════ 커튼 틈 (3장: 놀이터에서 누가 이 창을 올려다본다) ═══════════
+// Z 를 누르고 있으면 커튼을 손가락 하나만큼 연다. 107동 어느 창에 아이가 자고 있을지 본다(오래 볼수록 띠가 찬다).
+// 놀이터의 사람이 가끔 고개를 든다. 들기 직전에 몸이 멈춘다. 그때 놓아야 한다. 열린 틈을 보면 휴대폰이 올라온다.
+function curtain(): Play {
+  let tt = 0, gap = 0, look = 0, seen = 0, phase = 2.6, state: 'idle' | 'warn' | 'up' = 'idle', flash = 0, end = -1, out = '', walk = 0, fx = 120;
+  return {
+    hint: 'Z 를 누르고 있으면 커튼을 연다 · 아래 사람이 걸음을 멈추면 놓는다',
+    step(dt, _t, k) {
+      tt += dt; flash = Math.max(0, flash - dt * 1.5);
+      if (end >= 0) { end += dt; gap = Math.max(0, gap - dt * 3); return end > 1.4 ? out : null; }
+      gap = k.z ? Math.min(1, gap + dt * 4) : Math.max(0, gap - dt * 5);
+      if (gap > 0.6) look += dt;
+      phase -= dt;
+      if (phase <= 0) {
+        if (state === 'idle') { state = 'warn'; phase = 0.75; }
+        else if (state === 'warn') { state = 'up'; phase = 1.3; sfx('footsteps_near'); }
+        else { state = 'idle'; phase = 1.8 + Math.random() * 1.6; }
+      }
+      if (state === 'idle') { walk += dt; fx = 120 + Math.sin(walk * 0.6) * 34; }
+      if (state === 'up' && gap > 0.3) { seen += dt; if (seen > 0.5) { flash = 1; sfx('camera_shutter'); out = 'shot'; end = 0; ui.hint(''); } }
+      if (look >= 5 || tt > 18) { out = 'hid'; end = 0; ui.hint(''); }
+      return null;
+    },
+    peek: () => ({ warn: state === 'warn' ? 1 : 0, up: state === 'up' ? 1 : 0, gap, look }),
+    draw(c, t) {
+      // 바깥 (낮, 흐림): 위에서 내려다본 놀이터와 건너편 107동
+      px(c, 0, 0, W, H, '#b7bcc2');
+      px(c, 0, 0, W, 54, '#c9cdd2');
+      for (let i = 0; i < 4; i++) px(c, 20 + i * 60, 10 + (i % 2) * 4, 40, 1, 'rgba(255,255,255,0.25)'); // 구름 결
+      // 107동: 벽과 창 격자. 낮이라 불 켜진 창이 없다.
+      px(c, 60, 22, 136, 64, '#a2a49e'); px(c, 60, 22, 136, 2, '#8e908a');
+      for (let r = 0; r < 6; r++) for (let q = 0; q < 9; q++) { px(c, 66 + q * 14, 28 + r * 9, 9, 5, '#6c7076'); px(c, 66 + q * 14, 28 + r * 9, 9, 1, '#5a5e64'); }
+      // 놀이터: 모래, 그네 틀, 미끄럼틀
+      px(c, 0, 86, W, 58, '#c8b48e'); for (let i = 0; i < 60; i++) px(c, (i * 47) % W, 88 + (i * 23) % 54, 1, 1, '#b39e78');
+      px(c, 30, 96, 1, 16, '#5c4a3a'); px(c, 58, 96, 1, 16, '#5c4a3a'); px(c, 30, 96, 29, 1, '#5c4a3a');
+      px(c, 38, 108, 6, 1, '#3c3430'); px(c, 48, 108, 6, 1, '#3c3430');
+      px(c, 196, 98, 22, 3, '#c25848'); px(c, 196, 101, 2, 12, '#7a5a48');
+      // 사람: 위에서 본 작은 몸. 고개를 들면 얼굴 쪽이 밝아진다 (얼굴은 그리지 않는다). 휴대폰이 올라온다.
+      const bx = Math.round(fx), by = 112, still = state !== 'idle';
+      ell(c, bx, by + 7, 5, 2, 'rgba(60,50,40,0.25)');
+      px(c, bx - 3, by - 6, 6, 10, '#3e4450'); px(c, bx - 2, by + 4, 2, 3, '#2c3038'); px(c, bx + 1, by + 4, 2, 3, '#2c3038');
+      if (!still) { const l = Math.sin(t * 8) > 0 ? 1 : 0; px(c, bx - 2 + l, by + 6, 2, 1, '#2c3038'); }
+      px(c, bx - 2, by - 10, 5, 5, '#2a2626'); // 정수리
+      if (state === 'up') { px(c, bx - 2, by - 10, 5, 2, '#c8a890'); px(c, bx + 3, by - 9, 2, 3, '#1c1c22'); px(c, bx + 3, by - 9, 2, 1, '#8aa0c0'); }
+      if (state === 'warn') px(c, bx - 2, by - 10, 5, 1, '#8a7060');
+      // 방 안: 커튼 두 폭. 틈만큼만 바깥이 보인다.
+      const half = W / 2, g = Math.round(2 + gap * 76);
+      for (const side of [-1, 1]) {
+        const x0 = side < 0 ? 0 : half + g / 2, w = half - g / 2;
+        px(c, x0, 0, w, H, '#3a3240');
+        for (let i = 0; i < w; i += 6) px(c, x0 + i + (side < 0 ? 0 : 2), 0, 2, H, 'rgba(0,0,0,0.25)'); // 주름
+        const edge = side < 0 ? x0 + w - 1 : x0;
+        px(c, edge, 0, 1, H, `rgba(220,226,232,${0.25 + gap * 0.3})`); // 틈에 걸린 빛
+      }
+      // 커튼을 잡은 손가락 (주황 털)
+      if (gap > 0.05) { const hx = Math.round(half + g / 2 - 2); px(c, hx, 60, 5, 8, '#d8884a'); px(c, hx + 1, 61, 3, 1, '#f0e6d8'); px(c, hx, 67, 5, 1, '#a8602e'); }
+      // 오래 봤다: 아래 띠
+      px(c, 8, H - 8, 60, 2, 'rgba(0,0,0,0.5)'); px(c, 8, H - 8, Math.round(60 * Math.min(1, look / 5)), 2, '#e8e0d0');
+      if (flash > 0) { c.fillStyle = `rgba(255,255,255,${flash * 0.8})`; c.fillRect(0, 0, W, H); }
     },
   };
 }
@@ -2617,7 +2686,7 @@ function react(opt: GameOpt): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), swing3: () => swing(true, true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam, history, longmsg, buzz, lining, headoff, tape, book: () => book(false), bookok: () => book(true), erase, dates, leak, react, unsend: (o: GameOpt) => type(o, true), hush };
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), swing3: () => swing(true, true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam, history, longmsg, buzz, lining, headoff, tape, book: () => book(false), bookok: () => book(true), erase, dates, leak, react, unsend: (o: GameOpt) => type(o, true), hush, curtain };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;

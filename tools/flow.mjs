@@ -37,14 +37,18 @@ const CASES = [
   ['곰표 지우기', '곰표가 입력창을 누른다', /한 글자씩 지운다/, 90, /G:type/],
   ['몸짓 하은 그림', '선생님이 이게 누구냐고 해서', /이건 아저씨 가져요/, 60, /W:(left|right)/],
   ['하트', '완성하면 사진 ㄱㄱ', /토토는 내 얼굴을 모른다/, 60, /G:react/, /하트만/],
-  ['안방 앞 지나기', '거실. 열일곱 걸음짜리 거실.', /이 문은 안에서 열어도 소리가 난다/, 90, /W:z_entry/],
+  ['안방 앞 지나기', '거실. 열일곱 걸음짜리 거실.', /코 고는 소리 사이사이로 걸었다/, 90, /W:z_entry/],
+  ['안방 앞 들킴', '거실. 열일곱 걸음짜리 거실.', /이불이 뒤척인다/, 90, /W:z_entry/, null, 'window.__careless = true'],
   ['순찰 도망', '오늘도 그렇게 생각한다', /유리문이 등 뒤에서 닫힌다/, 150, /W:homedoor/],
   ['지워지는 말풍선', '사 년 동안 전부 읽었다', /삼 초쯤 걸렸다/, 60, /G:erase/],
   ['실명 스크롤', '내 이름이 저기 있다', /중학교 삼 학년의 내가/, 60, /G:leak/],
   ['예약 3장', '이 세 글자를 치는 게', /저장되지 않았을/, 120, /G:book/],
   ['예약 에필로그', '가진 것 중에 제일 큰 걸', /두 번째에 눌렸다/, 90, /G:book/],
   ['3장 밤 문', '엄마도 봤다', /삑\. 삑삑/, 60],
-  ['아버지 발소리', '현관이 열린다.', /거실 어딘가에서 멈춘다/, 90, /G:hush/],
+  ['커튼 틈', '캡처를 닫아도 107동은', /끝내 하나도 구별되지 않는다/, 90, /G:curtain/],
+  ['커튼 틈 찍힘', '캡처를 닫아도 107동은', /틈을 늦게 놓았다/, 90, /G:curtain/, null, 'window.__careless = true'],
+  ['아버지 발소리', '현관이 열린다.', /숨은 한 번도 새지 않았다/, 90, /G:hush/],
+  ['아버지 발소리 들킴', '현관이 열린다.', /숨이 샜다/, 90, /G:hush/, null, 'window.__careless = true'],
   ['막간 검색', '이불 속에서 화면 밝기를', /한 줄이다|성도착증|병 이름을/, 90],
   ['휴게실 선풍기 다시', '네. 들어가십시오', /못 들은 척/, 60],
 ];
@@ -73,13 +77,14 @@ try {
   ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.rej(new Error(m.error.message)) : p.res(m.result); } });
   await send('Runtime.enable');
   let fail = 0;
-  for (const [name, from, after, secs, expect, pick] of CASES) {
+  for (const [name, from, after, secs, expect, pick, pre] of CASES) {
     if (only && !name.includes(only)) continue;
     await send('Page.navigate', { url: URL });
     await sleep(1500);
     const t0 = Date.now();
     await evalJs(`(async () => {
       for (let i = 0; i < 50 && !window.talBegin; i++) await new Promise(r => setTimeout(r, 100));
+      ${pre || ''};
       window.talBegin({ mode: 'chapter', title: ${JSON.stringify('@' + from)} });
       window.__flow = window.__kb({ ms: ${secs * 1000}, gap: 120, stop: ${after}${pick ? `, pick: (ls) => ls.findIndex((l) => ${pick}.test(l)), at: (ats) => { const h = document.querySelector('#hint')?.textContent || ''; const m = h.split('·').map((x) => x.trim()).find((x) => ${pick}.test(x)); const k = m && ({ '↑': 'up', '↓': 'down', '←': 'left', '→': 'right', Z: 'wait' })[m[0]]; return k && ats.includes(k) ? k : ats[0]; }` : ''} });
       return 'started';

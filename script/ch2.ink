@@ -812,7 +812,7 @@ VAR saw_pills = false
 -> c2_job
 
 === c2_job ===
-* [피자를 본다 # at: table]
+* [피자를 본다 # at: down]
 + [(잠김) "쉬고 있어요"라고 한다 # at: up]
     쉰다는 건 일하던 사람이 하는 말이다. # fail
     -> c2_job
