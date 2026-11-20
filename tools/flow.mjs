@@ -84,7 +84,7 @@ try {
     await sleep(1500);
     const t0 = Date.now();
     await evalJs(`(async () => {
-      for (let i = 0; i < 50 && !window.talBegin; i++) await new Promise(r => setTimeout(r, 100));
+      for (let i = 0; i < 200 && !(window.talBegin && window.__kb); i++) await new Promise(r => setTimeout(r, 100));
       ${pre || ''};
       window.talBegin({ mode: 'chapter', title: ${JSON.stringify('@' + from)} });
       window.__flow = window.__kb({ ms: ${secs * 1000}, gap: 120, stop: ${after}${pick ? `, pick: (ls) => ls.findIndex((l) => ${pick}.test(l)), at: (ats) => { const h = document.querySelector('#hint')?.textContent || ''; const m = h.split('·').map((x) => x.trim()).find((x) => ${pick}.test(x)); const k = m && ({ '↑': 'up', '↓': 'down', '←': 'left', '→': 'right', Z: 'wait' })[m[0]]; return k && ats.includes(k) ? k : ats[0]; }` : ''} });

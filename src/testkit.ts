@@ -99,7 +99,7 @@ window.__kb = async (opt={}) => { const w=window.tal.world; const t0=performance
   while(performance.now()-t0 < (opt.ms||40000) && !window.__abort){
     const txt=document.body.innerText;
     if(opt.stop && opt.stop.test(txt.slice(-600))) return {stop:'text',log};
-    if(document.querySelector('#game.on')){ const h=document.querySelector('#hint')?.textContent||''; if(!h.trim()){ await S(300); continue; } const g=await game(h); if(!g) return {stop:'game',hint:h,log}; log.push('G:'+g); await S(600); continue; }
+    if(document.querySelector('#game.on')){ const h=document.querySelector('#hint')?.textContent||''; if(!h.trim()){ await S(300); continue; } let g=await game(h); if(!g && window.__play?.hint && window.__play.hint!==h) g=await game(window.__play.hint); if(!g) return {stop:'game',hint:h,log}; log.push('G:'+g); await S(600); continue; }
     const ch=[...document.querySelectorAll('button.ch')].filter(b=>b.offsetParent);
     if(ch.length){ const labels=ch.map(b=>b.innerText); let i=opt.pick?opt.pick(labels):-1; if(i<0) i=ch.findIndex(b=>!b.classList.contains('locked')); if(i<0) i=0; log.push('M:'+labels[i]); await hold(String(i+1),40); await S(300); continue; }
     if(w.binds){ const ats=[...new Set(w.binds.map(b=>b.at))].filter(a=>a!=='timeout'); if(!ats.length){ await S(800); continue; } let at=opt.at?opt.at(ats):ats[0]; const same=log.slice(-2).every(x=>x==='W:'+at); if(!opt.at && ats.length>1 && log.length>=2 && same) at=ats[1+Math.floor(Math.random()*(ats.length-1))]; log.push('W:'+at); if(opt.stopWalk) return {stop:'walk',ats,log};
