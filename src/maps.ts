@@ -52,6 +52,7 @@ export const MAPS: Record<string, MapDef> = {
       { id: 'window', x: 1, y: 0, w: 2 }, { id: 'head', x: 4, y: 1, w: 2 }, { id: 'monitor', x: 6, y: 1 },
       { id: 'trash', x: 7, y: 1 }, { id: 'closet', x: 8, y: 1 }, { id: 'mirror', x: 9, y: 1 },
       { id: 'switch', x: 10, y: 2 }, { id: 'door', x: 10, y: 3 }, { id: 'bed', x: 1, y: 2, w: 2, h: 3 },
+      { id: 'wall', x: 10, y: 5 }, // 옆집과 붙은 벽 (3장: 이십 년을 들은 벽)
     ],
   },
   // 거실. 열일곱 걸음짜리. 왼쪽 벽이 내 방 문, 오른쪽 벽이 현관문. 뒷벽에 화장실, 부엌, 윤서 방, 안방.

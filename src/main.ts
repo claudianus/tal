@@ -1,5 +1,5 @@
 import './style.css';
-import { setGameAuto } from './games.ts';
+import { setGameAuto, playGame } from './games.ts';
 import { audioInit, isMuted, setMuted } from './audio.ts';
 import { Game, savedChapter, type Start } from './engine.ts';
 import * as ui from './ui.ts';
@@ -27,7 +27,7 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
   return b;
 }
 
-if (q.has('auto') || q.has('test')) (window as unknown as { talBegin: typeof begin }).talBegin = begin; // 검사용: 원하는 장/엔딩에서 바로 시작
+if (q.has('auto') || q.has('test')) Object.assign(window, { talBegin: begin, talGame: playGame }); // 검사용: 원하는 장/엔딩에서 바로 시작
 
 // ── 시작 화면 ──
 ui.setBlocked(true);

@@ -609,7 +609,7 @@ function dodge(opt: GameOpt): Play {
   const ys = opt.pov === 'yunseo';
   type B = { x: number; y: number; vx: number; vy: number; t: string; w: number; h: number; kind: 0 | 1 | 2; hit: boolean };
   const bs: B[] = [];
-  let x = BX + BW / 2 - 4, y = BY + BH - 16, hp = 5, inv = 0, shake = 0, tt = 0, spawn = 0.4, li = 0, kindDone = false, end = -1, out = '', said = 0, beat = 0;
+  let x = BX + BW / 2 - 4, y = BY + BH / 2 - 4, hp = 5, inv = 0, shake = 0, tt = 0, spawn = 0.4, li = 0, kindDone = false, end = -1, out = '', said = 0, beat = 0;
   const DUR = 17;
   let mc: CanvasRenderingContext2D | null = null;
   const measure = (t: string, f: string): number => { if (!mc) mc = document.createElement('canvas').getContext('2d'); mc!.font = f; return mc!.measureText(t).width; };
@@ -617,8 +617,10 @@ function dodge(opt: GameOpt): Play {
   const strip = (kindLine: boolean): void => {
     const t = kindLine ? cut(kind[0]) : cut(lines[li++ % lines.length]);
     const w = Math.ceil(measure(t, F)) + 6, h = 8;
-    const fromL = Math.random() < 0.5, sp = kindLine ? 70 : 20 + Math.random() * 14 + tt * 1.2;
-    const yy = BY + 4 + Math.random() * (BH - 30);
+    const fromL = Math.random() < 0.5, sp = kindLine ? 70 : 24 + Math.random() * 14 + tt * 1.5;
+    // 절반은 내가 있는 줄을 겨눈다. 가만히 있으면 맞는다.
+    const aim = !kindLine && Math.random() < 0.4;
+    const yy = aim ? Math.max(BY + 1, Math.min(BY + BH - h - 1, y - 1 + (Math.random() - 0.5) * 6)) : BY + 2 + Math.random() * (BH - h - 4);
     bs.push({ x: fromL ? BX - w : BX + BW, y: yy, vx: fromL ? sp : -sp, vy: kindLine ? 18 : 0, t, w, h, kind: kindLine ? 1 : 0, hit: false });
   };
   const laugh = (): void => { // ㅋ 가 비처럼 떨어진다
@@ -642,7 +644,7 @@ function dodge(opt: GameOpt): Play {
       if (spawn <= 0) {
         if (tt > 5 && Math.random() < 0.22) laugh(); else strip(false);
         if (tt > 9 && Math.random() < 0.25) strip(false);
-        spawn = Math.max(0.6, 1.4 - tt * 0.05);
+        spawn = Math.max(0.55, 1.25 - tt * 0.04);
       }
       if (kind.length && !kindDone && tt > 8) { kindDone = true; strip(true); }
       for (const b of bs) { b.x += b.vx * dt; b.y += b.vy * dt; }
