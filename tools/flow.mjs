@@ -64,7 +64,8 @@ let ws, seq = 0;
 const pending = new Map();
 const send = (method, params = {}) => new Promise((res, rej) => { const id = ++seq; pending.set(id, { res, rej }); ws.send(JSON.stringify({ id, method, params })); });
 const evalJs = async (expr, timeout = 60000) => {
-  const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true, timeout });
+  // 페이지가 멈추면 CDP 응답이 오지 않는다: 노드 쪽에서 끊는다
+  const r = await Promise.race([send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true, timeout }), sleep(timeout + 5000).then(() => { throw new Error('멈춤 ' + timeout + 'ms'); })]);
   if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
   return r.result.value;
 };
@@ -80,6 +81,8 @@ try {
   let fail = 0;
   for (const [name, from, after, secs, expect, pick, pre] of CASES) {
     if (only && !name.includes(only)) continue;
+    const tc = Date.now();
+    try {
     await send('Page.navigate', { url: URL });
     await sleep(1500);
     const t0 = Date.now();
@@ -105,6 +108,7 @@ try {
     const ok = r.stop === 'text' && r.games.length > 0 && (!expect || expect.test(r.games.join(',')));
     if (!ok) fail++;
     console.log(`${ok ? 'OK  ' : 'FAIL'} ${name.padEnd(10)} ${((Date.now() - t0) / 1000).toFixed(0).padStart(3)}s  행동 ${r.games.join(',') || '없음'}  끝 ${r.stop}${ok ? '' : `  마지막 ${JSON.stringify(r.last)}  화면 «${r.tail}»${r.hint ? '  힌트 ' + r.hint : ''}`}`);
+      } catch (e) { fail++; console.log(`FAIL ${name.padEnd(10)} ${((Date.now() - tc) / 1000).toFixed(0).padStart(3)}s  ${e.message}`); await send('Page.navigate', { url: 'about:blank' }).catch(() => {}); await sleep(500); }
   }
   console.log(fail ? `실패 ${fail}` : '전부 통과');
   process.exitCode = fail ? 1 : 0;
