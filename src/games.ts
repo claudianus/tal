@@ -4,8 +4,11 @@
 import { sfx } from './audio.ts';
 import * as ui from './ui.ts';
 import type { GameKey } from './ui.ts';
+import { mirrorScene } from './art/cuts.ts';
+import { canvasOf } from './sprites.ts';
 
 const W = 256, H = 144;
+type GameOpt = { ghosts?: string[]; text?: string; droopy?: boolean };
 type Keys = Record<GameKey, boolean>;
 type Ctx = CanvasRenderingContext2D;
 /** 한 판: 매 프레임 step 을 부르고, 결과가 나오면 문자열을 돌려준다. */
@@ -34,7 +37,7 @@ const ell = (c: Ctx, x: number, y: number, rx: number, ry: number, col: string):
 const px = (c: Ctx, x: number, y: number, w: number, h: number, col: string): void => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
 
 /** 판을 띄우고 끝날 때까지 기다린다. */
-export function playGame(id: string, opt: { ghosts?: string[]; text?: string } = {}): Promise<string> {
+export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
   const mk = GAMES[id];
   if (!mk) return Promise.resolve('');
   if (ui.isFast()) return Promise.resolve(FAST[id] || '');
@@ -65,7 +68,7 @@ export function playGame(id: string, opt: { ghosts?: string[]; text?: string } =
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked' };
+const FAST: Record<string, string> = { breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -533,7 +536,45 @@ function gaze(opt: { ghosts?: string[]; text?: string }): Play {
   };
 }
 
-const GAMES: Record<string, (opt: { ghosts?: string[]; text?: string }) => Play> = { breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze };
+// ═══════════ 거울 속 고양이 (프롤로그) ═══════════
+// 처음 쓴 탈로 거울을 본다. 방향키로 고개를 기울이면 거울 속 고양이가 기울인다. 반 박자 늦게.
+// 양쪽으로 한 번씩 기울여 보면 끝난다. 그게 나라는 걸 손으로 안다.
+function tilt(opt: GameOpt): Play {
+  const STEP = 0.07, MAX = 4; // 한 칸이 0.07 라디안. 거울 그림은 칸마다 한 번만 그린다.
+  let want = 0, cur = 0, lag = 0, tt = 0, left = 0, right = 0, done = -1, quiet = 1.4;
+  const pics = new Map<number, HTMLCanvasElement>();
+  const pic = (n: number): HTMLCanvasElement => {
+    let c = pics.get(n);
+    if (!c) { c = canvasOf(mirrorScene({ cat: true, bright: false, droopy: !!opt.droopy, tilt: n * STEP })); pics.set(n, c); }
+    return c;
+  };
+  return {
+    hint: '고양이가 있다   ·   ← → 고개를 기울인다',
+    step(dt, _t, k) {
+      tt += dt;
+      if (done >= 0) { done += dt; return done > 1.2 ? 'tilt' : null; }
+      if (tt < quiet) return null; // 처음에는 그냥 본다
+      want = k.left ? -MAX : k.right ? MAX : 0;
+      if (want < 0 && cur <= -MAX + 1) left += dt;
+      if (want > 0 && cur >= MAX - 1) right += dt;
+      lag += dt;
+      if (lag > 0.09) { lag = 0; if (cur !== want) { cur += Math.sign(want - cur); if (cur === want && want) sfx('tap'); } }
+      if ((left > 0.5 && right > 0.5) || tt > 22) { done = 0; ui.hint(''); }
+      return null;
+    },
+    draw(c) {
+      const im = pic(-cur); // 거울이라 좌우가 바뀐다
+      const kk = Math.max(W / im.width, H / im.height);
+      c.fillStyle = '#07080c'; c.fillRect(0, 0, W, H);
+      c.drawImage(im, Math.round((W - im.width * kk) / 2), Math.round((H - im.height * kk) * 0.25), Math.ceil(im.width * kk), Math.ceil(im.height * kk));
+      // 양쪽을 다 기울여 봤는지: 아래 가장자리의 두 점
+      px(c, W / 2 - 6, H - 6, 3, 3, left > 0.5 ? '#d8cfc0' : 'rgba(80,76,72,0.8)');
+      px(c, W / 2 + 3, H - 6, 3, 3, right > 0.5 ? '#d8cfc0' : 'rgba(80,76,72,0.8)');
+    },
+  };
+}
+
+const GAMES: Record<string, (opt: GameOpt) => Play> = { breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze, tilt };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;

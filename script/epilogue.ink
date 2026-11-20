@@ -48,7 +48,8 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 바람이 얼굴에 닿는다. 사 년 동안 바깥 공기는 언제나 폼과 털을 거쳐서 들어왔다. 지금은 그냥 들어온다.
 선선하다. 비가 그쳤고, 그 사이에 계절이 바뀌었다.
 다들 너 봐. # voice
-아무도 없다. 새벽 한 시다.
+* [고개를 든다 # at: wait]
+- 아무도 없다. 새벽 한 시다.
 그네에 아이가 있다.
 # npc: haeun swing2
 커튼 틈으로 본 그 그림자다. 혼자다.
@@ -91,7 +92,9 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 나: 엄마 말 들어. # say
 # turn: haeun down
 아이가 모래를 본다. 발끝으로 민다. 그네가 조금 간다.
-# sfx: swing_creak
+* [나도 모래를 민다 # at: move]
+- # sfx: swing_creak
+내 그네도 조금 간다.
 하은: 그럼 왜 왔어요. # say
 대답을 모른다. 커튼 틈으로 봤다고 하면 그것도 무서운 말이다.
 가로등이 아이의 팔에 닿는다.
@@ -189,9 +192,9 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 -> ep_a_room
 
 === ep_a_room ===
-# scene: black
 돌아오는 길은 기억난다. 열일곱 걸음.
-# scene: room_night
+* [집으로 걷는다 # at: move]
+- # scene: room_night
 # pos: center
 # time: 목요일 02:20
 방이 깨끗하다. 내가 치웠다. 몇 시간 전의 내가.
@@ -401,9 +404,11 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 어둡다. 폼 냄새. 본드 냄새. 새 실 냄새.
 목소리가 멈춘다.
 이 안에서만 멈춘다. 그걸 안다. 알아도 멈춘 건 멈춘 거다.
-# scene: black
-현관. 복도는 보지 않는다. 계단.
-# scene: playground_night
+# scene: corridor_night
+# pos: home
+현관. 복도는 보지 않는다.
+* [계단으로 간다 # at: stairs_in]
+- # scene: playground_night
 # pos: in
 놀이터다.
 # ui: heat_show
@@ -560,7 +565,8 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 { c3_sorry:
     오빠: 미안. # msg
 }
-입력창에 글자가 남아 있다. 몇 주째.
+* [입력창 # at: wait]
+- 입력창에 글자가 남아 있다. 몇 주째.
 오빠 옷장에 나 숨겨 준 거 기억해. # draft
 # pause: 2
 전송된다.
@@ -626,12 +632,13 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 곰표: 안쪽은 창문이 없어요. 비 오는지 몰라서 좋아요 # msg_me
 곰표: 내일 창구 쪽 지나갈 일 있어요. 하늘 보고 알려 줄게요 # msg_me
 {c4_gom > 0:사이사이에 삼색이의 짧은 답이 몇 개 끼어 있다. }그 아래로 열이틀이 비어 있다.
-곰표가 입력창을 누른다.
+* [빈자리 # at: wait]
+- 곰표가 입력창을 누른다.
 오늘 하늘 맑아요. 창구 쪽 지나가다 봤 # draft
 # pause: 3
 한 글자씩 지운다.
-# ui: messenger_close
 곰표가 휴대폰을 엎어 둔다. 다음 서류를 편다.
+# ui: messenger_close
 -> ep_c_haeun
 
 === ep_c_haeun ===

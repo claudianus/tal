@@ -224,7 +224,7 @@ export class Game {
       const ghosts = this.pres.tail.filter((t) => t.kind === 'voice').map((t) => t.text);
       if (!GAME_IDS.includes(id)) ui.hint(WORLD_GAME_HINT[id] || '');
       const said = /"(.+)"/.exec(texts[gi]); // 선택지 글에 따옴표로 적은 말 (타자 게임이 그 말을 친다)
-      const out = GAME_IDS.includes(id) ? await playGame(id, { ghosts: ghosts.length ? ghosts : undefined, text: said ? said[1] : undefined }) : await w.runGame(id);
+      const out = GAME_IDS.includes(id) ? await playGame(id, { ghosts: ghosts.length ? ghosts : undefined, text: said ? said[1] : undefined, droopy: (this.story.variablesState['eye_shape'] as unknown) === 'droopy' }) : await w.runGame(id);
       ui.hint('');
       const k = games.findIndex((g) => g && g[1] === out);
       return k >= 0 ? k : gi;

@@ -69,7 +69,7 @@ function yunjae(p: Pix, cx: number, top: number, R: Ramps = SIL, neat = false, e
 }
 
 // ── 거울 ──
-export type MirrorOpt = { cat: boolean; bright: boolean; droopy: boolean; morning?: boolean };
+export type MirrorOpt = { cat: boolean; bright: boolean; droopy: boolean; morning?: boolean; tilt?: number }; // tilt: 거울 속 고양이가 고개를 기울인 만큼 (라디안)
 const mirrorCache = new Map<string, Pix>();
 export const MIRROR_W = 240, MIRROR_H = 150;
 export function mirrorScene(o: MirrorOpt): Pix {
@@ -99,7 +99,7 @@ export function mirrorScene(o: MirrorOpt): Pix {
     glass.rect(4, 96, 22, 14, '#121822'); glass.rect(6, 98, 18, 10, '#1a2a2e');
     const fig = new Pix(glass.w, glass.h);
     if (o.cat) {
-      const b = catBust({ k: 2.55, tilt: -0.16, droopy: o.droopy });
+      const b = catBust({ k: 2.55, tilt: -0.16 + (o.tilt || 0), droopy: o.droopy });
       fig.blit(b, Math.round(glass.w / 2 - b.w / 2), 14, true); // 거울이라 좌우가 바뀐다
     } else yunjae(fig, 40, 26);
     // 조명: 얼굴 쪽이 가장 밝고 아래로, 가장자리로 어두워진다. 커튼 틈 쪽 가장자리에 푸른 테.
