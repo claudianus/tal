@@ -16,7 +16,7 @@ async function walk(at){ const w=window.tal.world; const rt=w.routeFor(at); if(!
   await hold(FACE[rt.face],40); { const p=w.player; let u=0; await S(60); while((p.px!==p.x*16||p.py!==p.y*16)&&u<60){await S(15);u++;} } await S(80); await hold('z',50); await S(500); return true; }
 async function game(h){
   if(/화면을 붙잡는다/.test(h)){ for(let i=0;i<60&&document.querySelector('#game.on');i++) await hold('ArrowUp',700); return 'leak'; }
-  if(/반응이 뜬다/.test(h)){ await hold('z',900); await S(300); await hold('ArrowRight',60); await S(200); await hold('ArrowLeft',60); await S(200); await hold('z',60); for(let i=0;i<40&&document.querySelector('#game.on');i++) await S(100); return 'react'; }
+  if(/반응이 뜬다/.test(h)){ for(let i=0;i<60&&document.querySelector('#game.on');i++){ const st=window.__play?.peek?.()||{}; if(st.done){ await S(200); continue; } if(!st.open){ down('z'); for(let j=0;j<40&&!(window.__play?.peek?.()||{}).open;j++) await S(50); up('z'); await S(250); continue; } await S(150); await hold('z',80); await S(400);} return 'react'; }
   if(/엄지가 내려간다/.test(h)){ down('z'); for(let i=0;i<400&&document.querySelector('#game.on');i++){ const st=window.__play?.peek?.(); if(!st||st.end) break; if(st.stall&&st.tries===0&&/떼었다가/.test(document.querySelector('#hint')?.textContent||'')){ up('z'); await S(400); down('z'); } await S(60);} up('z'); for(let i=0;i<60&&document.querySelector('#game.on');i++) await S(100); return 'book'; }
   if(/말풍선을 붙잡는다/.test(h)){ down('z'); for(let i=0;i<200&&document.querySelector('#game.on');i++) await S(60); up('z'); return 'erase'; }
   if(/긁힌 날짜에서/.test(h)){ for(let i=0;i<300&&document.querySelector('#game.on');i++){ const st=window.__play?.peek?.(); if(!st||st.end) break; if(st.f<st.next) await hold('ArrowDown',40); else if(st.f>st.next) await hold('ArrowUp',40); else await hold('z',40); await S(140);} for(let i=0;i<40&&document.querySelector('#game.on');i++) await S(100); return 'dates'; }
@@ -106,7 +106,7 @@ window.__kb = async (opt={}) => { const w=window.tal.world; const t0=performance
       if(at==='wait'||at==='move'){ if(at==='move'){await hold('ArrowLeft',120);} else await hold('z',50); await S(600); continue; }
       if(['up','down','left','right'].includes(at)){ await hold({up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'}[at],60); log.push('W:'+at); await S(600); continue; }
       const ok=await walk(at); if(!ok){ return {stop:'noroute',ats,log}; } await S(400); continue; }
-    await hold('z',40); await S(opt.gap||220);
+    { const st=document.getElementById('stage'); await hold(st&&st.classList.contains('scroll')&&st.classList.contains('more')?'ArrowDown':'z',40); } await S(opt.gap||220);
   }
   return {stop:'time',log}; };
 }

@@ -26,11 +26,14 @@ for (let r = 0; r < runs; r++) {
       const text = s.Continue().trim();
       for (const d of parseTags(s.currentTags).dirs) applyTag(p, d);
       if (!text) continue;
+      const cut = p.cine > 0; if (p.cine > 0) p.cine--; // 엔진처럼: 컷은 다섯 줄 동안만 남는다
       const st = get(p.chapter); st.lines++;
-      const onMap = p.skin === 'none' && p.cine <= 0 && !!SCENES[p.scene]?.map;
+      const onMap = p.skin === 'none' && !cut && !!SCENES[p.scene]?.map;
       if (onMap) { close(); continue; }
+      // 휴대폰(메신저·카톡·브라우저)은 줄마다 엄지로 ↓ 를 내려야 넘어간다: 그림 위의 글이 아니라 스크롤이다
+      if (['messenger', 'kakao', 'browser'].includes(p.skin) && !cut) { st.scroll = (st.scroll || 0) + 1; close(); continue; }
       st.still++;
-      if (!run) key = `[${p.chapter}] ${(s.state.currentPathString || '').split('.')[0]} «${text.slice(0, 16)}» (${p.skin !== 'none' ? p.skin : p.cine > 0 ? 'cut' : 'no-map:' + p.scene})`;
+      if (!run) key = `[${p.chapter}] ${(s.state.currentPathString || '').split('.')[0]} «${text.slice(0, 16)}» (${p.skin !== 'none' ? p.skin : cut ? 'cut' : 'no-map:' + p.scene})`;
       run++;
     }
     const ch = s.currentChoices; if (!ch.length) break;
@@ -50,8 +53,8 @@ for (let r = 0; r < runs; r++) {
   }
   close();
 }
-console.log('장            줄/판  still줄/판  걷기  몸짓  Z·시간  게임  (판당)  가장 긴 still');
-for (const [c, v] of per) console.log(`  ${c.padEnd(14)} ${(v.lines / runs).toFixed(0).padStart(4)} ${(v.still / runs).toFixed(0).padStart(8)} ${(v.walk / runs).toFixed(1).padStart(6)} ${(v.gesture / runs).toFixed(1).padStart(5)} ${(v.press / runs).toFixed(1).padStart(6)} ${(v.game / runs).toFixed(1).padStart(5)} ${String(v.maxStill).padStart(12)}`);
+console.log('장            줄/판  ↓스크롤줄  still줄/판  걷기  몸짓  Z·시간  게임  (판당)  가장 긴 still');
+for (const [c, v] of per) console.log(`  ${c.padEnd(14)} ${(v.lines / runs).toFixed(0).padStart(4)} ${((v.scroll || 0) / runs).toFixed(0).padStart(8)} ${(v.still / runs).toFixed(0).padStart(8)} ${(v.walk / runs).toFixed(1).padStart(6)} ${(v.gesture / runs).toFixed(1).padStart(5)} ${(v.press / runs).toFixed(1).padStart(6)} ${(v.game / runs).toFixed(1).padStart(5)} ${String(v.maxStill).padStart(12)}`);
 const pl = [...plain.keys()];
 console.log(`\n메뉴만 있는 선택지 묶음: ${pl.length}개`);
 pl.slice(0, top).forEach((k) => console.log('  ' + k));

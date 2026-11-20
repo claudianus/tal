@@ -34,6 +34,7 @@ const gameOf = (tags: string[] | null | undefined): [string, string] | null => {
   return null;
 };
 /** 맵 위에서 하는 게임의 조작 안내 */
+const SCROLL_SKINS = new Set(['messenger', 'kakao', 'browser']); // 엄지로 내려서 읽는 화면
 const WORLD_GAME_HINT: Record<string, string> = { sneak: '코 고는 소리가 날 때만 걷는다 · 소리가 끊기면 멈춘다 · 현관 앞까지', patrol: '손전등 빛을 피해 108동 현관까지 간다 · 빛에 오래 닿으면 들킨다 · 현관 앞에서 Z', crowd: '→ 계단까지 간다 · ↑↓ 로 사람 사이를 피한다 · 기둥 뒤에서 숨을 고른다' };
 
 /** 선택지의 "# timer: 초" (at: timeout 과 함께 쓴다) */
@@ -160,7 +161,7 @@ export class Game {
           const sum = WARNS[this.skipping]?.skip || [];
           this.skipping = '';
           ui.clearFlow();
-          for (const t of sum) { if (this.pending) { await ui.waitAdvance(); this.pending = false; } await this.say('narr', t); }
+          for (const t of sum) { if (this.pending) { await this.waitNext(); this.pending = false; } await this.say('narr', t); }
           break;
         }
         const wv = WARNS[d.val];
@@ -205,10 +206,16 @@ export class Game {
     this.pending = true;
   }
 
+  /** 다음 줄을 기다린다. 휴대폰 화면이면 엄지로 내려야 넘어간다. */
+  private waitNext(): Promise<void> {
+    ui.setScrollMode(SCROLL_SKINS.has(this.pres.skin) && this.pres.cine <= 0);
+    return ui.waitAdvance();
+  }
+
   private async show(text: string, tags: string[] | null): Promise<void> {
     const { kind, dirs } = parseTags(tags);
     if (!text && !dirs.length) return;
-    if (this.pending && !this.skipping) { await ui.waitAdvance(); this.pending = false; }
+    if (this.pending && !this.skipping) { await this.waitNext(); this.pending = false; }
     for (let k = 0; k < dirs.length; k++) await this.direct(dirs[k], dirs.slice(k + 1));
     if (text && !this.skipping) await this.say(kind, text);
   }
@@ -316,7 +323,7 @@ export class Game {
       this.story.ChooseChoiceIndex(ch[i].index);
       this.pending = false;
     }
-    if (this.pending) await ui.waitAdvance();
+    if (this.pending) await this.waitNext();
     const ending = String(this.story.variablesState['ending'] ?? '');
     ui.endCard('탈', [
       '고양이 탈을 쓰지 않으면 방 밖에 나갈 수 없는 나는',

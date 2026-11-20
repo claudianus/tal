@@ -34,6 +34,11 @@ function advance(): boolean {
   if (waiter) { const w = waiter; waiter = null; el.stage.classList.remove('more'); w(); return true; }
   return false;
 }
+// 휴대폰 화면(메신저·카톡·브라우저)에서는 다음 줄을 엄지로 내려서 본다: ↓ (또는 휠·화면 누르기). Z 로는 넘어가지 않는다.
+let scrollMode = false, scrollNagged = 0, lastWheel = 0;
+export function setScrollMode(on: boolean): void { scrollMode = on; el.stage.classList.toggle('scroll', on); }
+function thumb(): void { el.stage.classList.remove('thumb'); void el.stage.offsetWidth; el.stage.classList.add('thumb'); setTimeout(() => el.stage.classList.remove('thumb'), 220); blip('type'); }
+function nag(): void { if (performance.now() - scrollNagged < 1500) return; scrollNagged = performance.now(); el.stage.classList.remove('nag'); void el.stage.offsetWidth; el.stage.classList.add('nag'); }
 export function waitAdvance(): Promise<void> {
   if (fast) return sleep(8);
   el.stage.classList.add('more');
@@ -64,8 +69,13 @@ export function bindInput(h: Hooks): void {
   el.stage.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     if (t.closest('button') || t.closest('#menu') || t.closest('#pausemenu')) return;
+    if (scrollMode && waiter) thumb();
     advance();
   });
+  el.stage.addEventListener('wheel', (e) => { // 휴대폰 화면: 휠을 내리면 엄지로 내린 것과 같다
+    if (!scrollMode || e.deltaY <= 0 || (!waiter && !typing) || performance.now() - lastWheel < 260) return;
+    lastWheel = performance.now(); thumb(); advance();
+  }, { passive: true });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Control') { fast = true; advance(); return; }
     if (e.key === 'Escape' && !(menu && menu.cancel)) { h.onMenu(); return; }
@@ -82,7 +92,9 @@ export function bindInput(h: Hooks): void {
       else if (/^[1-9]$/.test(e.key) && Number(e.key) <= menu.n) menu.pick(Number(e.key) - 1);
       return;
     }
+    if (scrollMode && dir === 'down' && (typing || waiter)) { if (!e.repeat) { thumb(); advance(); } return; }
     if (dir) { if (!typing && !waiter) h.onDir(dir, true, e.repeat); return; }
+    if (ok && !e.repeat && scrollMode && waiter && !typing) { nag(); return; }
     if (ok && !e.repeat) { if (!advance()) h.onAct(); }
   });
   window.addEventListener('keyup', (e) => {
@@ -99,7 +111,7 @@ export function bindInput(h: Hooks): void {
       e.preventDefault(); e.stopPropagation();
       if (blocked) return;
       if (gameKeys && !menu) { b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch { /* 합성 이벤트 */ } gameKeys(d, true, false); return; }
-      if (typing || waiter) return;
+      if (typing || waiter) { if (scrollMode && d === 'down') { thumb(); advance(); } return; }
       if (menu) { if (d === 'up') setCursor(menu.cur - 1); else if (d === 'down') setCursor(menu.cur + 1); return; }
       try { b.setPointerCapture(e.pointerId); } catch { /* 합성 이벤트 */ }
       b.classList.add('on'); h.onDir(d, true, false);
@@ -114,6 +126,7 @@ export function bindInput(h: Hooks): void {
     if (blocked) return;
     if (gameKeys && !menu) { gameKeys('z', true, false); return; }
     if (menu) { menu.pick(menu.cur); return; }
+    if (scrollMode && waiter && !typing) { nag(); return; }
     if (!advance()) h.onAct();
   });
   z?.addEventListener('click', (e) => e.stopPropagation());

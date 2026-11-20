@@ -275,7 +275,8 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 # pause: 2
 누가 받을지 모른다. 뭐라고 말할지도 모른다. 첫마디도 정하지 못했다.
 그냥, 아까 그 아이 얘기부터 할지도 모른다. 그게 제일 쉬운 말이라서.
-# sfx: ringback
++ [끊지 않고 기다린다 # at: wait]
+- # sfx: ringback
 신호가 한 번 더 간다.
 { A_YUNSEO:
     # sfx: phone_buzz

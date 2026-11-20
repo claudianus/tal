@@ -20,6 +20,8 @@ for (let r = 0; r < runs; r++) {
       if (!text) continue;
       lines.set(p.chapter, (lines.get(p.chapter) || 0) + 1);
       if (!run) key = `[${p.chapter}] ${(s.state.currentPathString || '').split('.')[0]} «${text.slice(0, 18)}»`;
+      const cut = p.cine > 0; if (p.cine > 0) p.cine--;
+      if (['messenger', 'kakao', 'browser'].includes(p.skin) && !cut) { close(); acts.set(p.chapter, (acts.get(p.chapter) || 0) + 1); continue; } // 휴대폰 줄은 ↓ 로 내린다
       run++; last = `${(s.state.currentPathString || '').split('.')[0]} «${text.slice(0, 14)}»`;
     }
     const ch = s.currentChoices; if (!ch.length) break;
