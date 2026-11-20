@@ -83,10 +83,9 @@ async function game(h){
     } return 'lurk'; }
   if(/댓글에 닿으면/.test(h)){ const ks=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight']; for(let i=0;i<80 && document.querySelector('#game.on');i++){await hold(ks[(Math.random()*4)|0],150+Math.random()*200);} return 'dodge'; }
   if(/영상을 키운다/.test(h)){ await hold('ArrowLeft',950); await hold('ArrowDown',100); down('z'); for(let i=0;i<80&&document.querySelector('#game.on');i++) await S(100); up('z'); return 'zoom'; }
-  if(/들이쉰다|멈춘다 · 그대로|내쉰다 · Z/.test(h)){ // 들이쉬는 차례가 올 때까지 기다렸다가, 8초 누르고 4초 뗀다
-    const hint=()=>document.querySelector('#hint')?.textContent||'';
-    for(let i=0;i<80&&!/^들이쉰다/.test(hint())&&document.querySelector('#game.on');i++) await S(100);
-    for(let i=0;i<8&&document.querySelector('#game.on');i++){ await hold('z',8000); await S(4000);} return 'breath'; }
+  if(/들이쉰다|멈춘다 · 그대로|내쉰다 · Z/.test(h)){ // 안내를 따라 숨 쉰다: 들이쉬고 멈추는 동안 누르고, 내쉴 때 뗀다
+    const hint=()=>document.querySelector('#hint')?.textContent||''; let on=false;
+    for(let i=0;i<1500&&document.querySelector('#game.on');i++){ const t=hint(); const want=/^(들이쉰다|멈춘다)/.test(t); if(want&&!on){down('z');on=true;} if(!want&&on){up('z');on=false;} await S(40);} if(on) up('z'); return 'breath'; }
   if(/가만히 있는다/.test(h)){ while(document.querySelector('#game.on')) await S(200); return 'still'; }
   if(/커튼을 연다/.test(h)){ let on=false; for(let i=0;i<800&&document.querySelector('#game.on');i++){ const st=window.__play?.peek?.(); if(!st) break; const want=window.__careless?true:!(st.warn||st.up); if(want&&!on){down('z');on=true;} if(!want&&on){up('z');on=false;} await S(40);} if(on) up('z'); return 'curtain'; }
   if(/문틈을 지날/.test(h)){ let on=false; for(let i=0;i<800&&document.querySelector('#game.on');i++){ const st=window.__play?.peek?.(); if(!st) break; const want=window.__careless?false:Math.abs(st.x)<0.8; if(want&&!on){down('z');on=true;} if(!want&&on){up('z');on=false;} await S(40);} if(on) up('z'); return 'hush'; }
