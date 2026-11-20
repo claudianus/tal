@@ -4,15 +4,15 @@
 import { sfx } from './audio.ts';
 import * as ui from './ui.ts';
 import type { GameKey } from './ui.ts';
-import { mirrorScene } from './art/cuts.ts';
+import { mirrorScene, videoPlayground } from './art/cuts.ts';
 import { canvasOf } from './sprites.ts';
 
 const W = 256, H = 144;
-type GameOpt = { ghosts?: string[]; text?: string; droopy?: boolean };
+type GameOpt = { ghosts?: string[]; text?: string; droopy?: boolean; lines?: string[]; skin?: string; pov?: string };
 type Keys = Record<GameKey, boolean>;
 type Ctx = CanvasRenderingContext2D;
 /** 한 판: 매 프레임 step 을 부르고, 결과가 나오면 문자열을 돌려준다. */
-type Play = { step: (dt: number, t: number, k: Keys, hit: Set<GameKey>) => string | null; draw: (c: Ctx, t: number) => void; hint: string };
+type Play = { step: (dt: number, t: number, k: Keys, hit: Set<GameKey>) => string | null; draw: (c: Ctx, t: number) => void; hint: string; scale?: number };
 
 let cv: HTMLCanvasElement | null = null;
 let autoPlay = false; // 검사용 (?auto): 판을 잠깐 보여 준 뒤 빠른 모드의 결과로 끝낸다
@@ -45,6 +45,9 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
   if (ui.isFast()) return Promise.resolve(FAST[id] || '');
   const g = mk(opt);
   const el = canvas(), c = el.getContext('2d')!;
+  const sc = g.scale || 1; // 글자를 쓰는 판은 칸을 잘게 나눠서 글씨가 뭉개지지 않게 한다. 좌표는 그대로 256×144.
+  if (el.width !== W * sc) { el.width = W * sc; el.height = H * sc; }
+  c.setTransform(sc, 0, 0, sc, 0, 0);
   c.imageSmoothingEnabled = false;
   const keys: Keys = { up: false, down: false, left: false, right: false, z: false };
   let hit = new Set<GameKey>();
@@ -70,7 +73,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt' };
+const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -328,12 +331,13 @@ function flood(opt: { ghosts?: string[]; text?: string }): Play {
 // ═══════════ 타자 (막간: 윤서가 그 문장을 친다) ═══════════
 // 한 번 누를 때마다 한 글자. 화는 손가락보다 빠르다. 다 치면 Z 로 보낸다. 안 보내는 길은 없다.
 const TYPED_YS = '제발 죽든지, 그런 짓 좀 하지 말든지 해.'; // 막간: 윤서가 오빠에게
-function type(opt: { ghosts?: string[]; text?: string }): Play {
+function type(opt: GameOpt): Play {
   const ghosts = opt.ghosts || [];
   const TYPED = opt.text || TYPED_YS; // 선택지에 "…" 로 적힌 말이 있으면 그 말을 친다
-  const srv = !!opt.text; // 그때는 카톡이 아니라 퍼리 서버 창이다 (어두운 화면, 방금 붙인 사진)
+  const srv = !!opt.text && opt.skin !== 'kakao'; // 카톡 창이 아니면 퍼리 서버 창이다 (어두운 화면, 방금 붙인 사진)
   let n = 0, sent = -1, key = -1, keyT = 0, said = 0;
   return {
+    scale: 3,
     hint: '아무 키나 누르면 한 글자씩 써진다',
     step(dt, _t, _k, hit) {
       keyT -= dt;
@@ -341,7 +345,7 @@ function type(opt: { ghosts?: string[]; text?: string }): Play {
       if (n >= TYPED.length) { if (hit.has('z')) { sent = 0; sfx('notify'); ui.hint(''); } return null; }
       if (hit.size) {
         n++; key = Math.floor(Math.random() * 30); keyT = 0.12; sfx('tap');
-        ui.hint(TYPED.slice(0, n) + (n < TYPED.length ? '▍' : '   ·   Z 전송'));
+        if (n >= TYPED.length) ui.hint('다 썼다   ·   Z 를 누르면 보낸다');
         if (ghosts.length && n % 6 === 0) ui.ghost(ghosts[(said++) % ghosts.length]);
       }
       return null;
@@ -351,26 +355,37 @@ function type(opt: { ghosts?: string[]; text?: string }): Play {
       const X = W / 2 - 46, Y = 4, PW = 92, PH = H - 8;
       px(c, X - 3, Y - 3, PW + 6, PH + 6, '#0e0f13'); px(c, X, Y, PW, PH, srv ? '#30333b' : '#b9c3cf');
       px(c, X, Y, PW, 9, srv ? '#25272d' : '#a3afbc'); px(c, X + 4, Y + 3, 22, 3, srv ? '#8e94a8' : '#59626e'); // 위 칸: 오빠 / 채널 이름
-      if (srv) { // 퍼리 서버: 방금 붙인 사진 한 장 (거울 앞의 고양이)
+      if (srv && /완성/.test(TYPED)) { // 퍼리 서버: 방금 붙인 사진 한 장 (거울 앞의 고양이)
         px(c, X + PW - 40, Y + 12, 36, 16, '#1d1f24'); px(c, X + PW - 30, Y + 14, 14, 12, '#f2ece2'); px(c, X + PW - 30, Y + 14, 5, 5, '#ee9440'); px(c, X + PW - 20, Y + 14, 4, 4, '#3a2c3a'); px(c, X + PW - 26, Y + 20, 2, 2, '#4a9a5a'); px(c, X + PW - 21, Y + 20, 2, 2, '#4a9a5a');
-      } else {
+      } else if (!srv) {
         // 지난 말풍선: '나 이번에 안 내려감' (내 것, 오른쪽, 노랑)
         px(c, X + PW - 46, Y + 14, 42, 9, '#f4e04a'); px(c, X + PW - 42, Y + 17, 30, 2, '#6e6420');
         px(c, X + PW - 54, Y + 20, 6, 2, '#59626e'); // 읽음 시각
       }
-      // 지금 치는 말풍선: 글자 수만큼 자란다
+      // 지금 치는 말풍선: 친 글자가 그대로 보인다 (한 줄 16자 남짓에서 접는다)
+      const TF = '600 5px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
+      c.font = TF; c.textBaseline = 'middle';
       if (n > 0) {
-        const lines = Math.ceil(n / 11), last = n - (lines - 1) * 11;
-        const bw = lines > 1 ? 66 : 10 + last * 5, bh = 5 + lines * 6;
-        const by = Y + 30;
-        px(c, X + PW - 4 - bw, by, bw, bh, srv ? (sent >= 0 ? '#5865c8' : '#454c78') : sent >= 0 ? '#f4e04a' : '#efe7a8');
-        for (let i = 0; i < lines; i++) { const w = i < lines - 1 ? 58 : Math.max(2, last * 5 - 2); px(c, X + PW - 4 - bw + 4, by + 3 + i * 6, Math.min(w, bw - 8), 2, srv ? '#e2e5f4' : '#6e6420'); }
-        if (sent > 0.4 && !srv) px(c, X + PW - 4 - bw - 5, by + bh - 4, 3, 3, '#e8c020'); // 숫자 1 이 사라진 자리
+        const shown = TYPED.slice(0, n), rows: string[] = [];
+        let cur = '';
+        for (const ch of shown) { if (c.measureText(cur + ch).width > 58) { rows.push(cur); cur = ch; } else cur += ch; }
+        rows.push(cur);
+        const tw = Math.max(...rows.map((r) => c.measureText(r).width));
+        const bw = Math.ceil(tw) + 8, bh = 4 + rows.length * 7;
+        const by = Y + 30, bx = X + PW - 4 - bw;
+        px(c, bx, by, bw, bh, srv ? (sent >= 0 ? '#5865c8' : '#454c78') : sent >= 0 ? '#f4e04a' : '#efe7a8');
+        c.fillStyle = srv ? '#eef0fa' : '#3a3410';
+        rows.forEach((r, i) => c.fillText(r, bx + 4, by + 5.5 + i * 7));
+        if (sent > 0.4 && !srv) px(c, bx - 5, by + bh - 4, 3, 3, '#e8c020'); // 숫자 1 이 사라진 자리
       }
       // 입력창과 자판
       const KY = Y + PH - 50;
-      px(c, X, KY - 10, PW, 9, '#e9edf1'); px(c, X + 3, KY - 7, Math.min(PW - 20, n * 2), 3, '#2a2e36');
-      if (n < TYPED.length && Math.sin(t * 8) > 0) px(c, X + 4 + Math.min(PW - 20, n * 2), KY - 8, 1, 5, '#2a2e36');
+      px(c, X, KY - 10, PW, 9, '#e9edf1');
+      const inField = sent >= 0 ? '' : TYPED.slice(0, n);
+      let tail = inField; while (tail && c.measureText(tail).width > PW - 22) tail = tail.slice(1);
+      c.fillStyle = '#2a2e36'; c.fillText(tail, X + 3, KY - 5.5);
+      const cx = X + 4 + Math.ceil(c.measureText(tail).width);
+      if (n < TYPED.length && Math.sin(t * 8) > 0) px(c, cx, KY - 8, 1, 5, '#2a2e36');
       px(c, X + PW - 14, KY - 9, 12, 7, n >= TYPED.length ? '#f4e04a' : '#c9cfd6');
       px(c, X, KY, PW, 50, '#d3d9df');
       for (let r = 0; r < 3; r++) for (let k = 0; k < 10; k++) {
@@ -576,7 +591,168 @@ function tilt(opt: GameOpt): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze, tilt };
+
+// ═══════════ 댓글 (3장·막간·4장: 글자가 날아온다) ═══════════
+// 휴대폰 화면 안에 내가 있다. 작은 고양이 머리 하나 (윤서 차례에는 작은 하트 하나).
+// 방금 읽은 댓글이 글자째로 화면을 가로질러 온다. 방향키로 피한다. 닿으면 기력이 하나 깎이고, 그 말이 머릿속에 남는다.
+// 이길 수 없다. 댓글은 끝나지 않는다. 시간이 지나야 엄지가 화면을 끈다.
+// 본 대로 쓴 한 줄(밝은 줄)에 닿으면 하나 낫는다. 그 줄만 유난히 빨리 밀려 내려간다.
+const DODGE_FALLBACK = ['ㅋㅋㅋㅋㅋㅋ', '역겹다 진짜', '살아서 뭐 함', '저런 건 죽어야 함', '부모는 뭐 하냐', '108동이래', '변태 아님?', '신상 털렸네'];
+function dodge(opt: GameOpt): Play {
+  const raw = (opt.lines && opt.lines.length ? opt.lines : DODGE_FALLBACK).map((l) => l.replace(/^[^:]{1,8}:\s*/, '').trim()).filter(Boolean);
+  const kindRe = /우유 두 개|조용한 손님|본 대로|만나 봤어요|밥은 먹었어요/;
+  const hate = raw.filter((l) => !kindRe.test(l));
+  const kind = raw.filter((l) => kindRe.test(l));
+  const lines = hate.length ? hate : DODGE_FALLBACK;
+  const cut = (l: string): string => (l.length > 15 ? l.slice(0, 14) + '…' : l);
+  const BX = 76, BY = 18, BW = 104, BH = 100; // 휴대폰 화면 (싸우는 칸)
+  const ys = opt.pov === 'yunseo';
+  type B = { x: number; y: number; vx: number; vy: number; t: string; w: number; h: number; kind: 0 | 1 | 2; hit: boolean };
+  const bs: B[] = [];
+  let x = BX + BW / 2 - 4, y = BY + BH - 16, hp = 5, inv = 0, shake = 0, tt = 0, spawn = 0.4, li = 0, kindDone = false, end = -1, out = '', said = 0, beat = 0;
+  const DUR = 17;
+  let mc: CanvasRenderingContext2D | null = null;
+  const measure = (t: string, f: string): number => { if (!mc) mc = document.createElement('canvas').getContext('2d'); mc!.font = f; return mc!.measureText(t).width; };
+  const F = '600 5px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
+  const strip = (kindLine: boolean): void => {
+    const t = kindLine ? cut(kind[0]) : cut(lines[li++ % lines.length]);
+    const w = Math.ceil(measure(t, F)) + 6, h = 8;
+    const fromL = Math.random() < 0.5, sp = kindLine ? 70 : 20 + Math.random() * 14 + tt * 1.2;
+    const yy = BY + 4 + Math.random() * (BH - 30);
+    bs.push({ x: fromL ? BX - w : BX + BW, y: yy, vx: fromL ? sp : -sp, vy: kindLine ? 18 : 0, t, w, h, kind: kindLine ? 1 : 0, hit: false });
+  };
+  const laugh = (): void => { // ㅋ 가 비처럼 떨어진다
+    const n = 3 + Math.floor(tt / 5);
+    const gap = Math.floor(Math.random() * (n + 1));
+    for (let i = 0; i < n + 1; i++) if (i !== gap) bs.push({ x: BX + 4 + i * ((BW - 12) / n), y: BY - 8, vx: 0, vy: 30 + tt * 2.2, t: 'ㅋ', w: 7, h: 7, kind: 2, hit: false });
+  };
+  return {
+    scale: 4,
+    hint: '방향키로 피한다 · 댓글에 닿으면 기력이 깎인다',
+    step(dt, _t, k) {
+      tt += dt; inv -= dt; shake -= dt;
+      if (end >= 0) { end += dt; return end > 1.3 ? out : null; }
+      const sp = 58;
+      if (hp > 0) {
+        x += ((k.right ? 1 : 0) - (k.left ? 1 : 0)) * sp * dt;
+        y += ((k.down ? 1 : 0) - (k.up ? 1 : 0)) * sp * dt;
+        x = Math.max(BX + 1, Math.min(BX + BW - 9, x)); y = Math.max(BY + 1, Math.min(BY + BH - 8, y));
+      }
+      spawn -= dt;
+      if (spawn <= 0) {
+        if (tt > 5 && Math.random() < 0.22) laugh(); else strip(false);
+        if (tt > 9 && Math.random() < 0.25) strip(false);
+        spawn = Math.max(0.6, 1.4 - tt * 0.05);
+      }
+      if (kind.length && !kindDone && tt > 8) { kindDone = true; strip(true); }
+      for (const b of bs) { b.x += b.vx * dt; b.y += b.vy * dt; }
+      for (let i = bs.length - 1; i >= 0; i--) { const b = bs[i]; if (b.x > BX + BW + 140 || b.x + b.w < BX - 140 || b.y > BY + BH + 10) bs.splice(i, 1); }
+      // 닿았는지: 내 칸 8×7
+      for (const b of bs) {
+        if (b.hit || x + 8 < b.x || x > b.x + b.w || y + 7 < b.y || y > b.y + b.h) continue;
+        if (b.kind === 1) { b.hit = true; hp = Math.min(5, hp + 1); sfx('coin'); continue; }
+        if (inv > 0) continue;
+        b.hit = true; hp--; inv = 1.1; shake = 0.25; sfx('hit');
+        if (b.kind === 0 && said++ < 6) ui.ghost(b.t.replace('…', ''));
+        if (hp <= 0) { end = 0; out = 'hit'; ui.hint(''); sfx('heartbeat'); }
+      }
+      if (hp > 0 && hp <= 2) { beat += dt; if (beat > 0.7) { beat = 0; sfx('heartbeat_soft'); } }
+      if (end < 0 && tt > DUR) { end = 0; out = hp >= 3 ? 'held' : 'hit'; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      c.fillStyle = 'rgba(4,5,8,0.78)'; c.fillRect(0, 0, W, H);
+      const sx = shake > 0 ? Math.round((Math.random() - 0.5) * 4) : 0, sy = shake > 0 ? Math.round((Math.random() - 0.5) * 3) : 0;
+      c.save(); c.translate(sx, sy);
+      // 휴대폰: 테두리, 위 칸(주소창), 화면
+      px(c, BX - 5, BY - 12, BW + 10, BH + 26, '#0c0d11'); px(c, BX - 4, BY - 11, BW + 8, 1, '#24262e');
+      px(c, BX, BY - 9, BW, 7, '#1b1e26'); px(c, BX + 3, BY - 7, BW - 22, 3, '#323744'); px(c, BX + BW - 16, BY - 7, 13, 3, '#5a2c30');
+      px(c, BX, BY, BW, BH, end >= 0 && out === 'hit' ? '#140608' : '#12141a');
+      for (let r = 0; r < BH; r += 11) px(c, BX, BY + r, BW, 1, '#181b23'); // 지나간 댓글 줄
+      c.beginPath(); c.rect(BX, BY, BW, BH); c.clip();
+      c.font = F; c.textBaseline = 'middle';
+      for (const b of bs) {
+        if (b.kind === 2) { c.fillStyle = b.hit ? 'rgba(200,90,90,0.4)' : '#d8574e'; c.fillText(b.t, b.x, b.y + 4); continue; }
+        const nasty = /죽|변태|역겹|병|소름|신고|꼬시/.test(b.t);
+        px(c, b.x, b.y, b.w, b.h, b.kind === 1 ? '#cfe6cf' : b.hit ? 'rgba(90,40,44,0.7)' : nasty ? '#e9d4d2' : '#dcdfe4');
+        px(c, b.x, b.y, 1, b.h, b.kind === 1 ? '#6aa86a' : nasty ? '#c0403a' : '#8a8f99');
+        c.fillStyle = b.kind === 1 ? '#2d5a30' : nasty ? '#7a1c18' : '#22262e';
+        c.fillText(b.t, b.x + 3, b.y + b.h / 2 + 0.5);
+      }
+      // 나: 깜빡이는 동안은 맞지 않는다
+      if (!(inv > 0 && Math.floor(t * 14) % 2)) {
+        const X = Math.round(x), Y = Math.round(y);
+        if (ys) { // 작은 하트
+          px(c, X + 1, Y + 1, 2, 2, '#e8606a'); px(c, X + 5, Y + 1, 2, 2, '#e8606a'); px(c, X, Y + 2, 8, 2, '#e8606a'); px(c, X + 1, Y + 4, 6, 1, '#e8606a'); px(c, X + 2, Y + 5, 4, 1, '#e8606a'); px(c, X + 3, Y + 6, 2, 1, '#e8606a'); px(c, X + 2, Y + 2, 1, 1, '#ffb0b4');
+        } else { // 삼색이 머리: 왼쪽 귀 주황, 오른쪽 귀는 처졌다
+          px(c, X, Y + 2, 8, 5, '#f2ece2'); px(c, X, Y + 2, 3, 3, '#ee9440'); px(c, X + 5, Y + 2, 3, 2, '#3a2c3a');
+          px(c, X, Y, 2, 2, '#ee9440'); px(c, X + 6, Y + 1, 3, 1, '#3a2c3a');
+          px(c, X + 2, Y + 4, 1, 1, '#4a9a5a'); px(c, X + 5, Y + 4, 1, 1, '#4a9a5a'); px(c, X + 3, Y + 6, 2, 1, '#e8a0a0');
+        }
+      }
+      c.restore();
+      // 기력: 아래 칸 다섯
+      for (let i = 0; i < 5; i++) px(c, BX + BW / 2 - 17 + i * 7, BY + BH + 6, 5, 4, i < hp ? (hp <= 2 ? '#e0605a' : '#d8cfc0') : '#2a2c34');
+      // 남은 시간: 화면 꺼지기까지
+      const left = Math.max(0, 1 - tt / DUR);
+      px(c, BX, BY + BH + 1, Math.round(BW * left), 1, '#4a4e5c');
+      if (end >= 0) { c.fillStyle = `rgba(0,0,0,${Math.min(0.9, end)})`; c.fillRect(BX, BY, BW, BH); }
+    },
+  };
+}
+
+// ═══════════ 영상 키우기 (3장: 위에서 찍은 영상 속에서 나를 찾는다) ═══════════
+// 흔들리는 영상. 방향키로 손가락을 옮기고 Z 로 두 손가락을 벌린다. 다 키우면 거기 있는 건 나다.
+function zoom(opt: GameOpt): Play {
+  const pic = videoPlayground(!!opt.droopy);
+  const VW = 240, VH = 135, CAT = { x: 82, y: 64 }; // 고양이 얼굴 (두 눈 사이)
+  let fx = VW * 0.62, fy = VH * 0.42, z = 1, tt = 0, end = -1, hold = 0;
+  return {
+    scale: 2,
+    hint: '방향키로 손가락을 옮긴다 · Z 를 누르고 있으면 영상을 키운다',
+    step(dt, _t, k) {
+      tt += dt;
+      if (end >= 0) { end += dt; return end > 1.6 ? 'seen' : null; }
+      const sp = 70 / z;
+      fx += ((k.right ? 1 : 0) - (k.left ? 1 : 0)) * sp * dt; fy += ((k.down ? 1 : 0) - (k.up ? 1 : 0)) * sp * dt;
+      fx = Math.max(0, Math.min(VW, fx)); fy = Math.max(0, Math.min(VH, fy));
+      const near = Math.hypot(fx - CAT.x, fy - CAT.y) < 26 / z + 8;
+      if (k.z) { z = Math.min(4, z + dt * (near ? 1.4 : 0.9)); if (!near && z > 2.2) z = 2.2; hold += dt; } else z = Math.max(1, z - dt * 0.8);
+      if (k.z && Math.random() < dt * 3) sfx('tap');
+      if ((z >= 3.9 && near) || tt > 24) { end = 0; ui.hint(''); sfx('ringing_ear'); fx = CAT.x; fy = CAT.y; z = 4; }
+      void hold;
+      return null;
+    },
+    draw(c, t) {
+      c.fillStyle = '#05060a'; c.fillRect(0, 0, W, H);
+      const PW = 200, PH = 112, PX = (W - PW) / 2, PY = 10;
+      px(c, PX - 4, PY - 4, PW + 8, PH + 18, '#0c0d11');
+      c.save(); c.beginPath(); c.rect(PX, PY, PW, PH); c.clip();
+      const jx = Math.sin(t * 7.3) * 1.2 + Math.sin(t * 2.1) * 0.8, jy = Math.cos(t * 5.1) * 1; // 끝까지 당긴 손떨림
+      const k = (PW / VW) * z;
+      const ox = PX + PW / 2 - fx * k + jx * z, oy = PY + PH / 2 - fy * k + jy * z;
+      c.imageSmoothingEnabled = false;
+      c.drawImage(canvasOf(pic), ox, oy, VW * k, VH * k);
+      c.restore();
+      // 손가락 자리 (키우는 중심)
+      if (end < 0) {
+        const cx = PX + PW / 2, cy = PY + PH / 2, r = 6 + (z - 1) * 3;
+        c.fillStyle = 'rgba(255,255,255,0.55)';
+        for (let a = 0; a < 20; a++) { if (a % 2) continue; const th = (a / 20) * Math.PI * 2; c.fillRect(Math.round(cx + Math.cos(th) * r), Math.round(cy + Math.sin(th) * r), 1, 1); }
+      } else { // 다 키웠다: 화면이 멈추고, 그 자리에 빨간 동그라미가 그려진다 (섬네일이 될 동그라미)
+        const cx = PX + PW / 2, cy = PY + PH / 2, r = 22 * Math.min(1, end * 1.5);
+        c.fillStyle = '#e03030';
+        for (let a = 0; a < 90; a++) { const th = (a / 90) * Math.PI * 2 * Math.min(1, end * 1.5); c.fillRect(Math.round(cx + Math.cos(th) * r), Math.round(cy + Math.sin(th) * r * 0.9), 2, 2); }
+      }
+      // 아래: 재생 막대와 시각
+      px(c, PX, PY + PH + 4, PW, 2, '#2a2c34'); px(c, PX, PY + PH + 4, Math.round(PW * ((tt % 41) / 41)), 2, '#d03a3a');
+      num(c, PX + PW - 22, PY + PH + 8, 41, '#8a8e98');
+      num(c, PX + 2, PY + 2, Math.round(z * 10) / 10 * 10, 'rgba(230,230,230,0.6)');
+    },
+  };
+}
+
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze, tilt };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;

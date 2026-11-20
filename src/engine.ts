@@ -45,6 +45,7 @@ const timerOf = (tags: string[] | null | undefined): number => {
 export class Game {
   story = new Story(storyText);
   pres: Pres = newPres();
+  private heard: { kind: string; text: string }[] = []; // 화면에 나온 최근 줄 (댓글 판이 그 말을 던진다). 저장하지 않는다.
   view: SceneView;
   world: World;
   private pending = false; // 앞줄을 읽을 시간을 줘야 하는가
@@ -199,6 +200,7 @@ export class Game {
     await ui.line(kind, text, { me: p.pov === 'yunseo' ? '윤서' : p.pov === 'yunjae' ? '나' : '' });
     p.tail.push({ kind, text });
     if (p.tail.length > 3) p.tail.shift();
+    this.heard.push({ kind, text }); if (this.heard.length > 24) this.heard.shift();
     if (p.cine > 0 && --p.cine === 0) this.sync();
     this.pending = true;
   }
@@ -224,7 +226,8 @@ export class Game {
       const ghosts = this.pres.tail.filter((t) => t.kind === 'voice').map((t) => t.text);
       if (!GAME_IDS.includes(id)) ui.hint(WORLD_GAME_HINT[id] || '');
       const said = /"(.+)"/.exec(texts[gi]); // 선택지 글에 따옴표로 적은 말 (타자 게임이 그 말을 친다)
-      const out = GAME_IDS.includes(id) ? await playGame(id, { ghosts: ghosts.length ? ghosts : undefined, text: said ? said[1] : undefined, droopy: (this.story.variablesState['eye_shape'] as unknown) === 'droopy' }) : await w.runGame(id);
+      const lines = this.heard.filter((t) => t.kind === 'comment' || t.kind === 'msg' || t.kind === 'caption').map((t) => t.text).slice(-14); // 댓글 판: 방금 읽은 말이 날아온다
+      const out = GAME_IDS.includes(id) ? await playGame(id, { ghosts: ghosts.length ? ghosts : undefined, text: said ? said[1] : undefined, droopy: (this.story.variablesState['eye_shape'] as unknown) === 'droopy', lines, skin: this.pres.skin, pov: this.pres.pov }) : await w.runGame(id);
       ui.hint('');
       const k = games.findIndex((g) => g && g[1] === out);
       return k >= 0 ? k : gi;
@@ -237,6 +240,7 @@ export class Game {
     const sp = binds.filter((b) => b.at === 'move' || b.at === 'wait');
     if (sp.length) ui.hint(sp.map((b) => `${b.at === 'move' ? ui.DIR_KEY : 'Z'}  ${texts[b.idx].replace(LOCK, '').trim()}`).join('   ·   '));
     else if (binds.every((b) => w.isTouch(b.at)) && new Set(binds.map((b) => b.at)).size === binds.length) ui.hint(texts.join('   ·   ')); // 갈 곳
+    else if (ui.boxEmpty()) ui.hint(texts.map((t) => t.replace(LOCK, '').trim()).join('   ·   ')); // 글 상자가 비었으면 할 일을 위에 적어 둔다
     else if (this.walks++ < 3) ui.hint(`${ui.DIR_KEY}로 걷는다   ·   Z 로 조사한다`);
     // 시간 제한: 'timeout' 에 묶인 선택지는 시간이 다 되면 저절로 골라진다
     const ti = binds.findIndex((b) => b.at === 'timeout');

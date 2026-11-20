@@ -135,6 +135,8 @@ export function clearFlow(): void {
   el.pics.innerHTML = '';
   lastMsgWho = ''; pageKey = '';
 }
+/** 대화창에 아무 글도 없는가 (앱 창을 닫거나 장면이 바뀐 직후) */
+export function boxEmpty(): boolean { return !el.win.classList.contains('on') || !el.winBody.textContent?.trim(); }
 /** 걷기 시작하면 대화창이 물러난다 */
 export function fadeWin(): void { el.win.classList.remove('on'); pageKey = ''; }
 
