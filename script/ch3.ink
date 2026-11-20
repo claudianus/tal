@@ -839,7 +839,9 @@ VAR c3_book_n = 0
     -> c3_frag7_last
 - ~ frag_7 = true
 ~ strength++
--> c3_toto_gone
+* [쏟아진 것들을 서랍에 도로 담는다 # at: head]
+    출입증을 맨 밑에. 영수증을 그 위에. 뒤집지 않은 한 장은 뒤집지 않은 채로.
+- -> c3_toto_gone
 
 // ── 불 꺼진 여우, 곰의 첫 한 줄 ──
 === c3_toto_gone ===

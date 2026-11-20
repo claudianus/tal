@@ -74,7 +74,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail', history: 'read', longmsg: 'read', buzz: 'caught', lining: 'held', headoff: 'off' };
+const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', swing3: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail', history: 'read', longmsg: 'read', buzz: 'caught', lining: 'held', headoff: 'off', tape: 'matched' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -1096,7 +1096,7 @@ function leave(all = false): Play {
 // ═══════════ 그네 (1장: 처음 나온 밤) ═══════════
 // 앞으로 갈 때 → , 뒤로 올 때 ← . 박자가 맞으면 높아지고, 어긋나면 줄어든다.
 // together: 옆 그네의 아이 높이에 맞춰 타면, 두 그네의 박자가 저절로 같아진다.
-function swing(together: boolean): Play {
+function swing(together: boolean, human = false): Play {
   const OM = 2.15; // 흔들리는 빠르기 (라디안/초)
   let A = 0.08, ph = 0, tt = 0, high = 0, end = -1, out = '', sync = 0, said = 0, kick = 0, lastHalf = -1;
   let hph = Math.PI * 0.9; const HA = 0.34; // 아이 그네
@@ -1167,7 +1167,17 @@ function swing(together: boolean): Play {
         c.strokeStyle = '#8a8f99'; c.lineWidth = 1; c.beginPath(); c.moveTo(ox, TY + 2); c.lineTo(sx, sy); c.stroke();
         px(c, sx - 7, sy, 14, 2, '#6a4a30');
         const fx = Math.cos(ang), fy = -Math.sin(ang); // 진행 방향
-        if (me) {
+        if (me && human) {
+          // 엔딩 A: 탈 없이. 회색 후드, 맨손, 사 년 동안 안 자른 머리. 얼굴을 그려도 되는 유일한 자리
+          const leg = kicking ? 9 : 6;
+          c.strokeStyle = '#2c2c34'; c.lineWidth = 3; c.beginPath(); c.moveTo(sx + 2, sy); c.lineTo(sx + 2 + fx * leg + 3, sy + 6 - fy * 2); c.stroke();
+          px(c, sx - 5, sy - 13, 9, 13, '#4a4a54'); px(c, sx - 5, sy - 13, 2, 13, '#3a3a44');
+          px(c, sx + 3, sy - 10, 3, 3, '#c4a28a'); // 사슬을 쥔 맨손
+          const hx = sx - 4, hy = sy - 22;
+          px(c, hx, hy, 9, 9, '#c4a28a'); px(c, hx - 1, hy - 2, 11, 5, '#16120f'); px(c, hx - 1, hy + 2, 3, 6, '#16120f'); // 얼굴과 덮인 이마
+          px(c, hx + 6 + (fx > 0 ? 1 : 0), hy + 4, 1, 1, '#2a2420'); px(c, hx + 5, hy + 7, 2, 1, '#a8806a'); // 눈 한 점, 입
+          px(c, hx + 3, hy + 9, 4, 3, '#c4a28a'); // 목
+        } else if (me) {
           // 삼색이: 등은 사슬 쪽, 다리는 앞으로. 몸통 진회색 후드, 꼬리는 뒤로 처진다
           const leg = kicking ? 9 : 6;
           c.strokeStyle = '#2c2c34'; c.lineWidth = 3; c.beginPath(); c.moveTo(sx + 2, sy); c.lineTo(sx + 2 + fx * leg + 3, sy + 6 - fy * 2); c.stroke();
@@ -2212,7 +2222,53 @@ function headoff(): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam, history, longmsg, buzz, lining, headoff };
+// ═══════════ 고지서 (2장: 서랍) ═══════════
+// 세로로 찢어진 등록금 고지서. 누렇게 마른 옛 테이프가 들떴다. 방향키로 오른쪽 반을 맞추고 Z 로 누른다.
+function tape(): Play {
+  const EDGE = Array.from({ length: 24 }, (_, i) => Math.round(Math.sin(i * 2.3) * 2 + Math.sin(i * 0.7) * 1.5));
+  let dx = 5 + Math.round(Math.random() * 4), dy = -4 + Math.round(Math.random() * 2), tt = 0, end = -1, pressed = 0, said = 0;
+  return {
+    scale: 3,
+    peek: () => ({ dx, dy }),
+    hint: '방향키로 찢어진 반쪽을 맞춘다 · 맞으면 Z 로 누른다',
+    step(dt, _t, _k, hit) {
+      tt += dt;
+      if (end >= 0) { end += dt; return end > 2 ? 'matched' : null; }
+      if (hit.has('left')) dx--; if (hit.has('right')) dx++; if (hit.has('up')) dy--; if (hit.has('down')) dy++;
+      if (hit.size && !hit.has('z')) sfx('tap');
+      if (hit.has('z')) { if (dx === 0 && dy === 0) { pressed = 1; end = 0; sfx('fabric_tear'); ui.hint(''); } else { sfx('bump'); if (said === 0) { said = 1; ui.hint('찢어진 반쪽을 맞춘다 · 글자 줄이 이어지게'); } } }
+      if (tt > 24 && end < 0) { dx = 0; dy = 0; end = 0; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      c.fillStyle = '#2a2420'; c.fillRect(0, 0, W, H);
+      for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#2e2722' : '#282220'; c.fillRect(0, i * 18, W, 18); } // 책상 나뭇결
+      const X0 = 22, Y0 = 8, PW = 40, PH2 = 46, MID = X0 + PW / 2; // 종이 (작은 좌표로 그리고 키운다)
+      c.save(); c.translate(W / 2 - MID * 2.6, H / 2 - (Y0 + PH2 / 2) * 2.6 - 4); c.scale(2.6, 2.6);
+      c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillRect(X0 + 1.5, Y0 + 1.5, PW, PH2);
+      const half = (right: boolean, ox: number, oy: number): void => {
+        c.save(); c.beginPath();
+        if (!right) { c.moveTo(X0 + ox, Y0 + oy); c.lineTo(MID + EDGE[0] + ox, Y0 + oy); EDGE.forEach((e, i) => c.lineTo(MID + e + ox, Y0 + oy + i * 2)); c.lineTo(X0 + ox, Y0 + PH2 + oy); }
+        else { c.moveTo(X0 + PW + ox, Y0 + oy); c.lineTo(MID + EDGE[0] + ox, Y0 + oy); EDGE.forEach((e, i) => c.lineTo(MID + e + ox, Y0 + oy + i * 2)); c.lineTo(X0 + PW + ox, Y0 + PH2 + oy); }
+        c.closePath(); c.clip();
+        c.fillStyle = '#ece6d4'; c.fillRect(X0 + ox - 2, Y0 + oy - 2, PW + 4, PH2 + 4);
+        c.fillStyle = '#4a5a8a'; c.fillRect(X0 + 3 + ox, Y0 + 3 + oy, 34, 3); // 머리띠
+        c.fillStyle = '#6a6a6a'; for (let r = 0; r < 7; r++) c.fillRect(X0 + 4 + ox, Y0 + 11 + r * 4 + oy, r === 3 ? 30 : 22 + (r % 3) * 4, 1); // 글자 줄
+        c.fillStyle = '#a83a3a'; c.fillRect(X0 + 22 + ox, Y0 + 38 + oy, 14, 3); // 납부 금액 칸
+        c.restore();
+        c.strokeStyle = 'rgba(120,100,70,0.6)'; c.lineWidth = 0.4; c.beginPath(); EDGE.forEach((e, i) => { const x = MID + e + ox, y = Y0 + oy + i * 2; if (i) c.lineTo(x, y); else c.moveTo(x, y); }); c.stroke();
+      };
+      half(false, 0, 0); half(true, dx, dy);
+      // 누렇게 마른 옛 테이프: 왼쪽 반에만 붙어 있고 끝이 들떴다
+      c.fillStyle = 'rgba(214,190,120,0.45)'; c.fillRect(MID - 4, Y0 + 4, 8, PH2 - 8);
+      if (pressed || end >= 0) { c.fillStyle = 'rgba(232,226,200,0.55)'; c.fillRect(MID - 5, Y0 + 2, 10, PH2 - 4); }
+      c.restore();
+      if (end < 0 && dx === 0 && dy === 0) { c.fillStyle = 'rgba(232,228,220,' + (0.6 + Math.sin(t * 5) * 0.3).toFixed(2) + ')'; c.font = '600 7px "Pretendard", sans-serif'; c.textAlign = 'center'; c.fillText('Z', W / 2, H - 6); c.textAlign = 'left'; }
+    },
+  };
+}
+
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), swing3: () => swing(true, true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam, history, longmsg, buzz, lining, headoff, tape };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;

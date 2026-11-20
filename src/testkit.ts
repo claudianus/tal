@@ -15,6 +15,7 @@ async function walk(at){ const w=window.tal.world; const rt=w.routeFor(at); if(!
   for(const [x,y] of rt.path.slice(1)){ const p=w.player; const k=DIR[(x-p.x)+','+(y-p.y)]; if(!k) break; let t=0; down(k); while((p.x!==x||p.y!==y)&&t<40){await S(15);t++;} up(k); let u=0; while((p.px!==p.x*16||p.py!==p.y*16)&&u<40){await S(15);u++;} }
   await hold(FACE[rt.face],40); { const p=w.player; let u=0; await S(60); while((p.px!==p.x*16||p.py!==p.y*16)&&u<60){await S(15);u++;} } await S(80); await hold('z',50); await S(500); return true; }
 async function game(h){
+  if(/찢어진 반쪽을 맞춘다/.test(h)){ for(let i=0;i<200&&document.querySelector('#game.on');i++){ const st=window.__play?.peek?.(); if(!st) break; if(st.dx>0) await hold('ArrowLeft',40); else if(st.dx<0) await hold('ArrowRight',40); else if(st.dy<0) await hold('ArrowDown',40); else if(st.dy>0) await hold('ArrowUp',40); else { await hold('z',40); break; } await S(90);} for(let i=0;i<40&&document.querySelector('#game.on');i++) await S(100); return 'tape'; }
   if(/한 글자씩/.test(h)){ for(let i=0;i<60 && /한 글자씩|글자/.test(document.querySelector('#hint')?.textContent||'');i++){await hold('a',30);await S(40);} await hold('z',50); return 'type'; }
   if(/소매 끝을 쥔다/.test(h)){ for(let i=0;i<200&&document.querySelector('#game.on');i++){ await hold('z',40); await S(90);} return 'sleeve'; }
   if(/연타해서|놓지 않는다/.test(h)){ for(let i=0;i<120&&document.querySelector('#game.on');i++){ await hold('z',40); await S(90);} return 'tug'; }
