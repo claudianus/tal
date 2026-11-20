@@ -16,6 +16,7 @@ async function walk(at){ const w=window.tal.world; const rt=w.routeFor(at); if(!
   await hold(FACE[rt.face],40); { const p=w.player; let u=0; await S(60); while((p.px!==p.x*16||p.py!==p.y*16)&&u<60){await S(15);u++;} } await S(80); await hold('z',50); await S(500); return true; }
 async function game(h){
   if(/한 글자씩/.test(h)){ for(let i=0;i<60 && /한 글자씩|글자/.test(document.querySelector('#hint')?.textContent||'');i++){await hold('a',30);await S(40);} await hold('z',50); return 'type'; }
+  if(/소매 끝을 쥔다/.test(h)){ for(let i=0;i<200&&document.querySelector('#game.on');i++){ await hold('z',40); await S(90);} return 'sleeve'; }
   if(/연타해서|놓지 않는다/.test(h)){ for(let i=0;i<120&&document.querySelector('#game.on');i++){ await hold('z',40); await S(90);} return 'tug'; }
   if(/땀 자리|뒤로 한 땀|앞으로 두 땀|천천히/.test(h)){ // 화면을 보고 바늘이 표시 위에 올 때 누른다 (캔버스 픽셀을 읽는다)
     const cv=document.querySelector('#game'); const cx=cv.getContext('2d');

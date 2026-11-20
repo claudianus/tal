@@ -74,7 +74,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked' };
+const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -1431,7 +1431,70 @@ function knock(): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), photo, catchb, zip, knock };
+// ═══════════ 소매 (3장: 물류센터 조회 시간) ═══════════
+// 반장의 장갑이 소매를 걷으려 한다. Z 를 연타해 소매 끝을 손안에 말아 쥔다. 기억이라서, 결국 걷힌다.
+// 팔은 보여 주지 않는다. 걷히는 순간 하얗게 끊는다.
+function sleeve(): Play {
+  let tt = 0, cuff = 0, mine = 0, end = -1, said = 0, yank = 0;
+  const ring = Array.from({ length: 22 }, (_, i) => ({ a: (i / 22) * Math.PI * 2, d: 0.85 + ((i * 37) % 10) / 40, v: (i * 13) % 4 }));
+  return {
+    scale: 2,
+    peek: () => ({ cuff, tt }),
+    hint: 'Z 를 연타해서 소매 끝을 쥔다',
+    step(dt, _t, _k, hit) {
+      tt += dt; yank -= dt;
+      if (end >= 0) { end += dt; return end > 2.4 ? 'bared' : null; }
+      mine = Math.max(0, mine - dt * 1.5);
+      if (hit.has('z')) { cuff = Math.max(0, cuff - 0.028); mine = Math.min(1, mine + 0.14); sfx('tap'); }
+      cuff += dt * (0.05 + tt * 0.012);
+      if (Math.random() < dt * (tt < 3 ? 0.5 : 1.3)) { cuff += 0.08 + tt * 0.01; yank = 0.2; sfx('bump'); }
+      if (tt > 3 && said === 0) { said = 1; ui.hint('사십 명이 보고 있다'); }
+      if (tt > 6 && said === 1) { said = 2; ui.hint('놓지 않는다'); }
+      if (cuff >= 1) { end = 0; ui.hint(''); sfx('ringing_ear'); }
+      return null;
+    },
+    draw(c, t) {
+      // 물류센터 바닥: 노란 선, 형광등, 반팔 입은 사람들의 둥근 줄
+      c.fillStyle = '#2a2c30'; c.fillRect(0, 0, W, H);
+      c.fillStyle = '#3a3c40'; c.fillRect(0, 70, W, H - 70);
+      c.fillStyle = '#c8a830'; c.fillRect(0, 96, W, 2); c.fillRect(0, 128, W, 2);
+      for (let i = 0; i < 4; i++) { c.fillStyle = 'rgba(230,240,255,0.5)'; c.fillRect(20 + i * 64, 6, 36, 2); }
+      for (const r of ring) { // 얼굴 없는 사람들. 형광 조끼
+        const x = W / 2 + Math.cos(r.a) * 120 * r.d, y = 58 + Math.sin(r.a) * 18 * r.d;
+        if (y > 66 && Math.abs(x - W / 2) < 70) continue;
+        const k = 0.7 + (y - 40) / 80;
+        c.fillStyle = '#1c1c22'; c.beginPath(); c.arc(x, y - 14 * k, 4 * k, 0, 7); c.fill();
+        c.fillStyle = r.v === 0 ? '#c8d040' : '#3a3e48'; c.fillRect(x - 5 * k, y - 10 * k, 10 * k, 14 * k);
+        c.fillStyle = '#b8987e'; c.fillRect(x - 7 * k, y - 9 * k, 2 * k, 6 * k); c.fillRect(x + 5 * k, y - 9 * k, 2 * k, 6 * k); // 반팔 밖의 팔
+      }
+      // 시선이 좁혀 온다
+      const v = c.createRadialGradient(W / 2, 100, 30, W / 2, 100, 150); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,' + (0.3 + Math.min(1, cuff) * 0.5).toFixed(2) + ')');
+      c.fillStyle = v; c.fillRect(0, 0, W, H);
+      // 내 팔: 긴소매 회색 작업복이 아래 왼쪽에서 나온다. 손은 소매 끝을 말아 쥐었다
+      const sh = yank > 0 ? (Math.random() - 0.5) * 3 : 0;
+      const cy = 112 - Math.min(1, cuff) * 10 + sh;
+      c.fillStyle = '#4a4e58'; c.beginPath(); c.moveTo(0, H); c.lineTo(0, 118); c.lineTo(130, cy - 8); c.lineTo(138, cy + 10); c.lineTo(30, H); c.closePath(); c.fill();
+      c.fillStyle = '#3a3e48'; c.beginPath(); c.moveTo(0, 130); c.lineTo(132, cy + 4); c.lineTo(138, cy + 10); c.lineTo(30, H); c.closePath(); c.fill();
+      for (let i = 0; i < 5; i++) { c.fillStyle = '#353842'; c.fillRect(20 + i * 22, 128 - i * 3.5 + (cy - 112) * (i / 5), 10, 1); } // 주름
+      // 소매 끝: 반장이 잡은 만큼 위로 말려 올라간다 (안은 보여 주지 않는다)
+      c.fillStyle = '#5a5e68'; c.fillRect(126, cy - 10, 14, 22);
+      // 내 손: 소매 끝을 손바닥 안에 말아 쥔다. 세게 쥘수록 마디가 하얗다
+      c.fillStyle = '#c9ab92'; c.beginPath(); c.ellipse(146, cy + 2, 10, 11, 0, 0, 7); c.fill();
+      for (let i = 0; i < 4; i++) { c.fillStyle = '#b8987e'; c.fillRect(151, cy - 6 + i * 4, 5, 3); if (mine > 0.4) { c.fillStyle = '#efe2d6'; c.fillRect(153, cy - 6 + i * 4, 2, 1); } }
+      // 반장의 장갑: 오른쪽 위에서 소매를 쥐고 당긴다
+      const gx = 150 + Math.min(1, cuff) * 6, gy = cy - 18 - Math.min(1, cuff) * 8 + sh;
+      c.fillStyle = '#5a5248'; c.fillRect(gx + 10, gy - 30, 18, 34); // 팔뚝 (반팔 위 토시)
+      c.fillStyle = '#8a8070'; c.beginPath(); c.ellipse(gx + 8, gy + 2, 13, 9, -0.4, 0, 7); c.fill(); // 목장갑
+      c.fillStyle = '#c84a3a'; for (let i = 0; i < 4; i++) c.fillRect(gx - 2 + i * 4, gy + 6, 3, 2); // 장갑의 빨간 고무 코팅
+      c.fillStyle = '#6a6256'; for (let i = 0; i < 4; i++) c.fillRect(gx - 4 + i * 4, gy - 4, 1, 8);
+      // 막대: 소매가 얼마나 걷혔는지
+      c.fillStyle = '#2a2224'; c.fillRect(W - 18, 30, 3, 80); c.fillStyle = cuff > 0.75 ? '#d8574e' : '#8a92a6'; c.fillRect(W - 18, 110 - Math.round(80 * Math.min(1, cuff)), 3, Math.round(80 * Math.min(1, cuff)));
+      if (end >= 0) { c.fillStyle = 'rgba(250,250,248,' + Math.min(1, end * 3).toFixed(2) + ')'; c.fillRect(0, 0, W, H); }
+    },
+  };
+}
+
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), photo, catchb, zip, knock, sleeve };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;
