@@ -18,17 +18,19 @@
 VAR c1_dressed = 0
 * {c1_dressed == 0} [몸통을 입는다 # at: head]
     ~ c1_dressed = 1
-    # suit: body
+    # suit: body_bare
     긴소매 티셔츠 위에 입는다. 8월이다. 그래도 긴소매다.
     등 지퍼는 혼자 올리기 어렵다. 옷걸이에 끈을 걸어 당기는 법을 영상에서 배웠다. 혼자 사는 고양이들의 지혜다.
     -> c1_dress
 * {c1_dressed == 1} [발과 꼬리를 단다 # at: head]
     ~ c1_dressed = 2
+    # suit: body_feet
     발은 운동화 위에 씌운다. 발바닥이 내 발의 두 배다.
     꼬리는 허리끈에 건다. 돌아서면 한 박자 늦게 따라온다.
     -> c1_dress
 * {c1_dressed == 2} [손을 낀다 # at: head]
     ~ c1_dressed = 3
+    # suit: body_hands
     손 파츠는 손목 위까지 올라온다. 그렇게 만들었다. 일부러.
     분홍 발바닥 젤리가 붙은 손. 이 손으로는 휴대폰 화면이 안 눌린다.
     -> c1_dress

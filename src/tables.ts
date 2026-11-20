@@ -159,7 +159,7 @@ export const EMOTES: Record<string, string> = {
   shake: '고개를 젓는다', laugh: '웃는다', give: '내민다', reach: '손을 뻗는다', point: '가리킨다', eat: '먹는 시늉', cover_mouth: '입을 가린다', block: '팔로 막는다', hold: '두 손으로 든다', none: '(몸짓을 그친다)',
 };
 
-export const SUIT = ['on', 'off', 'body', 'head_on', 'head_off'];
+export const SUIT = ['on', 'off', 'body', 'body_bare', 'body_feet', 'body_hands', 'head_on', 'head_off'];
 export const POSTURE = ['arm', 'back', 'leg'];
 export const POV = ['yunseo', 'yunjae', 'world']; // world: 엔딩 C. 아무도 말하지 않는다. 보이는 것만 적는다
 
@@ -187,7 +187,7 @@ export const DIRECTIVES = [
   'warn',  // warn: 경고 이름 / end   장면 경고 (설정에서 켰을 때만). 넘기면 end 까지 감고 요약을 보여 준다
   'room',  // room: torn / sewn / box / box_open / tidy / ajar / head_bed|floor|held|desk / suit_torn|folded|none   방에 남는 자국
 ];
-export const ROOM_MARKS = ['torn', 'sewn', 'box', 'box_open', 'tidy', 'ajar', 'head_bed', 'head_floor', 'head_held', 'head_desk', 'suit_torn', 'suit_folded', 'suit_none', 'closet_open', 'mirror_open', 'closet_shut'];
+export const ROOM_MARKS = ['torn', 'sewn', 'box', 'box_open', 'tidy', 'ajar', 'head_bed', 'head_floor', 'head_held', 'head_desk', 'suit_torn', 'suit_folded', 'suit_none', 'closet_open', 'mirror_open', 'closet_shut', 'siren', 'front_open', 'door_1107', 'door_shut'];
 // 선택지에 붙는 태그. "[모니터를 본다 # at: monitor]" → 맵의 그 물건을 조사하면 골라진다.
 // at: move 는 방향키, at: wait 는 아무것도 없는 데서 누르는 Z 다.
 export const CHOICE_TAGS = ['at'];

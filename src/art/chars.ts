@@ -14,6 +14,7 @@ export type Look = {
   bare?: boolean; // 엔딩 A: 맨얼굴의 윤재에게 처음으로 눈과 입이 생긴다
   bag?: boolean; // 윤재가 등에 멘 국방색 의류대. 안에 삼색이가 들었다.
   case?: boolean; // 현우가 끄는 남색 캐리어. 안에 여우가 접혀 있다.
+  parts?: number; // 탈을 입는 중: 1 몸통만(운동화, 맨손), 2 발과 꼬리까지(맨손), 3 손까지
   hold?: boolean; // 맨몸의 윤재가 삼색이의 머리를 배 앞에 안았다 (3장 끝, 바닥에 앉아서)
   mark?: '' | 'torn' | 'sewn'; // 삼색이 머리: 3장에서 귀가 뜯기고 주둥이 옆이 벌어진다. 4장에서 주황 실로 꿰맨다.
 };
@@ -264,7 +265,10 @@ export function catHeadOps(dir: Dir, c: number, oy: number, droopy: boolean, bla
 
 type SuitOps = { under: Op[]; arms: Op[]; ruff: Op[]; last: Op[]; uy: number };
 /** 서 있을 때의 작은 움직임. tail 은 꼬리 끝이 -1/0/1 만큼 기운다, br 은 숨을 들이쉰 박자. */
-export type Idle = { tail?: number; br?: number };
+export type Idle = { tail?: number; br?: number; parts?: number };
+/** 입는 중에 보이는 사람 것: 운동화, 맨손 (탈 털이 아니라서 털 그늘 대신 선이 둘린다) */
+const SHOE: Ramp = ['#d8d4cc', '#b4aea4', '#8a847c', '#5a5650'];
+const SKIN_HAND: Ramp = ['#f2d2bc', '#dcb49a', '#b88a74', '#7e5a4c'];
 /** 삼색이의 몸. dir 은 down/up/right 만 (left 는 right 를 black 으로 그려서 뒤집는다). */
 function suitOps(dir: Dir, step: number, sit: boolean, emote: string, ph: number, black: boolean, idle: Idle = {}): SuitOps {
   const bob = step === 1 || step === 3 ? 1 : 0;         // 디딜 때 몸이 1px 내려앉는다
@@ -273,10 +277,15 @@ function suitOps(dir: Dir, step: number, sit: boolean, emote: string, ph: number
   const uy = bob + (sit ? 5 : 0) + (emote === 'curl' ? 2 : 0);
   const o: SuitOps = { under: [], arms: [], ruff: [], last: [], uy };
   const R = CAT_R;
+  const parts = idle.parts ?? 3;
+  const FT: Ramps = parts < 2 ? { ...R, W: SHOE } : R;      // 발 파츠를 아직 안 씌웠다: 운동화가 보인다
+  const HD: Ramps = parts < 3 ? { ...R, W: SKIN_HAND } : R; // 손 파츠를 아직 안 꼈다: 맨손이 소매 끝에 나와 있다
+  const fk = parts < 2 ? 0.75 : 1, hk = parts < 3 ? 0.62 : 1;
+  const tail = parts >= 2;
   if (dir === 'down' || dir === 'up') {
     const back = dir === 'up';
     const Lc = back ? 'K' : 'O', Rc = back ? 'O' : 'K';  // 보는 쪽 왼편, 오른편의 색
-    if (!back) o.under.push([new Part(tailColor).path([CX + 4, 37 + uy, CX + 9.6, 41 + uy, CX + 12 + sw * 0.6, 47, CX + 11.8 + sw, 51.4, CX + 9 + sw, 53.4], 3, 2.5), R]);
+    if (!back && tail) o.under.push([new Part(tailColor).path([CX + 4, 37 + uy, CX + 9.6, 41 + uy, CX + 12 + sw * 0.6, 47, CX + 11.8 + sw, 51.4, CX + 9 + sw, 53.4], 3, 2.5), R]);
     const lifts: number[] = [];
     for (const s of [-1, 1]) {
       const lift = !sit && ((step === 1 && s < 0) || (step === 3 && s > 0)) ? 1 : 0;
@@ -286,9 +295,9 @@ function suitOps(dir: Dir, step: number, sit: boolean, emote: string, ph: number
       if (sit) leg.ell(CX + s * 4.4, 47.2, 4.4, 3.2);
       else leg.ell(CX + s * 4.3, 41 + bob, 4.1, 4.7).path([CX + s * 4.3, 43 + bob, CX + s * 4.6, 50 - lift], 2.5, 2.1);
       o.under.push([leg, R]);
-      o.under.push([new Part('W').ell(CX + s * 4.6, 51.9 - lift, 3.7, 2.4).light(CX + s * 4.6 - 1, 50.5, 4.5, 3), R]);
+      o.under.push([new Part('W').ell(CX + s * 4.6, 51.9 - lift + (1 - fk) * 2, 3.7 * fk, 2.4 * fk).light(CX + s * 4.6 - 1, 50.5, 4.5, 3), FT]);
     }
-    o.under.push((p) => { // 발가락 사이
+    if (parts >= 2) o.under.push((p) => { // 발가락 사이
       [-1, 1].forEach((s, i) => {
         const fx = Math.floor(CX + s * 4.6), fy = 53 - lifts[i];
         for (const dx of [-1, 1]) { p.set(fx + dx, fy, R.W[3]); p.set(fx + dx, fy - 1, R.W[2]); }
@@ -323,14 +332,14 @@ function suitOps(dir: Dir, step: number, sit: boolean, emote: string, ph: number
         o.arms.push((p) => { const x = Math.floor(CX + 7), y = Math.floor(33 + uy), P = R.P; p.set(x - 1, y + 1, P[1]); p.set(x, y + 1, P[1]); p.set(x + 1, y + 1, P[2]); p.set(x - 2, y - 1, P[1]); p.set(x, y - 2, P[1]); p.set(x + 2, y - 1, P[1]); });
       } else if (!back && emote === 'hold') {            // 벗은 머리를 배 앞에 안는다: 두 손이 머리 양옆을 받친다
         o.arms.push([new Part(armCol).path([CX + s * 6.2, 26.8 + uy, CX + s * 8.8, 35 + uy], 2.2, 1.9), R]);
-        o.arms.push([new Part('W').ell(CX + s * 8.2, 38.2 + uy, 2.9, 2.6), R]);
+        o.arms.push([new Part('W').ell(CX + s * 8.2, 38.2 + uy, 2.9 * hk, 2.6 * hk), HD]);
       } else if (!back && (emote === 'heart' || emote === 'curl' || emote === 'eat' || emote === 'cover_mouth')) { // 두 손을 가슴 앞에 모은다 (먹는 시늉, 입 가리기는 더 높이)
         const ty = emote === 'curl' ? 34 : emote === 'eat' || emote === 'cover_mouth' ? 27.5 : 31;
         o.arms.push([new Part(armCol).path([CX + s * 6.2, 26.8 + uy, CX + s * 3, ty + uy], 2.2, 1.9), R]);
-        o.arms.push([new Part('W').ell(CX + s * 2.2, ty + 0.6 + uy, 2.9, 2.6), R]);
+        o.arms.push([new Part('W').ell(CX + s * 2.2, ty + 0.6 + uy, 2.9 * hk, 2.6 * hk), HD]);
       } else {
         o.arms.push([new Part(armCol).path([CX + s * (6.2 + br * 0.5), 26.8 + uy - br, CX + s * (8.2 + br * 0.4), 34.6 + uy + a * 0.7 - br * 0.5], 2.2, 1.8), R]);
-        o.arms.push([new Part('W').ell(CX + s * (8.6 + br * 0.4), 37.2 + uy + a * 0.7 - br * 0.5, 3, 2.7), R]);
+        o.arms.push([new Part('W').ell(CX + s * (8.6 + br * 0.4) - s * (1 - hk) * 1.5, 37.2 + uy + a * 0.7 - br * 0.5, 3 * hk, 2.7 * hk), HD]);
       }
     }
     // 목털
@@ -338,7 +347,7 @@ function suitOps(dir: Dir, step: number, sit: boolean, emote: string, ph: number
       .poly([CX - 5.8, 26.6 + uy, CX - 4, 30 + uy, CX - 1.8, 29.2 + uy, CX, 31 + uy, CX + 1.8, 29.2 + uy, CX + 4, 30 + uy, CX + 5.8, 26.6 + uy]), R]);
     else {
       o.ruff.push([new Part((X, Y) => (X < CX + Math.sin(Y * 0.6) * 1.4 ? 'K' : 'O')).ell(CX, 26.4 + uy, 6, 2.4), R]);
-      o.last.push([new Part(tailColor).path([CX, 36.6 + uy, CX + 0.4 + sw * 0.5, 42.6, CX + 1 + sw, 48.6, CX + 3 + sw, 52.2, CX + 6.6 + sw, 53], 3.1, 2.5), R]);
+      if (tail) o.last.push([new Part(tailColor).path([CX, 36.6 + uy, CX + 0.4 + sw * 0.5, 42.6, CX + 1 + sw, 48.6, CX + 3 + sw, 52.2, CX + 6.6 + sw, 53], 3.1, 2.5), R]);
     }
     return o;
   }
@@ -351,20 +360,20 @@ function suitOps(dir: Dir, step: number, sit: boolean, emote: string, ph: number
     if (sit) pt.ell(CX + 2.4 + dx, 45.4, 5.2, 3.2);
     else pt.ell(CX + dx * 0.4, 41 + bob, 4.6, 4.9).path([CX + dx * 0.4, 43 + bob, CX + 0.6 + dx, 50.2], 2.6, 2.2);
     o.under.push([pt, R]);
-    o.under.push([new Part('W').ell(CX + (sit ? 6.4 : 3) + (sit ? dx * 0.3 : dx), 52.3, 4.2, 2.2).set({ dim }), R]);
+    o.under.push([new Part('W').ell(CX + (sit ? 6.4 : 3) + (sit ? dx * 0.3 : dx) - (1 - fk) * 3, 52.3, 4.2 * fk, 2.2 * fk).set({ dim }), FT]);
   };
-  o.under.push([new Part(tailColor).path([CX - 3.6, 37 + uy, CX - 8, 41 + uy, CX - 10.4 - sw, 47, CX - 10.6 - sw, 51.2, CX - 7.8 - sw, 53.2], 3, 2.5), R]);
+  if (tail) o.under.push([new Part(tailColor).path([CX - 3.6, 37 + uy, CX - 8, 41 + uy, CX - 10.4 - sw, 47, CX - 10.6 - sw, 51.2, CX - 7.8 - sw, 53.2], 3, 2.5), R]);
   leg(far, -f - 0.8, 1);
   o.under.push([new Part((X, Y) => stripe(far, X, Y)).path([CX + 1.6, 27 + uy, CX + 2.4 - a, 34.6 + uy], 2.1, 1.8).set({ dim: 1 }), R]);
-  o.under.push([new Part('W').ell(CX + 2.8 - a, 36.8 + uy, 2.8, 2.5).set({ dim: 1 }), R]);
+  o.under.push([new Part('W').ell(CX + 2.8 - a, 36.8 + uy, 2.8 * hk, 2.5 * hk).set({ dim: 1 }), HD]);
   o.under.push([new Part((X, Y) => (X > CX + 2.4 + br ? 'W' : stripe(near, X, Y, 1.5))).ell(CX + br * 0.5, 31.6 + uy - br * 0.4, 5.8 + br * 0.5, 6.9 + br * 0.4).ell(CX - 0.4, 36.6 + uy, 6.4, 3.8), R]);
   leg(near, f + 0.4, 0);
   if (emote === 'hold') { // 벗은 머리를 앞으로 안는다
     o.arms.push([new Part((X, Y) => stripe(near, X, Y, 0.7)).path([CX - 0.4, 27.2 + uy, CX + 0.6, 34 + uy, CX + 4.6, 37.6 + uy], 2.3, 1.9), R]);
-    o.arms.push([new Part('W').ell(CX + 5.6, 38.2 + uy, 2.9, 2.6), R]);
+    o.arms.push([new Part('W').ell(CX + 5.6, 38.2 + uy, 2.9 * hk, 2.6 * hk), HD]);
   } else {
     o.arms.push([new Part((X, Y) => stripe(near, X, Y, 0.7)).path([CX - 0.4, 27.2 + uy, CX + 0.8 + a, 34.6 + uy], 2.3, 1.9), R]);
-    o.arms.push([new Part('W').ell(CX + 1.2 + a, 37 + uy, 3, 2.7), R]);
+    o.arms.push([new Part('W').ell(CX + 1.2 + a, 37 + uy, 3 * hk, 2.7 * hk), HD]);
   }
   o.ruff.push([new Part('W').set({ soft: 0.35 }).poly([CX + 1.4, 24.6 + uy, CX + 6.2, 26.6 + uy, CX + 5, 27.8 + uy, CX + 6.4, 29.6 + uy, CX + 4, 29.8 + uy, CX + 4.6, 31.6 + uy, CX + 1.6, 30.4 + uy]), R]);
   return o;
@@ -970,7 +979,7 @@ const cache = new Map<string, Pix>();
 export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', emote = '', ph = 0, idle: Idle = {}): Pix {
   const tl = Math.max(-1, Math.min(1, Math.round(idle.tail || 0))), br = idle.br ? 1 : 0;
   idle = { tail: tl, br };
-  const key = `${look.kind}${look.v ?? ''}/${look.mark || ''}/${look.droopy ? 1 : 0}${look.eyes ? 1 : 0}${look.bare ? 1 : 0}${look.bag ? 1 : 0}${look.case ? 1 : 0}${look.hold ? 1 : 0}/${dir}/${step}/${pose}/${emote}/${ph}/${tl}${br}`;
+  const key = `${look.kind}${look.v ?? ''}/${look.mark || ''}/${look.droopy ? 1 : 0}${look.eyes ? 1 : 0}${look.bare ? 1 : 0}${look.bag ? 1 : 0}${look.case ? 1 : 0}${look.hold ? 1 : 0}${look.parts ?? ''}/${dir}/${step}/${pose}/${emote}/${ph}/${tl}${br}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const left = dir === 'left';
@@ -994,9 +1003,9 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
       break;
     }
     case 'cat_nohead': { // 탈을 벗었다. 윤재의 머리가 목털 위에 있고, 고양이 머리는 배 앞에 안았다 (뒤에서는 안 보인다).
-      const s = suitOps(d, step, sit, d === 'up' ? emote : 'hold', ph, left, idle);
+      const s = suitOps(d, step, sit, d === 'up' || !look.hold ? emote : 'hold', ph, left, { ...idle, parts: look.parts });
       ops.push(...s.under, ...s.ruff, ...humanOps({ ...YJ, head: [22.2, 4.6, 5.2] }, d, step, sit, true).head);
-      if (d !== 'up') ops.push(...catHeadOps('down', CX + (d === 'down' ? 0 : 6), 21 + s.uy, droopy, false, false));
+      if (d !== 'up' && look.hold) ops.push(...catHeadOps('down', CX + (d === 'down' ? 0 : 6), 21 + s.uy, droopy, false, false));
       ops.push(...s.arms, ...s.last);
       break;
     }

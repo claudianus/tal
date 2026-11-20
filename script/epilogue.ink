@@ -152,24 +152,31 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 - 그네에 앉아 있는다. 아이도 앉아 있는다. 아무도 말하지 않는다.
 # sfx: swing_creak
 # pause: 3
+# room: siren
 미끄럼틀에 파란 빛이 묻는다. 빨간 빛. 다시 파란 빛.
 # npc: police in
-# npc: police near walk
+# npc: police swing_front walk
 경찰: 신고하신 분? # say
 나: 저요. # say
+# emote: point police
 손전등이 내 얼굴에서 한 박자 멈춘다.
 그 한 박자 동안 저 사람이 무슨 생각을 했는지는 모른다.
 * [얼굴을 가리지 않는다 # at: wait]
 - 얼굴을 가리지 않는다.
+# npc: police floor_kneel walk
 경찰관이 아이 앞에 쪼그려 앉는다. 키를 맞춘다. 나는 한 번도 저렇게 하지 못했다.
 # turn: haeun left
 아이가 나를 본다.
 * [고개를 끄덕인다 # at: wait]
 - # emote: nod
 고개를 끄덕인다. 아무것도 약속하지 못하는 끄덕임이다.
+# npc: police2 in
+# npc: police2 ask walk
+# turn: police2 right
 다른 경찰관이 내 번호를 받아 적는다. 아이와 무슨 사이냐고 묻는다.
 나: 같은 단지 살아요. # say
 그게 다다. 그 이상이면 안 된다는 걸 이제는 안다.
+# npc: police near walk
 # npc: haeun edge walk
 아이가 경찰관과 107동 쪽으로 간다.
 # turn: haeun left
@@ -178,6 +185,7 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 그 뒤로 아이가 어떻게 됐는지, 나는 모른다.
 # npc: haeun off
 # npc: police off
+# npc: police2 off
 -> ep_a_room
 
 === ep_a_room ===

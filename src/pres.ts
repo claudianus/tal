@@ -33,8 +33,11 @@ export type Pres = {
   box?: '' | 'shut' | 'open';   // 엄마가 문 앞에 둔 실밥의 상자
   tidy?: boolean;               // 위기의 밤에 쓰레기를 치웠다
   ajar?: boolean;               // 3장 뒤: 부서진 방문이 한 뼘 열려 있다
+  dressing?: number; // 방에서 탈을 입는 중: 1 몸통만, 2 발·꼬리까지, 3 손까지. 머리는 아직 받침대에 있다
   headAt?: '' | 'bed' | 'floor' | 'held'; // 삼색이 머리가 받침대 밖에 있다 (held: 아버지 손에)
   pile?: '' | 'torn' | 'folded'; // 삼색이 몸: 바닥에 찢긴 채 / 개어 둔 채
+  door?: '' | 'front' | '1107'; // 열려 있는 문: 거실 현관문, 복도 1107호 (지도가 바뀌면 닫힌다)
+  siren?: boolean; // 순찰차 경광등이 담 너머에서 돈다 (지도가 바뀌면 꺼진다)
   closet?: '' | 'left' | 'mirror'; // 옷장 문 (장이 바뀌면 닫힌다)
   npcs: Record<string, string>; // 누가 어느 자리에 있는가
   swings?: Record<string, string>; // 그네 자리 → still / gentle / high
@@ -73,7 +76,7 @@ export function applyTag(p: Pres, { name, val }: Tag): void {
     case 'chapter': p.chapter = val; p.tail = []; p.closet = ''; p.bare = false; p.lampOff = false; p.carry = ''; if (!val.startsWith('프롤로그')) p.headDone = true; break;
     case 'sfx': if (val === 'switch_off') p.lampOff = true; else if (val === 'switch_on') p.lampOff = false; break;
     case 'scene':
-      if ((SCENES[p.scene]?.map || '') !== (SCENES[val]?.map || '')) { p.pos = ''; p.pose = 'stand'; p.face = ''; p.npcs = {}; p.swings = {}; }
+      if ((SCENES[p.scene]?.map || '') !== (SCENES[val]?.map || '')) { p.pos = ''; p.pose = 'stand'; p.face = ''; p.npcs = {}; p.swings = {}; p.siren = false; p.door = ''; }
       p.px = undefined; p.py = undefined;
       p.scene = val; p.eyes = false; p.cat = false; p.cine = 0;
       if (p.skin === 'browser' || p.skin === 'call') p.skin = 'none';
@@ -83,6 +86,10 @@ export function applyTag(p: Pres, { name, val }: Tag): void {
       else if (val === 'box') p.box = p.box || 'shut';
       else if (val === 'box_open') p.box = 'open';
       else if (val === 'tidy') p.tidy = true;
+      else if (val === 'siren') p.siren = true;
+      else if (val === 'front_open') p.door = 'front';
+      else if (val === 'door_1107') p.door = '1107';
+      else if (val === 'door_shut') p.door = '';
       else if (val === 'ajar') p.ajar = true;
       else if (val === 'head_bed' || val === 'head_floor' || val === 'head_held') p.headAt = val.slice(5) as 'bed' | 'floor' | 'held';
       else if (val === 'head_desk') p.headAt = '';
@@ -94,10 +101,11 @@ export function applyTag(p: Pres, { name, val }: Tag): void {
       break;
     case 'suit':
       p.headDone = true;
+      p.dressing = val === 'body_bare' ? 1 : val === 'body_feet' ? 2 : val === 'body_hands' ? 3 : 0;
       if (val === 'on' || val === 'head_on') p.headAt = ''; // 쓰면 머리는 내 머리 위에 있다. 벗으면 받침대(또는 품)로 간다
       if (val === 'on') { p.suit = true; p.suitFull = true; }
       else if (val === 'off') { p.suit = false; p.suitFull = false; }
-      else if (val === 'body') { p.suit = false; p.suitFull = true; }
+      else if (val === 'body' || p.dressing) { p.suit = false; p.suitFull = true; }
       else if (val === 'head_on') p.suit = true;
       else if (val === 'head_off') p.suit = false;
       break;

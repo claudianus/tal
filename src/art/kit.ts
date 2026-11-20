@@ -3,7 +3,7 @@ import { Pix, mix, rnd } from './pix.ts';
 
 /** fade: 사람이 뒤에 서면 반쯤 비친다 (나뭇잎처럼 사람을 통째로 가리는 것) */
 export type Prop = { pix: Pix; x: number; y: number; foot: number; fade?: boolean };
-export type PlaceState = { day: boolean; mood: string };
+export type PlaceState = { day: boolean; mood: string; door?: string }; // door: 열려 있는 문 (front: 우리 집 현관, 1107: 옆집)
 export type Place = { base: Pix; props: Prop[] };
 export const T = 16;
 

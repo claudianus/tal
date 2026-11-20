@@ -18,7 +18,7 @@ export type { Prop, PlaceState, Place } from './kit.ts';
 
 // ═══════════════════ 11층 복도 ═══════════════════
 const C_TOP = 56, WB = C_TOP + T; // WB: 벽이 바닥과 만나는 줄 (그림 좌표). 문은 사람보다 한 뼘 크다.
-function steelDoor(p: Pix, tx: number, num: string, kind: 'home' | 'next' | 'other', seed: number): void {
+function steelDoor(p: Pix, tx: number, num: string, kind: 'home' | 'next' | 'other', seed: number, open = false): void {
   const w = 24, h = 52, x0 = tx * T + 4, y0 = WB - h;
   // 문틀: 시멘트 벽을 파고 들어간 철제 틀
   p.rect(x0 - 3, y0 - 3, w + 6, h + 3, '#5f6a66'); p.hl(x0 - 3, y0 - 3, w + 6, '#7d8883'); p.vl(x0 - 3, y0 - 3, h + 3, '#76817c'); p.vl(x0 + w + 2, y0 - 3, h + 3, '#46504c');
@@ -46,6 +46,20 @@ function steelDoor(p: Pix, tx: number, num: string, kind: 'home' | 'next' | 'oth
     p.rect(x0 + 2, y0 + 19, 5, 7, '#e6dcc6'); p.hl(x0 + 2, y0 + 19, 5, '#c8b890'); p.set(x0 + 4, y0 + 18, '#8d8468'); p.dots(`${x0 + 3},${y0 + 22} ${x0 + 5},${y0 + 23}`, '#5a8ac0');
   } else if (rnd(tx, 0, seed) > 0.4) { // 다른 집: 붙었다 떨어진 스티커, 테이프 자국
     p.rect(x0 + 4, y0 + 30, 6, 4, '#e0d8b8', 0.8); p.set(x0 + 4, y0 + 30, '#c8c0a0');
+  }
+  if (open) { // 문이 바깥으로 열렸다: 남의 집 현관이 들여다보인다. 노란 형광등, 신발장, 벗어 둔 슬리퍼.
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+      const fl = y > y0 + h - 12, k = (y - y0) / h;
+      p.set(x, y, fl ? (rnd(x, y, seed + 9) > 0.9 ? '#8a7558' : '#9c8664') : mix('#f2dfaa', '#b89c6c', k));
+    }
+    p.rect(x0 + 1, y0 + 14, 7, 26, '#7a5a3e'); p.hl(x0 + 1, y0 + 14, 7, '#9a7854'); p.hl(x0 + 1, y0 + 26, 7, '#5a412c'); // 신발장
+    p.rect(x0 + 2, y0 + 10, 5, 4, '#6aa070'); p.set(x0 + 4, y0 + 9, '#4a7a50');                                           // 신발장 위 화분
+    p.rect(x0 + 12, y0 + h - 7, 5, 2, '#d06a8a'); p.rect(x0 + 18, y0 + h - 6, 5, 2, '#d06a8a');                           // 슬리퍼
+    p.rect(x0 + 10, y0 + 1, 8, 2, '#fffbe8');                                                                               // 현관등
+    // 열린 문짝: 경첩이 오른쪽, 복도로 비스듬히 나와 있다
+    const DOOR = '#7c8b8d', DD = mix(DOOR, '#000000', 0.25);
+    for (let i = 0; i < 9; i++) { const x = x0 + w + 2 + i, t = Math.floor(i * 0.7); p.vl(x, y0 - 2 + t, h + 2 - t * 2 + 4, i < 2 ? DD : i > 7 ? mix(DOOR, '#ffffff', 0.15) : DOOR); }
+    p.rect(x0 + w + 6, y0 + 33, 3, 2, '#c4c8c4');
   }
   // 문턱
   p.rect(x0 - 3, y0 + h, w + 6, 2, '#a6a49a'); p.hl(x0 - 3, y0 + h + 2, w + 6, '#5f5e57');
@@ -114,7 +128,7 @@ function corridor(s: PlaceState): Place {
   });
   // 집들
   steelDoor(p, 1, '1106', 'home', 1); kitchenWindow(p, 3, false, s.day, 1);
-  steelDoor(p, 6, '1107', 'next', 2); kitchenWindow(p, 8, !s.day, s.day, 2);
+  steelDoor(p, 6, '1107', 'next', 2, s.door === '1107'); kitchenWindow(p, 8, !s.day, s.day, 2);
   steelDoor(p, 11, '1108', 'other', 3); kitchenWindow(p, 13, false, s.day, 3);
   steelDoor(p, 16, '1109', 'other', 4); kitchenWindow(p, 18, false, s.day, 4);
   // 엘리베이터: 스테인리스 문 두 짝, 위에 층 표시
@@ -338,8 +352,14 @@ function living(s: PlaceState): Place {
   { const y = ry(3) - 2; p.rect(10, y, 6, 20, '#4a3a2e'); p.rect(10, y + 2, 6, 16, '#7a6149'); p.vl(15, y + 2, 16, '#8f745a'); p.rect(16, y + 10, 2, 2, '#c8c2a8'); }
   {
     const x = W - 16, y = ry(3) - 4;
-    p.rect(x, y, 6, 22, '#3a4044'); p.rect(x, y + 2, 6, 18, '#6b7377'); p.vl(x, y + 2, 18, '#8a9296');
-    p.rect(x - 3, y + 6, 3, 6, '#1e2124'); p.set(x - 2, y + 8, '#7fe39a'); p.rect(x - 3, y + 13, 3, 1, '#c4c8c4');
+    p.rect(x, y, 6, 22, '#3a4044');
+    if (s.door === 'front') { // 현관문이 열렸다: 문틀 안이 복도의 낮빛으로 하얗게 빈다. 빛이 현관 타일에 길게 눕는다.
+      p.rect(x, y + 2, 6, 18, '#f4f1e2'); p.vl(x, y + 2, 18, '#ffffff'); p.vl(x + 5, y + 2, 18, '#d8d4c2');
+      for (let i = 0; i < 26; i++) p.hl(x - 1 - i, y + 4 + Math.floor(i * 0.25), 1, '#fff8e0', 0.5 - i * 0.017), p.vl(x - 1 - i, y + 4 + Math.floor(i * 0.25), 14 + Math.floor(i * 0.3), '#fff4d8', 0.42 - i * 0.015);
+    } else {
+      p.rect(x, y + 2, 6, 18, '#6b7377'); p.vl(x, y + 2, 18, '#8a9296');
+      p.rect(x - 3, y + 6, 3, 6, '#1e2124'); p.set(x - 2, y + 8, '#7fe39a'); p.rect(x - 3, y + 13, 3, 1, '#c4c8c4');
+    }
   }
   // 가구 밑 그늘
   const band = (x: number, y: number, w: number): void => { p.hl(x, y, w, '#1d1820', 0.45); p.dither(x, y + 1, w, 1, '#1d1820', 0, 0.3); };
@@ -1316,7 +1336,7 @@ const cache = new Map<string, Place>();
 export function paintPlace(id: string, s: PlaceState): Place | null {
   const f = PAINT[id];
   if (!f) return null;
-  const key = `${id}/${s.day ? 1 : 0}/${s.mood}`; // 분위기마다 따로 그린다 (복도는 2장 끝에만 깨진 병이 있다)
+  const key = `${id}/${s.day ? 1 : 0}/${s.mood}/${s.door || ''}`; // 분위기마다 따로 그린다 (복도는 2장 끝에만 깨진 병이 있다)
   let v = cache.get(key);
   if (!v) { v = f(s); cache.set(key, v); }
   return v;

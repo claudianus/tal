@@ -427,11 +427,14 @@ VAR saw_pills = false
         나가면 본다. 다 본다. # voice
         -> c2_frontdoor
     - 2:
+        # sfx: door_open
+        # room: front_open
         열었다.
         복도의 빛이 들어왔다. 낮의 빛이다. # fail
-        닫았다. # fail
+        닫았다. # fail # room: door_shut
         -> c2_frontdoor
     - else:
+        # room: front_open
         등의 무게를 생각한다.
         삼색이는 열한 층을 걸어서 내려갔다. 그 다리가 이 다리다.
         -> c2_corridor
@@ -446,6 +449,7 @@ VAR saw_pills = false
 낮의 복도는 밤의 복도와 다른 곳이다. 전부 보인다.
 나도 전부 보인다.
 # sfx: door_open
+# room: door_1107
 # npc: neighbor at_1107
 1107호 문이 열린다. 쓰레기봉투를 든 아주머니가 나온다.
 ~ stare(25)

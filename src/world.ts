@@ -68,7 +68,7 @@ export class World {
   npcs = new Map<string, Actor>();
   haeunEyes = false; // 2장부터 하은에게 희미한 눈이 생긴다
   swings: Record<string, string> = {}; // 그네 자리 → still / gentle / high
-  flags = { monitor: false, eyes: false, lampOff: false, headGone: false, headDone: true, mark: '' as '' | 'torn' | 'sewn', box: '' as '' | 'shut' | 'open', tidy: false, ajar: false, headAt: '' as '' | 'bed' | 'floor', pile: '' as '' | 'torn' | 'folded', closet: '' as '' | 'left' | 'mirror' };
+  flags = { monitor: false, eyes: false, lampOff: false, headGone: false, headDone: true, mark: '' as '' | 'torn' | 'sewn', box: '' as '' | 'shut' | 'open', tidy: false, ajar: false, headAt: '' as '' | 'bed' | 'floor', pile: '' as '' | 'torn' | 'folded', closet: '' as '' | 'left' | 'mirror', siren: false, door: '' as '' | 'front' | '1107' };
   fast = false; autopilot = false;
   rain = false; // 바깥 맵에 비가 내린다
   train = { state: '' as '' | 'arrive' | 'stop' | 'open' | 'leave' | 'gone', x: 0, v: 0, done: null as (() => void) | null };
@@ -435,6 +435,19 @@ export class World {
       }
       const g0 = this.npcs.get('guard');
       if (g0) out.push(this.beam(g0, t));
+      for (const id of ['police', 'police2']) { const a = this.npcs.get(id); if (a) out.push(this.beam(a, t + (id === 'police2' ? 2.1 : 0))); }
+      if (this.flags.door === 'front' && this.mapId === 'living') { // 현관문이 열렸다: 복도의 낮빛이 현관 타일을 타고 들어온다
+        out.push({ x: 276, y: 56, r: 64, a: 0.95, col: 'rgba(250,244,226,A)', tint: 0.45 });
+        out.push({ x: 286, y: 56, r: 12, a: 1, col: 'rgba(255,255,245,A)' });
+      }
+      if (this.flags.door === '1107' && this.mapId === 'corridor') { // 1107호 문이 열렸다: 집 안의 노란 불빛이 복도로 쏟아진다
+        out.push({ x: 112, y: 10, r: 40, a: 0.9, col: 'rgba(240,200,140,A)', tint: 0.4 });
+      }
+      if (this.flags.siren) { // 담 너머 순찰차: 파랑과 빨강이 번갈아 미끄럼틀까지 묻는다
+        const ph = Math.floor(t * 2.6) % 2, k = 0.55 + 0.45 * Math.abs(Math.sin(t * 8.2));
+        out.push({ x: 150, y: -8, r: 120, a: 0.75 * k, col: ph ? 'rgba(70,110,255,A)' : 'rgba(255,60,60,A)', tint: 0.6 });
+        out.push({ x: 150, y: -14, r: 14, a: 0.95, col: ph ? 'rgba(150,180,255,A)' : 'rgba(255,140,140,A)' });
+      }
       return out;
     }
     if (this.mapId === 'room') {
@@ -488,7 +501,7 @@ export class World {
         if (this.mood === 'doorshadow') { c.fillStyle = '#16121a'; c.fillRect(159 - cx, 52 - cy, 1, 3); c.fillRect(159 - cx, 58 - cy, 1, 3); } // 두 군데 끊긴다. 발 두 개다.
       }
     } else if (m.painted) {
-      const pl = paintPlace(this.mapId, { day, mood: this.mood });
+      const pl = paintPlace(this.mapId, { day, mood: this.mood, door: this.flags.door });
       if (pl) { c.drawImage(canvasOf(pl.base), -cx, -cy - (m.top || 0)); props = pl.props; }
     } else for (let y = 0; y < m.grid.length; y++) for (let x = 0; x < m.grid[y].length; x++) {
       const sx = x * TILE - cx, sy = y * TILE - cy;
