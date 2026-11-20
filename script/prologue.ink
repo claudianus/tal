@@ -47,11 +47,13 @@
 
 === p_up ===
 # scene: room_night
-# pose: stand
-# pos: up
+# pos: bed
+# pose: sit
 일어났다.
 앉은 것뿐인데, 오늘 할 일의 절반을 해치운 기분이다.
 나머지 절반이 뭔지는 모른다.
+# pose: stand
+# pos: up
 # pause: 1
 형광등이 깜빡인다. 일 년째 깜빡인다. 갈아 끼우려면 의자에 올라가야 하고, 그 전에 새 등을 사야 하고, 그 전에 밖에 나가야 한다.
 그래서 일 년째 깜빡인다.
@@ -203,6 +205,7 @@ VAR p_acts = 0
 // ── 실패하는 행동들 ──
 === p_trash ===
 ~ spend()
+# emote: reach
 컵라면 용기를 하나 집었다.
 어디에 버려야 하는지 생각했다. 봉투가 있어야 한다. 봉투는 부엌에 있다. 부엌은 방 밖에 있다. # fail
 생각하는 동안 손이 내려가 있었다. # fail
@@ -212,6 +215,7 @@ VAR p_acts = 0
 
 === p_curtain ===
 ~ spend()
+# emote: reach
 커튼 끝을 잡았다.
 커튼 너머에는 바깥이 있다. 바깥에는 사람이 있다. # fail
 사람에게는 눈이 있다. # fail
@@ -222,6 +226,7 @@ VAR p_acts = 0
 ~ spend()
 씻으려면 방문을 열어야 한다.
 방문 밖은 거실이고, 거실을 건너야 화장실이다. 열일곱 걸음. 세어 본 적이 있다.
+# emote: reach
 문고리를 잡았다. 차가웠다. # fail
 놓았다. # fail
 나흘째다. 닷새일 수도 있다.
@@ -283,8 +288,12 @@ VAR p_hidden = 0
     -> p_hide
 * [숨을 죽인다 # at: wait]
     ~ p_hidden++
+    # pos: bed
+    # pose: sit
     입을 다문다. 코로 쉰다. 얕게. 침대 스프링이 울지 않게 체중을 옮기지 않는다.
     사 년을 했더니 잘한다. 잘하는 게 하나 있긴 있다.
+    # pose: stand
+    # pos: up
     -> p_hide
 
 === p_shadow ===
@@ -365,21 +374,23 @@ TV 소리가 커진다.
 이 집에서 TV 소리가 커지면, 아무 일도 없다는 뜻이다.
 없어야 한다는 뜻이다.
 # sfx: footsteps_away
+# scene: room_dark
 그림자가 문틈에서 빠진다.
 안방 문이 닫힌다.
 # pause: 3
 숨을 쉬어도 되는지 한참 몰랐다.
 너 때문에 엄마가 저러고 사는 거야. # voice
 TV 속에서 사람들이 웃는다.
-# scene: room_dark
 -> p_room
 
 // ── 헤드 완성 ──
 === p_head ===
+# go: mirror_front
+# face: right
 # sfx: switch_on
 # scene: room_night
-# go: desk
 형광등을 다시 켠다. 깜빡인다.
+# go: desk
 바늘을 든다.
 이상한 일이다. 일어나는 건 세 번 실패하는데, 바늘귀에 실은 한 번에 들어간다.
 이것만은 기력이 들지 않는다. 손이 알아서 한다.
@@ -435,7 +446,6 @@ TV 속에서 사람들이 웃는다.
 - # go: mirror_front
 # face: up
 # sfx: door_open_soft
-# scene: mirror
 연다.
 남자가 있다.
 머리가 눈을 덮었다. 목이 늘어난 티셔츠. 한여름인데 긴소매.
@@ -446,23 +456,36 @@ TV 속에서 사람들이 웃는다.
 엄마가 식당에서 열한 시간 서 있는 동안. # voice
 윤서가 알바 뛰는 동안. # voice
 저 꼴로. # voice
-# scene: room_night
+# scene: mirror
+* [똑바로 본다 # game: gaze looked]
+- # scene: room_night
+# pos: mirror_front
+봤다. 끝까지.
 # face: left
 삼색이의 머리는 책상 위에 있다.
 * [머리를 가지러 간다 # at: head]
-- # go: mirror_front
+- # carry: head
+# go: mirror_front
 # face: up
+# carry: off
 # suit: head_on
 # scene: black
 # sfx: breath_inside
 어둡다.
 폼 냄새. 본드 냄새. 내 숨소리.
-눈구멍으로 거울을 본다.
+* [숨을 쉰다 # game: breath calm]
+- 눈구멍으로 거울을 본다.
 # scene: mirror
 # cut: mirror_cat
 고양이가 있다.
-주황, 검정, 흰색. 한쪽 귀가 처진 고양이가 고개를 기울인다.
+주황, 검정, 흰색. 한쪽 귀가 처진 고양이가 이쪽을 본다.
+* [고개를 기울인다]
+- 고양이가 고개를 기울인다.
 내가 기울였으니까.
+# scene: room_night
+# pos: mirror_front
+# face: up
+# emote: tilt
 # voice_stop
 # pause: 3
 조용하다.

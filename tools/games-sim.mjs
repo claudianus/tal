@@ -51,4 +51,17 @@ res.stitch = run('stitch', seq(0.5, Array(200).fill('z'), 0.15), 60);
 // 숨: 4초 들이쉬고 4초 멈추고(계속 누름) 4초 내쉰다. 따라 하면 진정되고, 아무것도 안 해도 일곱 번이면 끝난다.
 res.breath = run('breath', [0, 12, 24, 36, 48].flatMap((s) => [[s, 'z', true], [s + 8, 'z', false]]), 90);
 res.breath_idle = run('breath', [], 90);
+// 거울: 위로 누르고 버티면 얼굴에 눈길이 붙는다. 가만히 있으면 시간이 지나 끝난다.
+{ // 그림에서 눈길 고리의 자리를 읽어, 얼굴(가운데 위) 쪽으로 방향키를 누르는 사람처럼 한다
+  const g = G.gaze({ ghosts: ['x'] }); let fs = '', pts = [], t = 0, out = null;
+  const c2 = new Proxy({}, { get: (_, k) => k === 'createRadialGradient' ? () => ({ addColorStop() {} }) : k === 'fillRect' ? (x, y, w, h) => { if (w === 1 && h === 1 && /(236,228,214|200,190,180)/.test(fs)) pts.push([x, y]); } : () => {}, set: (_, k, v) => { if (k === 'fillStyle') fs = String(v); return true; } });
+  let gx = 98, gy = 114;
+  for (; t < 40 && !out; t += 1 / 60) {
+    const keys = { up: gy > 42, down: gy < 36, left: gx > 132, right: gx < 124, z: false };
+    out = g.step(1 / 60, t, keys, new Set()); pts = []; g.draw(c2, t);
+    if (pts.length) { gx = pts.reduce((a, p) => a + p[0], 0) / pts.length; gy = pts.reduce((a, p) => a + p[1], 0) / pts.length; }
+  }
+  res.gaze = [out, +t.toFixed(1)];
+}
+res.gaze_idle = run('gaze', [], 40);
 console.log(res);

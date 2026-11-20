@@ -131,9 +131,16 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 112: 경찰관 바로 갑니다. 아이 옆에 계실 수 있으세요? # call
 나: …네. # call
 # ui: call_close
+-> ep_a_stay
+= ep_a_stay
 도망가. 지금 가면 아무도 몰라. # voice
-도망은 사 년 동안 해 봤다.
-그네에 앉아 있는다. 아이도 앉아 있는다. 아무도 말하지 않는다.
+* [그네에 남는다 # at: wait]
+    도망은 사 년 동안 해 봤다.
++ [(잠김) 일어선다 # at: move]
+    엉덩이가 그네에서 뜬다. # fail
+    아이가 나를 본다. 도로 앉는다. # fail
+    -> ep_a_stay
+- 그네에 앉아 있는다. 아이도 앉아 있는다. 아무도 말하지 않는다.
 # sfx: swing_creak
 # pause: 3
 미끄럼틀에 파란 빛이 묻는다. 빨간 빛. 다시 파란 빛.
@@ -143,9 +150,12 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 나: 저요. # say
 손전등이 내 얼굴에서 한 박자 멈춘다.
 그 한 박자 동안 저 사람이 무슨 생각을 했는지는 모른다.
-얼굴을 가리지 않는다.
+* [얼굴을 가리지 않는다 # at: wait]
+- 얼굴을 가리지 않는다.
 경찰관이 아이 앞에 쪼그려 앉는다. 키를 맞춘다. 나는 한 번도 저렇게 하지 못했다.
 아이가 나를 본다.
+* [고개를 끄덕인다 # at: wait]
+- # emote: nod
 고개를 끄덕인다. 아무것도 약속하지 못하는 끄덕임이다.
 다른 경찰관이 내 번호를 받아 적는다. 아이와 무슨 사이냐고 묻는다.
 나: 같은 단지 살아요. # say
@@ -282,7 +292,7 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 
 === ep_b_toto ===
 # ui: server: 털날림 주의보
-# ui: messenger_open
+# ui: phone_open
 서버 맨 위에 초록 점이 하나 켜져 있다.
 토토.
 프로필에 여우가 다시 올라왔다. 지난주에 올라왔다. 아무 말 없이.
@@ -431,7 +441,7 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 === ep_c_father ===
 # scene: funeral_front_c
 # pos: back
-# pose: gone
+# pose: stand
 # npc: father father_door
 # npc: mourner in
 # time: 금요일 19:40
@@ -440,6 +450,8 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 화환이 둘이다. 하나는 어머니의 회사에서 왔다. 하나는 리본에 사람 이름이 없다. '털날림 주의보 일동'.
 영정 사진은 증명사진이다. 지갑에 들어 있던 것.
 아버지가 입구에 서 있다. 검은 양복이 몸에 맞지 않는다.
+* [입구 # at: door]
+- 
 # npc: mourner father_out walk
 # emote: nod mourner
 조문객이 고개를 숙인다.
@@ -453,7 +465,7 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 # pause: 2
 # scene: partyroom_restroom
 # pos: door
-# pose: gone
+# pose: stand
 화장실.
 아버지가 칸 안에 있다.
 # sfx: water_run
@@ -461,7 +473,8 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 # sfx: water_run
 한 번 더 내린다.
 물소리 사이로 다른 소리가 난다.
-# pause: 3
+* [세면대 # at: sink]
+- # pause: 2
 # sfx: door_open_soft
 # npc: father stall_front
 # npc: father sink_mid walk
@@ -471,7 +484,7 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 # npc: father off
 # scene: funeral_front_c
 # pos: back
-# pose: gone
+# pose: stand
 # npc: father father_door
 입구로 돌아간다.
 아버지: 와 주셔서 감사합니다. 사고였습니다. # say
@@ -480,10 +493,12 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 === ep_c_mother ===
 # scene: livingroom_day
 # pos: from_room
-# pose: gone
+# pose: stand
 # npc: mother table_side
 # time: 월요일 06:40
 어머니가 출근 준비를 한다. 장례 휴가가 끝났다.
+* [식탁 # at: z_table]
+- 
 식탁 앞에 선다. 지갑을 연다.
 만 원을 꺼내 식탁에 놓는다. 사 년 동안 매일 아침 그렇게 했다.
 # pause: 3
@@ -524,16 +539,18 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 === ep_c_hyunwoo ===
 # scene: subway
 # pos: far2
-# pose: gone
+# pose: stand
 # npc: hyunwoo strap
 # npc: pa seat_a
 # npc: pc seat_e
 # npc: pe stand_b
 # time: 월요일 08:14
 출근길 지하철. 현우가 손잡이를 잡고 서 있다. 정장. 넥타이.
+* [현우 옆 # at: z_corner]
+- 
 휴대폰에 서버가 떠 있다.
 # ui: server: 털날림 주의보
-# ui: messenger_open
+# ui: phone_open
 채널 목록 맨 아래에 새 채널이 있다. 이름은 삼색이.
 감자: 정모 때 사진 있는 분 여기 올려 주세요 # msg
 감자: 얼굴 나온 사람 있으면 가리고요 # msg
@@ -544,7 +561,8 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 손가락을 뗀다.
 # ui: messenger_close
 # scene: street_day
-# pose: gone
+# pos: start
+# pose: stand
 # npc: hyunwoo hw_a
 # time: 월요일 08:51
 회사 앞.
@@ -553,13 +571,15 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 # npc: hyunwoo hw_b walk
 들어간다.
 # npc: hyunwoo off
+* [유리문 # at: z_office]
+- 유리문이 닫혀 있다. 안쪽에 사원증 찍는 소리가 난다.
 -> ep_c_gom
 
 === ep_c_gom ===
 # scene: black
 # time: 월요일 13:05
 # ui: server: 털날림 주의보
-# ui: messenger_open
+# ui: phone_open
 구청 안쪽 자리. 창문이 없다. 곰표의 휴대폰.
 삼색이와의 개인 메시지. {c4_gom > 0:위로 끝까지 거의 곰표의 말뿐이다.|위로 끝까지 곰표의 말만 있다.}
 곰표: 월요일. 구내식당 돈가스. 소스가 따로 나와요. 이건 중요한 정보예요 # msg_me
@@ -579,14 +599,15 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 === ep_c_haeun ===
 # scene: playground_night
 # pos: in
-# pose: gone
+# pose: stand
 # npc: haeun swing2
 # time: 화요일 04:50
 새벽 놀이터.
 하은이 그네에 앉아 있다. 엄마는 밤에 일한다.
 옆 그네가 비어 있다.
-# sfx: swing_creak
-# pause: 3
+* [빈 그네 # at: swing1]
+- # sfx: swing_creak
+# pause: 2
 # emote: wave haeun
 하은이 빈 그네 쪽으로 손을 흔든다.
 고양이 아저씨가 하던 인사다.
@@ -599,9 +620,11 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 === ep_c_room ===
 # scene: room_day
 # pos: center
-# pose: gone
+# pose: stand
 윤재의 방.
 정리된 방. 개어 둔 슈트.
+* [책상 # at: head]
+- 
 책상 위의 머리. 처진 한쪽 귀.
 # pause: 6
 # help: long

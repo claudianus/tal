@@ -148,6 +148,13 @@ export function drawChar(c: C, look: Look, x: number, y: number, dir: Dir, step:
     c.drawImage(canvasOf(h.pix), Math.round(x + 15.5 - h.pix.w / 2), Math.round(y + 16 - h.pix.h / 2));
     return;
   }
+  if (pose === 'lie_floor') { // 바닥에 모로 눕는다: 옆모습을 그대로 눕힌다 (90도라 점이 뭉개지지 않는다). 머리가 왼쪽.
+    const f = charFrame(look, 'right', 0, 'stand', emote === 'hold' ? 'hold' : '');
+    c.fillStyle = 'rgba(8,6,12,0.34)'; c.fillRect(Math.round(x - 16), Math.round(y + 19), 48, 3);
+    c.save(); c.translate(Math.round(x + 8), Math.round(y + 14)); c.rotate(-Math.PI / 2);
+    c.drawImage(canvasOf(f), -CX, -FOOT + 26); c.restore();
+    return;
+  }
   const live = emote && emote !== 'none' ? emote : '';
   const cat = look.kind === 'cat' || look.kind === 'cat_nohead' || look.kind === 'yunjae_cathead' || FUR_KINDS.has(look.kind);
   const ph = live ? (Math.sin(t * (live === 'wave' || live === 'laugh' ? 10 : live === 'nod' || live === 'shake' ? 12 : 5)) > 0 ? 1 : 0) : 0;

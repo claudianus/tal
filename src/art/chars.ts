@@ -14,6 +14,7 @@ export type Look = {
   bare?: boolean; // 엔딩 A: 맨얼굴의 윤재에게 처음으로 눈과 입이 생긴다
   bag?: boolean; // 윤재가 등에 멘 국방색 의류대. 안에 삼색이가 들었다.
   case?: boolean; // 현우가 끄는 남색 캐리어. 안에 여우가 접혀 있다.
+  hold?: boolean; // 맨몸의 윤재가 삼색이의 머리를 배 앞에 안았다 (3장 끝, 바닥에 앉아서)
   mark?: '' | 'torn' | 'sewn'; // 삼색이 머리: 3장에서 귀가 뜯기고 주둥이 옆이 벌어진다. 4장에서 주황 실로 꿰맨다.
 };
 let curMark: '' | 'torn' | 'sewn' = ''; // catHeadOps 가 부를 때의 머리 상태
@@ -572,7 +573,8 @@ const FLOOR_D = 9;
 let hEm = '', hPh = 0;
 const REACH = new Set(['give', 'reach', 'point']);
 /** wave: 오른손을 머리 옆으로 들어 흔든다 (앞모습만). 값은 손의 좌우 흔들림. */
-function humanOps(h: HSpec, dir: Dir, step: number, sitArg: boolean | 'floor', withHead: boolean, wave: number | false = false): { ops: Op[]; top: number } {
+function humanOps(h: HSpec, dir: Dir, step: number, sitArg: boolean | 'floor', withHead: boolean, wave: number | false = false): { ops: Op[]; top: number; head: Op[]; body: Op[] } {
+  let hs0 = -1; // 머리(머리카락·앞머리 그늘·얼굴 앞의 손)가 시작하는 자리
   const floor = sitArg === 'floor', sit = !!sitArg;
   const bob = (step === 1 || step === 3 ? 1 : 0) + (hEm === 'laugh' && hPh ? 1 : 0);
   const uy = bob + (floor ? FLOOR_D : sit ? 4 : 0);
@@ -605,9 +607,13 @@ function humanOps(h: HSpec, dir: Dir, step: number, sitArg: boolean | 'floor', w
       ops.push([new Part((_X, Y) => arm(Y)).path([CX + s * (h.tw + 0.4), h.sh + 1.2 + uy, CX + s * ax, ay - 1.2], h.armR, h.armR * 0.85).set({ fur: false }), R]);
       ops.push([new Part('S').ell(CX + s * ax, ay, h.armR * 0.75, h.armR * 0.7).set({ fur: false }), R]);
     }
-    if (withHead) { ops.push([new Part((X, Y) => h.hair(X, Y, dir, CX + hdx, hcy + uy + hdy)).ell(CX + hdx, hcy + uy + hdy, hrx, hry).set({ fur: false }), R]); if (dir === 'down') ops.push(fringeShade(R, hcy + uy + hdy, hry)); }
+    if (withHead) { hs0 = ops.length; ops.push([new Part((X, Y) => h.hair(X, Y, dir, CX + hdx, hcy + uy + hdy)).ell(CX + hdx, hcy + uy + hdy, hrx, hry).set({ fur: false }), R]); if (dir === 'down') ops.push(fringeShade(R, hcy + uy + hdy, hry)); }
     if (hEm === 'cover_mouth' && dir === 'down' && withHead) ops.push([new Part('S').ell(CX + 0.6, hcy + hry * 0.62 + uy, h.armR * 0.95, h.armR * 0.8).set({ fur: false }), R]); // 손이 입을 가린다
     if (REACH.has(hEm) && dir === 'down') ops.push([new Part('S').ell(CX + h.tw - 0.4, h.sh + 6 + uy, h.armR * 0.95, h.armR * 0.85).set({ fur: false }), R]); // 내민 손은 몸 앞에 온다
+    if (hEm === 'block' && dir === 'down' && withHead) { // 팔을 들어 얼굴 앞을 막는다. 소매가 손등까지 덮는다
+      ops.push([new Part((_X, Y) => arm(Y)).path([CX + h.tw + 0.4, h.sh + 1 + uy, CX + 3.4, hcy + hry * 0.5 + uy, CX - 2.6, hcy + uy], h.armR * 1.05, h.armR * 0.9).set({ fur: false }), R]);
+      ops.push([new Part('S').ell(CX - 3.2, hcy - 0.4 + uy, h.armR * 0.8, h.armR * 0.7).set({ fur: false }), R]);
+    }
   } else {
     const f = sit ? 0 : step === 1 ? 2.4 : step === 3 ? -2.4 : 0, a = -f * 0.5;
     // 주저앉으면 무릎이 조금 서고 다리가 앞으로 뻗는다. 발끝이 선다.
@@ -628,10 +634,15 @@ function humanOps(h: HSpec, dir: Dir, step: number, sitArg: boolean | 'floor', w
     const hx = floor ? CX + 4.2 : CX + 0.4 + a, hy = floor ? lt - 2.8 : h.hem - 1.2 + uy; // 주저앉으면 손이 무릎에 얹힌다
     ops.push([new Part((_X, Y) => arm(Y)).path([CX + 0.2, h.sh + 1.2 + uy, hx, hy - 1.2], h.armR, h.armR * 0.85).set({ fur: false }), R]);
     ops.push([new Part('S').ell(hx, hy, h.armR * 0.75, h.armR * 0.7).set({ fur: false }), R]);
-    if (withHead) { ops.push([new Part((X, Y) => h.hair(X, Y, dir, CX + hdx * 0.5, hcy + uy + hdy)).ell(CX - 0.3 + hdx * 0.5, hcy + uy + hdy, hrx - 0.3, hry).set({ fur: false }), R]); ops.push(fringeShade(R, hcy + uy + hdy, hry)); }
+    if (withHead) { hs0 = ops.length; ops.push([new Part((X, Y) => h.hair(X, Y, dir, CX + hdx * 0.5, hcy + uy + hdy)).ell(CX - 0.3 + hdx * 0.5, hcy + uy + hdy, hrx - 0.3, hry).set({ fur: false }), R]); ops.push(fringeShade(R, hcy + uy + hdy, hry)); }
+    if (hEm === 'block' && withHead) { // 옆에서: 굽힌 팔뚝이 얼굴 앞에 선다
+      ops.push([new Part((_X, Y) => arm(Y)).path([CX + 0.4, h.sh + 1.2 + uy, CX + hrx + 2.6, h.sh + 1.6 + uy, CX + hrx + 1.8, hcy + 1.2 + uy], h.armR * 1.05, h.armR * 0.9).set({ fur: false }), R]);
+      ops.push([new Part('S').ell(CX + hrx + 1.6, hcy + 0.6 + uy, h.armR * 0.8, h.armR * 0.7).set({ fur: false }), R]);
+    }
     if (REACH.has(hEm) || hEm === 'cover_mouth') ops.push([new Part('S').ell(hEm === 'cover_mouth' ? CX + hrx - 0.4 : CX + h.tw + 2.6, hEm === 'cover_mouth' ? hcy + hry * 0.6 + uy : h.sh + 4 + uy, h.armR * 0.85, h.armR * 0.75).set({ fur: false }), R]);
   }
-  return { ops, top: Math.floor(hcy + uy - hry) };
+  const cut = hs0 < 0 ? ops.length : hs0;
+  return { ops, top: Math.floor(hcy + uy - hry), head: ops.slice(cut), body: ops.slice(0, cut) };
 }
 /** 앞머리 바로 밑의 그늘. 사람에게는 이목구비를 그리지 않는다(11장). 대신 눈이 있을 자리에 머리카락 그림자가 진다.
  *  빈 살색 얼굴은 마네킹처럼 보인다. 그늘이 지면 '가려진 얼굴'로 읽힌다. */
@@ -959,7 +970,7 @@ const cache = new Map<string, Pix>();
 export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', emote = '', ph = 0, idle: Idle = {}): Pix {
   const tl = Math.max(-1, Math.min(1, Math.round(idle.tail || 0))), br = idle.br ? 1 : 0;
   idle = { tail: tl, br };
-  const key = `${look.kind}${look.v ?? ''}/${look.mark || ''}/${look.droopy ? 1 : 0}${look.eyes ? 1 : 0}${look.bare ? 1 : 0}${look.bag ? 1 : 0}${look.case ? 1 : 0}/${dir}/${step}/${pose}/${emote}/${ph}/${tl}${br}`;
+  const key = `${look.kind}${look.v ?? ''}/${look.mark || ''}/${look.droopy ? 1 : 0}${look.eyes ? 1 : 0}${look.bare ? 1 : 0}${look.bag ? 1 : 0}${look.case ? 1 : 0}${look.hold ? 1 : 0}/${dir}/${step}/${pose}/${emote}/${ph}/${tl}${br}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const left = dir === 'left';
@@ -974,7 +985,7 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
   const hdx = emote === 'tilt' ? 1 : emote === 'shake' ? (ph ? 1 : -1) : 0, hdy = (emote === 'nod' || emote === 'tilt') && ph ? 1 : 0;
   hEm = emote; hPh = ph;
   if (pose === 'lie') { // 이불 밖으로 머리만 나온다
-    if (look.kind === 'yunjae' || look.kind === 'person') ops.push(...humanOps(YJ, 'down', 0, false, true).ops.slice(-1));
+    if (look.kind === 'yunjae' || look.kind === 'person' || look.kind === 'yunseo') ops.push(...humanOps(look.kind === 'yunseo' ? YS : YJ, 'down', 0, false, true).head);
     else ops.push(...catHeadOps('down', CX, 0, droopy, false, false));
   } else switch (look.kind) {
     case 'cat': {
@@ -984,7 +995,7 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
     }
     case 'cat_nohead': { // 탈을 벗었다. 윤재의 머리가 목털 위에 있고, 고양이 머리는 배 앞에 안았다 (뒤에서는 안 보인다).
       const s = suitOps(d, step, sit, d === 'up' ? emote : 'hold', ph, left, idle);
-      ops.push(...s.under, ...s.ruff, ...humanOps({ ...YJ, head: [22.2, 4.6, 5.2] }, d, step, sit, true).ops.slice(-1));
+      ops.push(...s.under, ...s.ruff, ...humanOps({ ...YJ, head: [22.2, 4.6, 5.2] }, d, step, sit, true).head);
       if (d !== 'up') ops.push(...catHeadOps('down', CX + (d === 'down' ? 0 : 6), 21 + s.uy, droopy, false, false));
       ops.push(...s.arms, ...s.last);
       break;
@@ -996,8 +1007,12 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
     }
     case 'yunjae': {
       const hh = humanOps(look.bare ? { ...YJ, hair: yjHairBare } : YJ, d, step, hs, true), h = hh.ops;
-      if (look.bag && !sit) { const b = bagOps(d, step); ops.push(...b.behind, ...h.slice(0, -1), ...b.front, ...h.slice(-1)); }
+      if (look.bag && !sit) { const b = bagOps(d, step); ops.push(...b.behind, ...hh.body, ...b.front, ...hh.head); }
       else ops.push(...h);
+      if (look.hold && d !== 'up') { // 머리를 안았다: 두 팔 안에 고양이 얼굴이 이쪽을 본다
+        const hoy = 20 + (step === 1 || step === 3 ? 1 : 0) + (pose === 'floor' ? FLOOR_D : sit ? 4 : 0);
+        ops.push(...catHeadOps('down', CX + (d === 'down' ? 0 : 5), hoy, droopy, false, false));
+      }
       if (look.bare && d !== 'up') { // 앞머리 밑으로 눈이 보이고, 입이 생긴다. 이 게임에서 사람에게 생기는 마지막 얼굴이다.
         const ey = hh.top + 7, my = hh.top + 9;
         ops.push((q) => {
@@ -1018,9 +1033,9 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
     }
     case 'hyunwoo': case 'moka': case 'gombyo': case 'silbap': {
       const spec = { hyunwoo: HW, moka: MK, gombyo: GB, silbap: SB }[look.kind];
-      const h = humanOps(spec, d, step, sit, true).ops, x = extraOps(look.kind, d, step, sit);
+      const hh = humanOps(spec, d, step, sit, true), x = extraOps(look.kind, d, step, sit);
       const k = look.case && !sit ? caseOps(d, step) : { behind: [], front: [] };
-      ops.push(...k.behind, ...h.slice(0, -1), ...x.mid, ...h.slice(-1), ...x.top, ...k.front);
+      ops.push(...k.behind, ...hh.body, ...x.mid, ...hh.head, ...x.top, ...k.front);
       break;
     }
     case 'fox': case 'rabbit': case 'dog': case 'bear': {
@@ -1030,7 +1045,7 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
     }
     case 'fox_nohead': { // 여우 몸에 사람 머리. 젖은 앞머리가 이마에 붙었다. 여우 머리는 배 앞에 안았다.
       const s = furOps('fox', d, step, sit, d === 'up' ? emote : 'hold', ph, idle);
-      ops.push(...s.under, ...s.ruff, ...humanOps({ ...HW, head: [22.2, 4.6, 5.2] }, d, step, sit, true).ops.slice(-1));
+      ops.push(...s.under, ...s.ruff, ...humanOps({ ...HW, head: [22.2, 4.6, 5.2] }, d, step, sit, true).head);
       if (d !== 'up') ops.push((q) => { for (const [x, y] of [[CX - 2, 19], [CX + 1, 20], [CX - 3, 21]] as const) if (q.alpha(x, y + s.uy)) q.set(x, y + s.uy, '#5a5054'); }); // 물기
       if (d !== 'up') ops.push(...furHeadOps('fox', 'down', CX + (d === 'down' ? 0 : 6), 21 + s.uy));
       ops.push(...s.arms, ...s.last);
@@ -1069,6 +1084,11 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
     case 'father': {
       const h = humanOps(FA, d, step, hs, true);
       ops.push(...h.ops);
+      if (emote === 'hold' && d !== 'up') { // 삼색이의 머리를 두 손으로 잡았다
+        const m = curMark; curMark = 'torn';
+        ops.push(...catHeadOps('down', CX + (d === 'down' ? 0 : 6), FA.sh - 7, false, false, false));
+        curMark = m;
+      }
       if (look.eyes && d !== 'up') { // 3장에서 처음으로 눈이 생긴다
         const ey = Math.round(FA.head[0]) + 1;
         ops.push((q) => { for (const x of d === 'down' ? [CX - 3, CX + 2] : [CX + 3]) q.set(x, ey, '#b4372c'); });

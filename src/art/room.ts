@@ -8,7 +8,49 @@ export type RoomState = {
   mark?: '' | 'torn' | 'sewn'; // 삼색이 머리의 귀
   box?: '' | 'shut' | 'open';  // 문 앞의 실밥 상자
   tidy?: boolean;              // 위기의 밤에 쓰레기를 치웠다
+  ajar?: boolean;              // 3장: 잠금쇠가 뜯긴 문. 닫아도 한 뼘 도로 열린다
+  headAt?: '' | 'bed' | 'floor'; // 머리가 받침대가 아닌 데 있다: 침대 밑에 걸렸다 / 바닥에 던져졌다
+  pile?: '' | 'torn' | 'folded'; // 삼색이의 몸: 바닥에 찢긴 채 / 책상 위에 개어 둔 채
 };
+/** 그림을 시계 방향으로 90도 돌린다 (점이 뭉개지지 않는다) */
+function rot90(src: Pix): Pix {
+  const q = new Pix(src.h, src.w);
+  for (let y = 0; y < src.h; y++) for (let x = 0; x < src.w; x++) {
+    const i = (y * src.w + x) * 4, j = (x * q.w + (src.h - 1 - y)) * 4;
+    q.d[j] = src.d[i]; q.d[j + 1] = src.d[i + 1]; q.d[j + 2] = src.d[i + 2]; q.d[j + 3] = src.d[i + 3];
+  }
+  return q;
+}
+// 삼색이 몸의 털빛: 흰 바탕, 주황과 검정 얼룩
+const SW = ['#f4efe6', '#ddd5c8', '#b9ae9f'], SO = ['#f08a32', '#c96a22'], SK = ['#46353f', '#2e2229'];
+function furAt(x: number, y: number, sh: number): string {
+  const n = Math.sin(x * 0.7 + y * 0.45) + Math.cos(x * 0.33 - y * 0.9);
+  if (n > 1.05) return SO[sh > 0.5 ? 1 : 0];
+  if (n < -1.15) return SK[sh > 0.5 ? 1 : 0];
+  return SW[sh > 0.75 ? 2 : sh > 0.4 ? 1 : 0];
+}
+/** 3장의 밤 뒤: 바닥에 버려진 몸. 등이 갈라져 폼이 보이고, 왼팔이 실 몇 가닥에 매달렸고, 꼬리는 따로 떨어졌다. */
+function tornPile(p: Pix, X: number, Y: number): void {
+  p.ell(X + 12, Y + 12, 15, 3.4, INK, 0.38); // 그늘
+  for (let y = Y; y < Y + 13; y++) for (let x = X; x < X + 25; x++) { // 몸통: 납작하게 꺼진 털가죽
+    const dx = (x - (X + 12)) / 12.5, dy = (y - (Y + 6.5)) / 6.2;
+    if (dx * dx + dy * dy > 1 - (x > X + 20 ? 0.25 : 0)) continue;
+    p.set(x, y, furAt(x, y, Math.max(0, dy)));
+  }
+  for (let x = X + 4; x < X + 20; x++) { const y = Y + 5 + Math.round(Math.sin(x * 0.8) * 0.8); p.set(x, y, '#efe8d8'); p.set(x, y + 1, '#d9cfb8'); if (x % 3 === 0) p.set(x, y - 1, INK, 0.6); } // 등 솔기가 갈라졌다: 폼이 하얗게
+  p.dots(`${X + 6},${Y + 4} ${X + 10},${Y + 7} ${X + 15},${Y + 4} ${X + 18},${Y + 7}`, '#9a3a2e'); // 끊긴 실밥
+  for (let i = 0; i < 9; i++) { const x = X - 7 + i, y = Y + 9 + Math.round(i * 0.35); p.set(x, y, furAt(x, y, 0.2)); p.set(x, y + 1, furAt(x, y + 1, 0.6)); p.set(x, y + 2, SW[2]); } // 왼팔: 몸에서 떨어져 나갔다
+  p.line(X - 1, Y + 10, X + 2, Y + 9, '#e8e0cc'); p.set(X, Y + 11, '#9a3a2e'); // 팔을 붙들고 있는 실 두 가닥
+  for (let i = 0; i < 11; i++) { const x = X + 28 + i, y = Y + 13 - Math.round(Math.sin(i * 0.4) * 2); p.set(x, y, i > 7 ? SO[0] : furAt(x, y, 0.1)); p.set(x, y + 1, i > 7 ? SO[1] : SW[1]); } // 따로 떨어진 꼬리
+  p.hl(X + 28, Y + 16, 11, INK, 0.3);
+}
+/** 4장: 이불 개듯이 갠 몸. 책상 왼쪽 모서리에 네모나게 얹었다. 꼬리를 맨 위에 둥글게. */
+function foldedPile(p: Pix, X: number, Y: number): void {
+  p.hl(X, Y + 8, 12, INK, 0.4);
+  for (let k = 0; k < 3; k++) { const y = Y + 6 - k * 2; for (let x = X + k * 0.5; x < X + 12 - k * 0.5; x++) { p.set(Math.round(x), y, furAt(x, y + k * 3, 0)); p.set(Math.round(x), y + 1, furAt(x, y + k * 3, 0.8)); } }
+  p.hl(X + 1, Y + 2, 10, SW[0]); p.dots(`${X + 3},${Y + 1} ${X + 4},${Y + 1} ${X + 5},${Y + 1} ${X + 6},${Y + 1}`, SO[0]); p.dots(`${X + 7},${Y + 1} ${X + 8},${Y + 2}`, SO[1]); // 둥글게 얹은 꼬리
+  p.vl(X, Y + 3, 5, SW[2]); p.vl(X + 11, Y + 3, 5, SW[2]);
+}
 export const ROOM_OY = 16;
 
 const WALL = '#8b8e86', WALL_L = '#95988f', WALL_D = '#787b74', WALL_DD = '#62655f';
@@ -123,13 +165,14 @@ function desk(p: Pix, s: RoomState): void {
   p.dots('70,31 71,32 73,30', '#f08a32'); p.dots('69,33 72,33', '#46353f'); p.dots('68,31 71,30', '#fffaf0');
   // 머리 받침대와 삼색이의 머리. 이 방에서 색이 있는 건 이것뿐이다.
   p.rect(74, 24, 4, 4, '#b8b4a8'); p.hl(72, 28, 8, '#9a968a'); p.hl(73, 27, 6, '#cfcbc0');
-  if (!s.headGone) {
+  if (!s.headGone && !s.headAt) {
     const head = catHeadAlone(!s.headDone, false, s.mark || ''); // 눈을 붙이기 전에는 눈 자리에 망사만 대 놓았다
     p.blit(head, 76 - Math.floor(head.w / 2), 28 - head.h);
     if (!s.headDone) { p.dots('67,12 86,11 75,9', '#d04040'); p.dots('67,11 86,10 75,8', '#e8e8e8'); } // 시침핀
   } else {
     p.rect(73, 14, 6, 10, '#d9d6cc'); p.rect(72, 16, 8, 6, '#d9d6cc'); p.vl(72, 17, 4, '#b8b4a8'); p.hl(73, 14, 6, '#ecebe4'); // 빈 스티로폼 머리
   }
+  if (s.pile === 'folded') foldedPile(p, 64, 29); // 책상 왼쪽 모서리에 개어 둔 삼색이
 }
 
 function trash(p: Pix, s: RoomState): void {
@@ -240,6 +283,19 @@ function clutter(p: Pix, s: RoomState): void {
     p.rect(136, 99, 18, 10, '#a08660'); p.hl(136, 99, 18, '#b89c74'); p.hl(136, 108, 18, '#7c6646'); p.vl(144, 99, 10, '#8a7250'); p.rect(141, 102, 7, 3, '#d8d4c8'); p.hl(142, 103, 5, '#8d8a84');
     p.rect(128, 52, 3, 9, '#9fbac6'); p.vl(128, 54, 5, '#c6dde6'); p.set(129, 51, '#3a6ea8'); p.rect(128, 56, 3, 2, '#3a6ea8', 0.7);
   }
+  if (s.pile === 'torn') tornPile(p, 102, 94); // 어젯밤 그 자리에
+  if (s.headAt) {
+    const head = catHeadAlone(!s.headDone, false, s.mark || '');
+    if (s.headAt === 'bed') { // 침대 밑으로 밀었는데 머리가 걸렸다. 몸은 침대 밑 그늘에, 머리는 침대 옆에 반쯤 나와 있다
+      p.rect(44, 80, 4, 9, SW[2]); p.dots('45,82 46,85 45,87', SO[1]);
+      p.hl(48, 90, 14, INK, 0.4);
+      p.blit(head, 47, 90 - head.h);
+    } else { // 바닥에 던졌다: 옆으로 굴러 누웠다
+      const r = rot90(head);
+      p.ell(70 + r.w / 2, 106, r.w / 2 + 2, 2.2, INK, 0.4);
+      p.blit(r, 70, 106 - r.h);
+    }
+  }
   if (s.box) { // 실밥이 부친 상자. 엄마가 문 안쪽으로 밀어 넣었다. 받는 사람, 삼색이.
     const X = 146, Y = 84;
     p.hl(X, Y + 10, 12, '#1d1820', 0.4);
@@ -264,7 +320,12 @@ function shell(p: Pix, s: RoomState): void {
   p.rect(160, 52, 2, 6, '#dedad0'); p.set(160, 54, '#8d8a84'); p.set(161, 57, '#a9a59a');
   // 방문 (오른쪽 벽). 맵의 (10,3) = y64..79.
   p.rect(160, 62, 6, 20, '#4a3a2e'); p.rect(160, 64, 6, 16, s.open ? '#e8c890' : '#7a6149');
-  if (!s.open) { p.vl(160, 64, 16, '#8f745a'); p.vl(163, 64, 16, '#5c4836'); p.rect(158, 75, 2, 2, '#c8c2a8'); p.set(158, 76, '#8d8468'); }
+  if (!s.open && s.ajar) { // 잠금쇠가 문틀째 뜯겼다. 문짝이 경첩 쪽으로 한 뼘 비껴 안으로 들어와 있다. 그 틈으로 거실 빛.
+    p.rect(160, 64, 6, 16, '#e8c890'); p.vl(165, 64, 16, '#c8a874');
+    for (let i = 0; i < 16; i++) { const x = 159 - Math.round(i * 0.28); p.set(x, 64 + i, '#7a6149'); p.set(x + 1, 64 + i, '#8f745a'); p.set(x - 1, 64 + i, '#5c4836', 0.7); }
+    p.dots('163,73 164,74 163,76 165,77', '#b89a6a'); p.dots('164,75 162,74', '#4a3a2e'); // 뜯긴 자리: 나뭇결이 일어났다
+    p.hl(158, 75, 1, '#c8c2a8'); p.set(155, 80, '#8d8468'); // 손잡이는 문짝을 따라 들어왔다
+  } else if (!s.open) { p.vl(160, 64, 16, '#8f745a'); p.vl(163, 64, 16, '#5c4836'); p.rect(158, 75, 2, 2, '#c8c2a8'); p.set(158, 76, '#8d8468'); }
   else { p.rect(150, 62, 10, 3, '#7a6149'); p.hl(150, 62, 10, '#8f745a'); }
 }
 

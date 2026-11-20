@@ -59,8 +59,10 @@ VAR saw_pills = false
     젤리 위에 물고기를 올린다. 날아가지 않게 다른 손으로 덮는다.
     하은: 아껴 먹어요. # say
 * [먹는 시늉을 한다]
+    # emote: eat
     물고기를 주둥이에 가져간다. 냠.
     하은: 안 돼요! 종이예요! 배 아파요! # say
+    # emote: laugh haeun
     아이가 소리 없이 웃는다. 어깨가 한참 들썩인다.
 - ~ connection++
 물고기는 지금 내 책상 위에 있다. 통장 옆에.
@@ -225,6 +227,7 @@ VAR saw_pills = false
 -> c2_room
 
 === c2_room ===
+# pose: stand
 { energy <= 0:
     기력이 없다. # system
 }
@@ -242,6 +245,8 @@ VAR saw_pills = false
     -> c2_saturday
 
 === c2_lie ===
+# go: bed
+# pose: lie
 # pause: 2
 ~ energy = 5
 누웠다.
@@ -624,7 +629,7 @@ VAR saw_pills = false
 
 === c2_phone ===
 # sfx: phone_buzz
-# ui: messenger_open
+# ui: phone_open
 주머니에서 휴대폰이 떤다.
 { said_yes:
     토토: 어디쯤이에요? # msg
@@ -700,6 +705,7 @@ VAR saw_pills = false
 
 === c2_meet ===
 * [끄덕인다]
+    # emote: nod
 * ["…삼색이예요."]
     …삼색이예요.
     목소리가 갈라졌다. 그래도 나왔다.
@@ -797,7 +803,9 @@ VAR saw_pills = false
 실밥: 이 박음질 간격 봐요. 손으로 한 거예요? 전부? # say
 실밥: 귀는 일부러 처지게 한 거예요? # say
 * [끄덕인다]
+    # emote: nod
 * [고개를 젓는다]
+    # emote: shake
 - 실밥: 일부러든 아니든 이게 맞아요. 세우지 마요. 절대. # say
 실밥: 나는 인형 옷 만들다가 왔어요. 손바닥만 한 거. # say
 실밥: 만들다 보니까 자꾸 커지더라고요. 제일 큰 인형이 뭔가 했더니, 사람이 들어가는 거였어요. # say
@@ -957,6 +965,7 @@ VAR saw_pills = false
 
 === c2_lounge_reply ===
 * [끄덕인다]
+    # emote: nod
 * ["…알 것 같아요."]
     ~ connection++
     …알 것 같아요.
@@ -1034,6 +1043,7 @@ VAR saw_pills = false
 웃는다. 눈은 웃지 않는다.
 현우: 삼색이님은요. 집에서는 알아요? # say
 * [고개를 젓는다 # at: wait]
+    # emote: shake
 - 현우: 그쵸. # say
 현우: 우리 다 그래요. # say
 현우: 곰표님은 구청 소식지에 곰 사진이 실렸는데, 구청 사람들은 그게 곰표님인 줄 몰라요. # say
@@ -1053,6 +1063,7 @@ VAR saw_pills = false
     …올게요.
     현우: 스샷 못 찍는 게 아쉽네. 방금 그거 증거로 남겨야 되는데. # say
 * [끄덕인다 # at: wait]
+    # emote: nod
     현우: 끄덕인 거 봤어요. 그거 계약이에요. 내가 보험 파는 사람이라 잘 알아. # say
 + [(잠김) "오늘 사 년 만에 웃었어요"라고 한다 # at: wait]
     그 말은 너무 커서 입을 빠져나오지 못했다. # fail
@@ -1075,7 +1086,7 @@ VAR saw_pills = false
 돌아가는 지하철에서는 숨이 막히지 않았다.
 나아져서가 아니다. 다 써서다. 막힐 숨이 남아 있지 않았다.
 가방을 안고 잤다. 내릴 역 두 정거장 전에 깼다.
-# ui: messenger_open
+# ui: phone_open
 휴대폰에 사진이 한 장 와 있다.
 곰과 여우와 토끼와 강아지 사이에 고양이가 있다. 처진 귀가 여우 어깨에 닿아 있다.
 모카: 오늘의 단체샷!! 삼색이님 첫 정모 기념!! # msg

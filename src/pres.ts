@@ -32,6 +32,9 @@ export type Pres = {
   mark?: '' | 'torn' | 'sewn';  // 삼색이 머리: 3장에서 귀가 뜯기고, 4장에서 꿰맨다
   box?: '' | 'shut' | 'open';   // 엄마가 문 앞에 둔 실밥의 상자
   tidy?: boolean;               // 위기의 밤에 쓰레기를 치웠다
+  ajar?: boolean;               // 3장 뒤: 부서진 방문이 한 뼘 열려 있다
+  headAt?: '' | 'bed' | 'floor' | 'held'; // 삼색이 머리가 받침대 밖에 있다 (held: 아버지 손에)
+  pile?: '' | 'torn' | 'folded'; // 삼색이 몸: 바닥에 찢긴 채 / 개어 둔 채
   npcs: Record<string, string>; // 누가 어느 자리에 있는가
   swings?: Record<string, string>; // 그네 자리 → still / gentle / high
   px?: number; py?: number; pdir?: string; // 저장할 때의 실제 칸
@@ -79,9 +82,15 @@ export function applyTag(p: Pres, { name, val }: Tag): void {
       else if (val === 'box') p.box = p.box || 'shut';
       else if (val === 'box_open') p.box = 'open';
       else if (val === 'tidy') p.tidy = true;
+      else if (val === 'ajar') p.ajar = true;
+      else if (val === 'head_bed' || val === 'head_floor' || val === 'head_held') p.headAt = val.slice(5) as 'bed' | 'floor' | 'held';
+      else if (val === 'head_desk') p.headAt = '';
+      else if (val === 'suit_torn' || val === 'suit_folded') p.pile = val.slice(5) as 'torn' | 'folded';
+      else if (val === 'suit_none') p.pile = '';
       break;
     case 'suit':
       p.headDone = true;
+      if (val === 'on' || val === 'head_on') p.headAt = ''; // 쓰면 머리는 내 머리 위에 있다. 벗으면 받침대(또는 품)로 간다
       if (val === 'on') { p.suit = true; p.suitFull = true; }
       else if (val === 'off') { p.suit = false; p.suitFull = false; }
       else if (val === 'body') { p.suit = false; p.suitFull = true; }
@@ -113,6 +122,7 @@ export function applyTag(p: Pres, { name, val }: Tag): void {
       if (val.startsWith('server:')) { p.server = val.slice(7).trim(); break; }
       switch (val) {
         case 'messenger_open': p.skin = 'messenger'; p.monitor = true; break;
+        case 'phone_open': p.skin = 'messenger'; break; // 같은 메신저를 휴대폰으로 본다. 책상의 모니터는 켜지지 않는다
         case 'messenger_close': if (p.skin === 'messenger') p.skin = 'none'; p.channels = false; break;
         case 'monitor_off': p.monitor = false; p.channels = false; if (p.skin === 'messenger') p.skin = 'none'; break;
         case 'kakao_open': p.skin = 'kakao'; break;

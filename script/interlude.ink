@@ -19,9 +19,20 @@ VAR i_opened = false    // 토요일 밤에 오빠와의 창을 열었다 (윤�
 # chapter: 막간 — 윤서
 # pov: yunseo
 # scene: campus_cafeteria
+# pos: me
+# npc: pa line_a
+# npc: pb line_b
+# npc: pc line_c
+# npc: pd line_d
+# npc: pe seat_a
+# npc: pf seat_c
+# npc: pg seat_d
 # time: 목요일 12:40
-# ui: kakao_open
-학식 줄에 서 있는데 과 단톡방이 운다.
+학식 줄에 서 있다. 오늘은 돈가스다. 줄이 길다.
+# sfx: phone_buzz
+* [휴대폰을 본다 # at: wait]
+- # ui: kakao_open
+과 단톡방이 운다.
 지우: 미친 이거 봐 # msg
 지우: 임대 단지 새벽 괴인ㅋㅋ # msg
 지우: (영상) # msg
@@ -56,6 +67,10 @@ VAR i_opened = false    // 토요일 밤에 오빠와의 창을 열었다 (윤�
 
 === i_name ===
 # scene: campus_bench
+# pos: bench
+# pose: sit
+# npc: pa pass_a
+# npc: pb bench_c
 # time: 금요일 12:10
 돈가스를 먹었고, 단톡방은 다음 얘기로 넘어갔고, 하루가 갔다.
 지우가 개인 메시지를 보낸다. 단톡방이 아니라.
@@ -119,13 +134,17 @@ VAR i_opened = false    // 토요일 밤에 오빠와의 창을 열었다 (윤�
 - 삭제된 메시지입니다. # system
 # ui: kakao_close
 창을 닫는다. 휴대폰을 주머니에 넣는다.
+# pose: stand
+# npc: pa walk_b walk
+* [일어나서 걷는다 # at: z_away]
+- 
 읽은 걸 지울 수는 없다. 안다. 내 화면에서라도 없애는 거다.
 그 말은 우리 집 사람이 오빠한테 하면 안 되는 말이다.
 왜 안 되는지는 넷 다 안다. 넷 다 한 번도 말한 적 없다.
 { c3_sorry:
     # sfx: phone_buzz
     주머니가 떤다. 알림 미리보기에 두 글자가 보인다.
-    오빠: 미안. # msg
+    오빠: 미안. # system
     창은 열지 않는다. 열면 읽은 게 된다.
     뭐가 미안한데. 탈 쓴 거. 방에 들어간 거. 나만 두고 문 닫은 거.
 - else:
@@ -136,26 +155,48 @@ VAR i_opened = false    // 토요일 밤에 오빠와의 창을 열었다 (윤�
 // ── 검색 ──
 === i_search ===
 # scene: dorm_night
+# pos: bed_me
+# pose: lie
 # time: 금요일 23:20
 # ui: browser_open
 룸메이트는 잔다. 이불 속에서 화면 밝기를 끝까지 내린다.
-* [검색한다: 퍼리 뜻]
-- 퍼리: 사람처럼 그려진 동물 캐릭터를 좋아하는 사람, 또는 그 문화. # caption
+-> i_search_hub
+
+= i_search_hub
+{ i_s_mean and i_s_ill and i_s_cat: -> i_search_more }
+* [검색한다: 퍼리 뜻] -> i_s_mean
+* [검색한다: 퍼리 정신병] -> i_s_ill
+* [검색한다: 자기가 고양이인 줄 아는 병] -> i_s_cat
+
+= i_s_mean
+퍼리: 사람처럼 그려진 동물 캐릭터를 좋아하는 사람, 또는 그 문화. # caption
 한 줄이다. 한 줄로는 모르겠다.
 그 밑은 전부 영상이다. '퍼리의 충격적인 실체'. '퍼리 레전드 모음'. 맨 위는 그 채널이다. 섬네일에 오빠 옆얼굴이 있다.
-이미지 탭을 누른다.
-그림이다. 대부분은 그냥 그림이다. 옷 입은 늑대, 여우, 만화 같은 것들.
-몇 장은 아니다. 빨리 넘긴다.
-댓글들이 말한 건 그 몇 장이다. 나머지 수백 장 얘기는 아무도 안 했다.
-* [검색한다: 퍼리 정신병]
-- '동생이 퍼리인 것 같은데 정신병인가요' # caption
+* [이미지 탭을 누른다]
+    그림이다. 대부분은 그냥 그림이다. 옷 입은 늑대, 여우, 만화 같은 것들.
+    몇 장은 아니다. 빨리 넘긴다.
+    댓글들이 말한 건 그 몇 장이다. 나머지 수백 장 얘기는 아무도 안 했다.
+* [영상은 누르지 않는다]
+    오빠 옆얼굴을 엄지로 밀어 올린다. 화면 밖으로.
+- -> i_search_hub
+
+= i_s_ill
+'동생이 퍼리인 것 같은데 정신병인가요' # caption
 '채택된 답변: 네, 성도착증의 일종입니다. 병원에 데려가세요.' # caption
-답변한 사람이 쓴 다른 답변을 눌러 본다. 탈모. 중고차. 군대.
-* [검색한다: 자기가 고양이인 줄 아는 병]
-- 병 이름을 찾는 건데 병 이름은 안 나온다.
+* [답변한 사람을 눌러 본다]
+    답변한 사람이 쓴 다른 답변을 눌러 본다. 탈모. 중고차. 군대.
+* [뒤로 간다]
+    뒤로 간다. 채택이라는 글자가 눈에 남는다.
+- -> i_search_hub
+
+= i_s_cat
+병 이름을 찾는 건데 병 이름은 안 나온다.
 맨 위에 나오는 건 그 게시판 글이다.
 이 말을 검색하면 이제 우리 오빠가 나온다.
 # pause: 1
+-> i_search_hub
+
+= i_search_more
 댓글에 서버 이름이 있었다. 털날림 주의보.
 * [검색한다: 털날림 주의보]
 - # time: 금요일 23:41
@@ -180,7 +221,12 @@ VAR i_opened = false    // 토요일 밤에 오빠와의 창을 열었다 (윤�
 // ── 어머니와의 통화 (글자로) ──
 === i_call ===
 # scene: dorm_stairwell
+# pos: landing
+# pose: stand
 # time: 토요일 15:10
+룸메이트가 방에 있다. 계단참으로 나간다.
+* [창가로 간다 # at: move]
+- # go: landing_win
 # ui: call_open
 엄마한테 전화한다. 식당 쉬는 시간일 거다. 세 시부터 네 시 반.
 신호가 여섯 번 간다.
@@ -230,7 +276,12 @@ VAR i_opened = false    // 토요일 밤에 오빠와의 창을 열었다 (윤�
 // ── 쓰다 만 메시지 ──
 === i_draft ===
 # scene: dorm_night
+# pos: in
+# pose: stand
 # time: 토요일 23:50
+불은 끄고 들어온다. 룸메이트는 오늘도 일찍 잔다.
+* [책상에 앉는다 # at: desk_me]
+- # pose: sit
 # ui: kakao_open
 ~ i_opened = true
 오빠와의 창을 연다.
@@ -267,6 +318,10 @@ VAR i_opened = false    // 토요일 밤에 오빠와의 창을 열었다 (윤�
 === i_end ===
 # ui: kakao_close
 엎어 놓는다.
+# pose: stand
+* [눕는다 # at: bed]
+- # pos: bed_me
+# pose: lie
 입력창에 글자가 남아 있다. 보내지도, 지우지도 않았다.
 # pov: yunjae
 # chapter_end: interlude

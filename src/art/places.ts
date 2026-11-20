@@ -11,6 +11,9 @@ import { funeral, er, feetPix } from './places_funeral.ts';
 import { concourse, platform } from './places_station.ts';
 import { store, restroom } from './places_store.ts';
 import { grandma } from './places_grandma.ts';
+import { campus } from './places_campus.ts';
+import { dorm } from './places_dorm.ts';
+import { cafeteria } from './places_cafeteria.ts';
 export type { Prop, PlaceState, Place } from './kit.ts';
 
 // ═══════════════════ 11층 복도 ═══════════════════
@@ -353,7 +356,8 @@ function living(s: PlaceState): Place {
     for (let y = y0 + 3; y < y0 + 25; y += 3) if (rnd(y, 1, 46) > 0.4) L.hl(x0 + 2 + Math.floor(rnd(y, 2, 46) * 10), y, 6 + Math.floor(rnd(y, 3, 46) * 12), '#8a6a4c', 0.5);
     L.rect(x0, y0 + 26, 36, 4, '#6a4e38'); L.hl(x0, y0 + 29, 36, '#3a2a1e');
     L.rect(x0 + 2, y0 + 30, 3, 8, '#4a3626'); L.rect(x0 + 31, y0 + 30, 3, 8, '#4a3626');
-    L.rect(x0 + 8, y0 + 8, 9, 5, '#86a87e'); L.hl(x0 + 8, y0 + 8, 9, '#a6c49c'); L.rect(x0 + 11, y0 + 9, 3, 3, '#6a8a62'); L.hl(x0 + 8, y0 + 13, 9, '#5a7052'); // 만 원
+    if (s.mood !== 'rain') { L.rect(x0 + 8, y0 + 8, 9, 5, '#86a87e'); L.hl(x0 + 8, y0 + 8, 9, '#a6c49c'); L.rect(x0 + 11, y0 + 9, 3, 3, '#6a8a62'); L.hl(x0 + 8, y0 + 13, 9, '#5a7052'); } // 만 원. 3장 끝 일요일 아침(비)에는 없다
+    else { L.hl(x0 + 8, y0 + 13, 9, '#8a6a4c', 0.5); } // 늘 놓이던 자리만 조금 덜 바랬다
     L.ell(x0 + 25, y0 + 13, 6, 4, '#e8e4da'); L.ell(x0 + 25, y0 + 12, 4, 2.4, '#d0603a'); L.line(x0 + 20, y0 + 10, x0 + 29, y0 + 15, '#ffffff', 0.5);  // 랩 씌운 김치찌개
     L.rect(x0 + 30, y0 + 1, 3, 9, '#3e7a4a'); L.rect(x0 + 31, y0 - 2, 1, 3, '#2a5a36'); L.vl(x0 + 30, y0 + 2, 6, '#7fc08c');                      // 소주병
     props.push(cut(L, top, 4 * T));
@@ -1304,7 +1308,7 @@ function road(_s: PlaceState): Place {
   return { base: p, props };
 }
 
-const PAINT: Record<string, (s: PlaceState) => Place> = { corridor, living, stairs, complex, playground, recycle, party, street, road, subway, funeral, er, concourse, platform, store, restroom, grandma };
+const PAINT: Record<string, (s: PlaceState) => Place> = { corridor, living, stairs, complex, playground, recycle, party, street, road, subway, funeral, er, concourse, platform, store, restroom, grandma, campus, dorm, cafeteria };
 // 맵 위를 움직이는 그림 (승강장의 열차, 응급실 커튼 밑의 발)
 ART.train = trainPix(); ART.trainOpen = trainDoorOpen();
 ART.feet = { sneakers: feetPix('sneakers'), shoes: feetPix('shoes'), slippers: feetPix('slippers') };

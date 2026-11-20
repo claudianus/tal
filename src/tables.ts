@@ -17,7 +17,7 @@ export const SCENES: Record<string, SceneSpec> = {
   room_door_open: { f: 'room', mood: 'open', amb: 'room', map: 'room', lit: 'open' },
   door_shadow: { f: 'door', mood: 'night', amb: 'room', map: 'room', lit: 'doorshadow' },
   mirror: { f: 'mirror', mood: 'night', amb: 'room' },
-  mirror_morning: { f: 'room', mood: 'day', amb: 'room', map: 'room', lit: 'openday' }, // 3장 다음 날: 거울 앞을 지나간다. 문은 닫히지 않는다
+  mirror_morning: { f: 'room', mood: 'day', amb: 'room', map: 'room', lit: 'day' }, // 3장 다음 날: 거울 앞을 지나간다. 부서진 문은 한 뼘 열려 있다 (room: ajar)
   corridor_night: { f: 'corridor', mood: 'night', amb: 'night', map: 'corridor', lit: 'night' },
   corridor_night_glass: { f: 'corridor', mood: 'night', amb: 'night', map: 'corridor', lit: 'glass' }, // 2장 끝: 현관 앞에 깨진 병
   corridor_day: { f: 'corridor', mood: 'day', amb: 'day', map: 'corridor', lit: 'day' },
@@ -42,10 +42,10 @@ export const SCENES: Record<string, SceneSpec> = {
   livingroom_dark: { f: 'living', mood: 'dark', amb: 'room', map: 'living', lit: 'dark' },
   livingroom_morning_rain: { f: 'living', mood: 'rain', amb: 'rain_in', map: 'living', lit: 'rain' },
   convenience_store: { f: 'store', mood: 'bright', amb: 'store', map: 'store', lit: 'bright' },
-  campus_cafeteria: { f: 'campus', mood: 'bright', amb: 'crowd' },
-  campus_bench: { f: 'campus', mood: 'day', amb: 'day' },
-  dorm_night: { f: 'dorm', mood: 'dark', amb: 'still' },
-  dorm_stairwell: { f: 'stairs', mood: 'day', amb: 'still' },
+  campus_cafeteria: { f: 'campus', mood: 'bright', amb: 'crowd', map: 'cafeteria', lit: 'bright' },
+  campus_bench: { f: 'campus', mood: 'day', amb: 'day', map: 'campus', lit: 'day' },
+  dorm_night: { f: 'dorm', mood: 'dark', amb: 'still', map: 'dorm', lit: 'dark' },
+  dorm_stairwell: { f: 'stairs', mood: 'day', amb: 'still', map: 'stairs', lit: 'day' },
   // 4장
   room_dark_rain: { f: 'room', mood: 'dark', amb: 'rain_in', map: 'room', lit: 'dark' },
   grandma_house: { f: 'grandma', mood: 'color', amb: 'day', map: 'grandma', lit: 'color', past: true },   // 이 게임에서 유일하게 색이 있는 장면
@@ -147,7 +147,7 @@ export const CUTS: Record<string, CutSpec> = {
 };
 
 export const UI_TAGS = [
-  'messenger_open', 'messenger_close', 'kakao_open', 'kakao_close', 'browser_open', 'browser_close',
+  'messenger_open', 'phone_open', 'messenger_close', 'kakao_open', 'kakao_close', 'browser_open', 'browser_close',
   'call_open', 'call_close', 'channel_list', 'monitor_off', 'panic',
   'energy_show', 'energy_hide', 'heat_show', 'heat_hide', 'gaze_show', 'gaze_hide',
   'emote_show', 'emote_hide',
@@ -155,7 +155,7 @@ export const UI_TAGS = [
 
 export const EMOTES: Record<string, string> = {
   wave: '손을 흔든다', heart: '하트', tilt: '갸웃', curl: '웅크린다', nod: '끄덕',
-  shake: '고개를 젓는다', laugh: '웃는다', give: '내민다', reach: '손을 뻗는다', point: '가리킨다', eat: '먹는 시늉', cover_mouth: '입을 가린다',
+  shake: '고개를 젓는다', laugh: '웃는다', give: '내민다', reach: '손을 뻗는다', point: '가리킨다', eat: '먹는 시늉', cover_mouth: '입을 가린다', block: '팔로 막는다', hold: '두 손으로 든다', none: '(몸짓을 그친다)',
 };
 
 export const SUIT = ['on', 'off', 'body', 'head_on', 'head_off'];
@@ -184,15 +184,15 @@ export const DIRECTIVES = [
   'face',  // face: up / down / left / right
   'carry', // carry: bag / off      윤재가 등에 멘 것 (탈을 쓰면 저절로 벗는다)
   'warn',  // warn: 경고 이름 / end   장면 경고 (설정에서 켰을 때만). 넘기면 end 까지 감고 요약을 보여 준다
-  'room',  // room: torn / sewn / box / box_open / tidy   방과 삼색이 머리에 남는 자국
+  'room',  // room: torn / sewn / box / box_open / tidy / ajar / head_bed|floor|held|desk / suit_torn|folded|none   방에 남는 자국
 ];
-export const ROOM_MARKS = ['torn', 'sewn', 'box', 'box_open', 'tidy'];
+export const ROOM_MARKS = ['torn', 'sewn', 'box', 'box_open', 'tidy', 'ajar', 'head_bed', 'head_floor', 'head_held', 'head_desk', 'suit_torn', 'suit_folded', 'suit_none'];
 // 선택지에 붙는 태그. "[모니터를 본다 # at: monitor]" → 맵의 그 물건을 조사하면 골라진다.
 // at: move 는 방향키, at: wait 는 아무것도 없는 데서 누르는 Z 다.
 export const CHOICE_TAGS = ['at'];
-export const POSES = ['stand', 'lie', 'sit', 'curl', 'floor', 'gone', 'stoop']; // stoop: 허리와 고개를 숙인다 (숙인 채로 걸을 수 있다)
+export const POSES = ['stand', 'lie', 'sit', 'curl', 'floor', 'gone', 'stoop', 'lie_floor']; // lie_floor: 침대가 아닌 바닥에 모로 눕는다 // stoop: 허리와 고개를 숙인다 (숙인 채로 걸을 수 있다)
 export const SWINGS = ['still', 'gentle', 'high']; // swing: 자리 세기   그네가 흔들리는 정도 // gone: 윤재가 화면에 없다 (엔딩 C)
-export const CARRY = ['bag', 'off'];
+export const CARRY = ['bag', 'head', 'off']; // head: 맨몸으로 삼색이 머리를 안았다
 export const FACES = ['up', 'down', 'left', 'right'];
 
 // 장면 경고 (기획서 2장 '콘텐츠 설정'). skip 이 있는 장면은 넘길 수 있고, 넘기면 이 요약이 대신 나온다.
@@ -215,4 +215,4 @@ export const WARNS: Record<string, { line: string; skip?: string[] }> = {
 };
 
 // 미니게임 이름 (games.ts 의 판, world.ts 의 맵 위 게임)
-export const GAMES = ['breath', 'bill', 'coins', 'stitch', 'still', 'flood', 'crowd', 'type', 'closet', 'dial'];
+export const GAMES = ['breath', 'bill', 'coins', 'stitch', 'still', 'flood', 'crowd', 'type', 'closet', 'dial', 'gaze'];

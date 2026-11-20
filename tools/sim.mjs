@@ -55,7 +55,8 @@ for (let r = 0; r < runs; r++) {
         if (line.includes('곰표의 창에는')) {}
       }
       if (s.currentChoices.length === 0) break;
-      if (inC) { cBad++; console.error('C choice:', s.currentChoices.map((c) => c.text)); }
+      // 엔딩 C 에는 고르는 일이 없다. 빈자리의 시선이 다가가는 것(장소 하나에 묶인 선택지 하나)만 있다.
+      if (inC && !(s.currentChoices.length === 1 && (s.currentChoices[0].tags || []).some((t) => /^\s*at:/.test(t)))) { cBad++; console.error('C choice:', s.currentChoices.map((c) => c.text)); }
       if (++steps > 20000) throw new Error('loop');
       // 4장 마지막 선택 직전의 값
       if (s.currentChoices.some((c) => c.text.includes('놀이터에 간다')) && !got.has('_final')) { got.add('_final'); conn.push(s.variablesState.connection); str.push(s.variablesState.strength); }

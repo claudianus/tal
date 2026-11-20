@@ -65,7 +65,7 @@ export function playGame(id: string, opt: { ghosts?: string[] } = {}): Promise<s
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call' };
+const FAST: Record<string, string> = { breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -486,7 +486,47 @@ function dial(opt: { ghosts?: string[] }): Play {
   };
 }
 
-const GAMES: Record<string, (opt: { ghosts?: string[] }) => Play> = { breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial };
+// ═══════════ 거울 (프롤로그: 사 년 만에 보는 얼굴) ═══════════
+// 눈길이 자꾸 아래로, 옆으로 미끄러진다. ↑ 로 고개를 들어 거울 속 얼굴(위 가운데)에 눈길을 붙들어 둔다.
+// 벗어나면 목소리가 커진다. 다 본 뒤에야(붙든 시간이 쌓이면) 끝난다. 끝까지 못 봐도 시간이 지나면 끝난다.
+function gaze(opt: { ghosts?: string[] }): Play {
+  const ghosts = opt.ghosts || [];
+  const FX = W / 2, FY = 40; // 거울 속 얼굴 자리
+  let x = FX - 30, y = H - 30, held = 0, tt = 0, said = 0, lastGhost = 0, done = -1;
+  return {
+    hint: '방향키로 눈길을 거울 속 얼굴에 둔다 · 피하지 않는다',
+    step(dt, _t, k) {
+      tt += dt;
+      if (done >= 0) { done += dt; return done > 0.8 ? 'looked' : null; }
+      // 피하는 힘: 시간이 갈수록 세다. 아래로, 그리고 얼굴에서 먼 쪽으로.
+      const push = 26 + tt * 1.6;
+      const dx = x - FX, dy = y - FY, d = Math.hypot(dx, dy) || 1;
+      x += (dx / d) * push * 0.5 * dt + Math.sin(tt * 1.7) * 14 * dt; y += push * dt * 0.8;
+      const sp = 90;
+      if (k.up) y -= sp * dt; if (k.down) y += sp * dt; if (k.left) x -= sp * dt; if (k.right) x += sp * dt;
+      x = Math.max(8, Math.min(W - 8, x)); y = Math.max(8, Math.min(H - 8, y));
+      const on = Math.hypot(x - FX, y - FY) < 18;
+      if (on) held += dt;
+      else if (ghosts.length && tt - lastGhost > 1.6) { lastGhost = tt; ui.ghost(ghosts[(said++) % ghosts.length]); }
+      if (held > 6 || tt > 28) { done = 0; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      // 거울 그림은 아래에 그대로 둔다. 눈길이 닿은 자리만 밝고, 나머지는 어둡다.
+      const on = Math.hypot(x - FX, y - FY) < 18;
+      const g = c.createRadialGradient(x, y, 6, x, y, 70);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${on ? 0.55 : 0.8})`);
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+      // 눈길: 가는 점선 고리
+      c.fillStyle = on ? 'rgba(236,228,214,0.9)' : 'rgba(200,190,180,0.6)';
+      for (let a = 0; a < 20; a++) { if (a % 2) continue; const th = (a / 20) * Math.PI * 2 + t * 0.6; c.fillRect(Math.round(x + Math.cos(th) * 7), Math.round(y + Math.sin(th) * 7), 1, 1); }
+      // 붙든 시간
+      px(c, W / 2 - 24, H - 8, 48, 2, 'rgba(30,28,30,0.8)'); px(c, W / 2 - 24, H - 8, Math.round(48 * Math.min(1, held / 6)), 2, '#d8cfc0');
+    },
+  };
+}
+
+const GAMES: Record<string, (opt: { ghosts?: string[] }) => Play> = { breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;

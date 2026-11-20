@@ -45,6 +45,8 @@ export const MAPS: Record<string, MapDef> = {
       mirror_front: [9, 2, 'up'], door_in: [9, 3, 'right'], center: [5, 4, 'down'], doorway: [10, 3, 'left'],
       brace: [6, 3, 'right'], fa_near: [7, 3, 'left'], // 3장: 문이 부서진 밤. 아버지는 father_face 컷에서 문간(doorway)에 선다
       floor_door: [10, 3, 'left'], mom_up: [10, 3, 'left'],
+      wall_sit: [9, 5, 'left'], // 3장 끝: 문에 등을 댈 수 없어서 벽에 댄다
+      lie_desk: [4, 3, 'down'], lie_door: [7, 3, 'down'], lie_mid: [5, 4, 'down'], // 4장: 침대가 아닌 바닥에 눕는다
     },
     objs: [
       { id: 'window', x: 1, y: 0, w: 2 }, { id: 'head', x: 4, y: 1, w: 2 }, { id: 'monitor', x: 6, y: 1 },
@@ -142,7 +144,7 @@ export const MAPS: Record<string, MapDef> = {
     spawn: 'home', outdoor: true, painted: true, top: 56, view: 150,
     points: { home: [2, 1, 'right'], past_1107: [11, 1, 'right'], at_1107: [6, 1, 'left'], lift: [21, 1, 'up'], from_lift: [21, 1, 'left'], at_door: [2, 1, 'up'] },
     objs: [
-      { id: 'z_light', x: 5, y: 1, h: 2, touch: true }, { id: 'z_1107', x: 7, y: 1, h: 2, touch: true },
+      { id: 'z_light', x: 5, y: 1, h: 2, touch: true }, { id: 'z_1107', x: 4, y: 1, h: 2, touch: true },
       { id: 'z_end', x: 19, y: 1, h: 2, touch: true }, { id: 'elevator', x: 21, y: 0, w: 2 }, { id: 'stairs_in', x: 25, y: 0, w: 2, touch: true },
     ],
     lights: [
@@ -172,7 +174,7 @@ export const MAPS: Record<string, MapDef> = {
     ],
     spawn: 'start', outdoor: true, painted: true, top: 80, view: 200,
     points: { start: [2, 1, 'right'], hw_a: [8, 2, 'up'], hw_b: [22, 1, 'right'] }, // 엔딩 C: 출근하는 현우
-    objs: [{ id: 'z_station', x: 28, y: 0, w: 2, touch: true }],
+    objs: [{ id: 'z_station', x: 28, y: 0, w: 2, touch: true }, { id: 'z_office', x: 22, y: 1, h: 2, touch: true }],
   },
   // 역 앞 거리. 파티룸에서 역까지. 2층짜리 상가가 줄지어 있고, 오른쪽 끝에 지하철 입구(25-26칸)가 있다.
   // 1-2줄은 보도, 3-4줄은 연석과 젖은 차도 (막혀 있다).
@@ -230,7 +232,7 @@ export const MAPS: Record<string, MapDef> = {
       '############',
     ],
     spawn: 'top', painted: true, top: 48, view: 160,
-    points: { top: [2, 0, 'right'], bottom: [1, 16, 'right'] },
+    points: { top: [2, 0, 'right'], bottom: [1, 16, 'right'], landing: [6, 4, 'down'], landing_win: [3, 4, 'up'] }, // landing: 막간에 윤서가 기숙사 계단참에서 전화한다
     objs: [
       { id: 'z_9', x: 9, y: 4, w: 2, touch: true }, { id: 'z_7', x: 1, y: 8, w: 2, touch: true },
       { id: 'z_4', x: 9, y: 12, w: 2, touch: true }, { id: 'z_1', x: 1, y: 16, w: 2, touch: true },
@@ -431,6 +433,73 @@ export const MAPS: Record<string, MapDef> = {
     points: { in: [4, 3, 'up'], sink_me: [3, 2, 'up'], sink_hw: [1, 2, 'up'], sink_mid: [2, 2, 'up'], stall: [5, 1, 'down'], stall_front: [5, 2, 'up'], door: [4, 4, 'down'] },
     objs: [{ id: 'sink', x: 1, y: 1, w: 3 }, { id: 'z_out', x: 4, y: 4, w: 2, touch: true }],
     lights: [{ x: 41, y: -40, r: 80, a: 0.85, col: 'rgba(235,245,240,A)' }, { x: 72, y: 24, r: 90, a: 0.8 }],
+  },
+  // ── 막간: 윤서의 대학 학생식당 (점심, 밝음). 위 벽에 배식대(1~8,1)와 식판 반납대(12~14,1), 가운데 긴 탁자 둘씩 두 줄(3·5줄), 아래 가운데가 출입구. ──
+  cafeteria: {
+    grid: [
+      '####################',
+      '#ZZZZZZZZ...ZZZ....#',
+      '#..................#',
+      '#.ZZZZZZ...ZZZZZZ..#',
+      '#..................#',
+      '#.ZZZZZZ...ZZZZZZ..#',
+      '#########..#########',
+    ],
+    spawn: 'me', painted: true, top: 56, view: 160,
+    points: {
+      in: [9, 6, 'up'], me: [9, 2, 'left'], line_a: [6, 2, 'left'], line_b: [7, 2, 'left'], line_c: [8, 2, 'left'], line_d: [10, 2, 'left'], line_e: [11, 2, 'left'],
+      seat_me: [4, 4, 'up'], seat_a: [3, 4, 'up'], seat_b: [6, 4, 'up'], seat_c: [13, 4, 'up'], seat_d: [15, 4, 'up'], seat_e: [12, 2, 'down'], seat_f: [16, 2, 'down'],
+    },
+    objs: [{ id: 'counter', x: 1, y: 1, w: 8 }, { id: 'trays', x: 12, y: 1, w: 3 }, { id: 'z_out', x: 9, y: 6, w: 2, touch: true }],
+    lights: [
+      ...[56, 136, 216, 280].map((x) => ({ x, y: 40, r: 100, a: 0.85, col: 'rgba(240,246,248,A)' })), // 천장 형광등
+      { x: 80, y: -37, r: 40, a: 0.5, col: 'rgba(225,235,255,A)' },  // 메뉴판
+      { x: 167, y: -42, r: 10, a: 0.5, col: 'rgba(255,110,60,A)' },  // 시계
+      { x: 258, y: -23, r: 18, a: 0.5, col: 'rgba(140,150,255,A)' }, // 컵 소독기
+      { x: 160, y: 96, r: 40, a: 0.4, col: 'rgba(255,250,235,A)' },  // 유리문 바깥 볕
+    ],
+  },
+  // ── 막간: 캠퍼스 광장 (한낮). 위가 강의동 앞면(0줄 8~9 가 열린 유리문). 1줄 벽 앞에 벤치 셋(4~5)(10~11)(17~18): 걷는 칸 위에 그려서 사람이 그 칸에 앉는다(승강장 벤치처럼). 나무(20,1)(2,2)(14,2). 아래로 보도, 오른쪽 끝(23,5)이 기숙사 쪽 길. ──
+  campus: {
+    grid: [
+      '########..##############',
+      '#...................Z..#',
+      '#.Z...........Z........#',
+      '#......................#',
+      '#......................#',
+      '#.......................',
+      '########################',
+    ],
+    spawn: 'bench', outdoor: true, painted: true, top: 72, view: 176,
+    points: {
+      bench: [4, 1, 'down'], bench2: [5, 1, 'down'], bench_b: [10, 1, 'down'], bench_c: [17, 1, 'down'], door: [8, 1, 'down'],
+      walk_a: [2, 4, 'right'], walk_b: [16, 4, 'right'], away: [23, 5, 'right'], pass_a: [1, 5, 'right'], pass_b: [22, 3, 'left'],
+    },
+    objs: [{ id: 'z_away', x: 23, y: 5, touch: true }],
+    lights: [],
+  },
+  // ── 막간: 기숙사 2인실 (밤). 위 벽에 책상 둘(1~2,1)(7~8,1)과 창(4~5,1), 양옆에 침대(1~2,3~4 룸메이트)(7~8,3~4 윤서), 아래 가운데가 문. ──
+  dorm: {
+    grid: [
+      '##########',
+      '#DD.WW.DD#',
+      '#........#',
+      '#bb....bb#',
+      '#bb....bb#',
+      '#........#',
+      '####..####',
+    ],
+    spawn: 'bed_me', painted: true, top: 48, view: 128,
+    points: {
+      in: [4, 5, 'up'], bed_me: [7, 3, 'down'], bed_mate: [1, 3, 'down'], desk_me: [7, 2, 'up'], desk_mate: [2, 2, 'up'], window: [4, 2, 'up'], door: [4, 6, 'down'],
+    },
+    objs: [{ id: 'desk_me', x: 7, y: 1, w: 2 }, { id: 'window', x: 4, y: 1, w: 2 }, { id: 'bed', x: 7, y: 3, w: 2, h: 2 }, { id: 'z_out', x: 4, y: 6, w: 2, touch: true }],
+    lights: [
+      { x: 80, y: -19, r: 40, a: 0.5, col: 'rgba(240,160,80,A)' },   // 블라인드 틈으로 드는 가로등
+      { x: 132, y: 62, r: 22, a: 0.55, col: 'rgba(190,215,255,A)' }, // 베개 옆 휴대폰 화면
+      { x: 68, y: 13, r: 4, a: 0.6, col: 'rgba(255,60,60,A)', fx: 'blink' }, // 냉장고 대기 등
+      { x: 80, y: 96, r: 18, a: 0.3, col: 'rgba(200,215,230,A)' },  // 문 밑 복도빛
+    ],
   },
   // ── 4장: 할머니 집 마당. 이 게임에서 유일하게 색이 있는 곳. 위가 집과 마루(1~13,1), 오른쪽 위가 수돗가(16~17,1)와 장독대(19~20,1),
   //    왼쪽 아래 화단(2~3,4~5), 오른쪽 가운데 평상(13~15,5~6), 아래 담장에 대문(5~6,9). 담 밖은 고추밭. ──
