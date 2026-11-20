@@ -1,4 +1,5 @@
 import './style.css';
+import { setGameAuto } from './games.ts';
 import { audioInit, isMuted, setMuted } from './audio.ts';
 import { Game, savedChapter, type Start } from './engine.ts';
 import * as ui from './ui.ts';
@@ -10,7 +11,7 @@ const game = new Game(document.getElementById('bg') as HTMLCanvasElement, docume
 (window as unknown as { tal: Game }).tal = game;
 const q = new URLSearchParams(location.search);
 if (q.has('fast')) { ui.setFast(true); ui.setUrlFast(true); }
-if (q.has('auto')) game.world.autopilot = true; // 검사용: 맵에서 알아서 걸어가 고른다
+if (q.has('auto')) { game.world.autopilot = true; setGameAuto(true); } // 검사용: 맵에서 알아서 걸어가 고른다
 
 function begin(start: Start): void {
   audioInit();
@@ -25,6 +26,8 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
   b.addEventListener('click', onClick);
   return b;
 }
+
+if (q.has('auto')) (window as unknown as { talBegin: typeof begin }).talBegin = begin; // 검사용: 원하는 장/엔딩에서 바로 시작
 
 // ── 시작 화면 ──
 ui.setBlocked(true);

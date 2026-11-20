@@ -394,8 +394,16 @@ export async function help(long: boolean): Promise<void> {
   el.card.classList.add('on'); el.card.style.pointerEvents = 'auto';
   const lock = long ? (urlFast ? 300 : 10000) : (urlFast ? 50 : 2500);
   await sleep(lock);
-  b.disabled = false;
-  await new Promise<void>((r) => b.addEventListener('click', (e) => { e.stopPropagation(); r(); }, { once: true }));
+  b.disabled = false; b.focus();
+  await new Promise<void>((r) => {
+    const key = (e: KeyboardEvent): void => { // 키보드로 하는 사람도 넘어갈 수 있게
+      if (e.repeat || !['z', 'Z', 'Enter', ' '].includes(e.key)) return;
+      e.preventDefault(); e.stopPropagation(); done();
+    };
+    const done = (): void => { window.removeEventListener('keydown', key, true); r(); };
+    window.addEventListener('keydown', key, true);
+    b.addEventListener('click', (e) => { e.stopPropagation(); done(); }, { once: true });
+  });
   el.card.classList.remove('on', 'help'); el.card.style.pointerEvents = '';
   inHelp = false;
   await sleep(urlFast ? 0 : 900);

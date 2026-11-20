@@ -692,6 +692,9 @@ VAR saw_pills = false
 === c2_partydoor ===
 # scene: partyroom_door
 # time: 14:47
+# npc: moka seat_moka
+# npc: gombyo seat_gom
+# npc: silbap seat_sil
 골목 안쪽 건물 삼 층. 문에 종이가 붙어 있다. '털날림 주의보 정모'. 옆에 발바닥 도장.
 문 너머에서 웃음소리가 난다.
 * [노크한다 # at: frontdoor]

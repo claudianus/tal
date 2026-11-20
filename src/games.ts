@@ -15,6 +15,8 @@ type Ctx = CanvasRenderingContext2D;
 type Play = { step: (dt: number, t: number, k: Keys, hit: Set<GameKey>) => string | null; draw: (c: Ctx, t: number) => void; hint: string };
 
 let cv: HTMLCanvasElement | null = null;
+let autoPlay = false; // 검사용 (?auto): 판을 잠깐 보여 준 뒤 빠른 모드의 결과로 끝낸다
+export function setGameAuto(b: boolean): void { autoPlay = b; }
 function canvas(): HTMLCanvasElement {
   if (cv) return cv;
   cv = document.createElement('canvas');
@@ -54,7 +56,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     let last = performance.now(), t = 0, done: string | null = null, out = 0;
     const loop = (now: number): void => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
-      if (done === null) { done = g.step(dt, t, keys, hit); hit = new Set(); }
+      if (done === null) { done = g.step(dt, t, keys, hit); hit = new Set(); if (done === null && autoPlay && t > 2.5) done = FAST[id] || ''; }
       else out += dt;
       c.clearRect(0, 0, W, H);
       g.draw(c, t);

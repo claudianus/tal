@@ -73,7 +73,8 @@ export function parseTags(tags: string[] | null): { kind: string; dirs: Tag[] } 
 /** 태그 하나를 상태에 반영한다. 소리·카드 같은 '한 번 지나가는' 연출은 여기서 다루지 않는다. */
 export function applyTag(p: Pres, { name, val }: Tag): void {
   switch (name) {
-    case 'chapter': p.chapter = val; p.tail = []; p.closet = ''; p.bare = false; p.lampOff = false; p.carry = ''; if (!val.startsWith('프롤로그')) p.headDone = true; break;
+    case 'chapter': p.chapter = val; p.tail = []; p.skin = 'none'; p.monitor = false; // 장이 바뀌면 열어 둔 앱은 닫혀 있다 (필요하면 장 첫머리에서 다시 연다)
+       p.closet = ''; p.bare = false; p.lampOff = false; p.carry = ''; if (!val.startsWith('프롤로그')) p.headDone = true; break;
     case 'sfx': if (val === 'switch_off') p.lampOff = true; else if (val === 'switch_on') p.lampOff = false; break;
     case 'scene':
       if ((SCENES[p.scene]?.map || '') !== (SCENES[val]?.map || '')) { p.pos = ''; p.pose = 'stand'; p.face = ''; p.npcs = {}; p.swings = {}; p.siren = false; p.door = ''; }
