@@ -73,6 +73,7 @@ export class World {
   rain = false; // 바깥 맵에 비가 내린다
   train = { state: '' as '' | 'arrive' | 'stop' | 'open' | 'leave' | 'gone', x: 0, v: 0, done: null as (() => void) | null };
   private patrol: { t: number; meter: number; game: boolean; end: (o: string) => void } | null = null;
+  private sneak: { t: number; meter: number; snore: boolean; phase: number; lx: number; ly: number; game: boolean; end: (o: string) => void } | null = null;
   private crowd: { walkers: Walker[]; meter: number; t: number; spawn: number; game: boolean; hitAt: number; end: (o: string) => void } | null = null;
   onMoved: () => void = () => {};
   private held: Dir[] = [];
@@ -193,6 +194,7 @@ export class World {
   /** 환승 통로: 인파를 거슬러 계단까지 간다. 부딪칠 때마다 밀리고 숨이 찬다. 숨이 다 차면 인파에 떠밀린다. */
   runGame(id: string): Promise<string> {
     if (id === 'patrol') return this.patrolGame();
+    if (id === 'sneak') return this.sneakGame();
     if (id !== 'crowd' || !this.map) return Promise.resolve('');
     if (this.fast) return Promise.resolve('made');
     return new Promise((res) => {
@@ -222,6 +224,36 @@ export class World {
       void loop(0);
       void this.waitChoice([{ at: 'homedoor', idx: 0 }]).then(() => st.end('made'));
     });
+  }
+  /** 새벽 세 시의 거실: 안방에서 코 고는 소리가 날 때만 걷는다. 소리가 끊긴 동안 움직이면 발소리가 그 빈자리로 들어간다. */
+  private sneakGame(): Promise<string> {
+    if (!this.map) return Promise.resolve('');
+    if (this.fast) return Promise.resolve('passed');
+    return new Promise((res) => {
+      const p = this.player;
+      const st = { t: 0, meter: 0, snore: true, phase: 2.2, lx: p.px, ly: p.py, game: true, end: (o: string): void => { if (!st.game) return; st.game = false; this.sneak = null; this.cancelWalk(); res(o); } };
+      this.sneak = st;
+      sfx('snore');
+      void this.waitChoice([{ at: 'z_entry', idx: 0 }]).then(() => st.end('passed'));
+    });
+  }
+  private sneakTick(dt: number): void {
+    const st = this.sneak, p = this.player;
+    if (!st || !st.game) return;
+    st.t += dt; st.phase -= dt;
+    if (st.phase <= 0) {
+      st.snore = !st.snore;
+      // 코 고는 동안은 길고, 끊기는 동안은 짧다. 끊기는 박자가 매번 다르다.
+      st.phase = st.snore ? 1.6 + Math.random() * 1.8 : 1.1 + Math.random() * 1.4;
+      if (st.snore) sfx('snore');
+    }
+    const moved = Math.abs(p.px - st.lx) + Math.abs(p.py - st.ly) > 0.01;
+    st.lx = p.px; st.ly = p.py;
+    if (!st.snore && moved) {
+      st.meter = Math.min(1, st.meter + dt * 1.6);
+      if (Math.floor(st.t * 3) !== Math.floor((st.t - dt) * 3)) sfx(st.meter > 0.5 ? 'heartbeat' : 'heartbeat_soft');
+    } else st.meter = Math.max(0, st.meter - dt * 0.12);
+    if (st.meter >= 1) { sfx('bump'); this.shake(260); st.end('stirred'); }
   }
   private patrolTick(dt: number): void {
     const st = this.patrol, g = this.npcs.get('guard');
@@ -395,7 +427,7 @@ export class World {
     const dt = Math.min(1, (now - this.last) / 1000);
     this.last = now; this.t += dt;
     if (!this.map) return;
-    this.crowdTick(dt); this.trainTick(dt); this.patrolTick(dt);
+    this.crowdTick(dt); this.trainTick(dt); this.patrolTick(dt); this.sneakTick(dt);
     const all = [this.player, ...this.npcs.values()];
     for (const a of all) {
       let left = a.speed * dt;
@@ -663,6 +695,19 @@ export class World {
       c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(W / 2 - 31, 22, 62, 6);
       c.fillStyle = k > 0.6 ? `rgba(240,226,170,${0.8 + pulse * 0.2})` : 'rgba(200,196,180,0.8)'; c.fillRect(W / 2 - 30, 23, Math.round(60 * k), 4);
       if (k > 0.3) { c.fillStyle = `rgba(250,246,226,${(k - 0.3) * 0.35})`; c.fillRect(0, 0, W, H); }
+    }
+    // 코 고는 소리: 안방 문틈 위로 숨이 오르내린다. 끊기면 문틈만 남는다. 아래 띠는 끊긴 동안 낸 발소리.
+    if (this.sneak?.game) {
+      const st = this.sneak, ax = 224 - cx, ay = 6 - cy;
+      if (st.snore) for (let i = 0; i < 3; i++) { // 문틈 위로 z 가 오른다 (3×3 글자)
+        const u = (t * 0.6 + i / 3) % 1, zx = Math.round(ax + 6 + u * 10 + Math.sin(u * 6 + i) * 2), zy = Math.round(ay + 8 - u * 22);
+        c.fillStyle = `rgba(226,214,180,${0.75 * (1 - u)})`; c.fillRect(zx, zy, 3, 1); c.fillRect(zx + 1, zy + 1, 1, 1); c.fillRect(zx, zy + 2, 3, 1);
+      }
+      else { c.fillStyle = `rgba(240,226,200,${0.5 + Math.sin(t * 14) * 0.2})`; c.fillRect(Math.round(ax) - 4, Math.round(ay) + 6, 9, 1); }
+      const k = st.meter;
+      c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(8, 8, 62, 6);
+      c.fillStyle = k > 0.5 ? 'rgba(230,140,110,0.95)' : 'rgba(200,196,180,0.8)'; c.fillRect(9, 9, Math.round(60 * k), 4);
+      if (!st.snore) { c.fillStyle = 'rgba(0,0,0,0.18)'; c.fillRect(0, 0, W, H); }
     }
     // 숨: 인파 속에서 차오른다
     if (this.crowd?.game) {

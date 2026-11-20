@@ -34,7 +34,7 @@ const gameOf = (tags: string[] | null | undefined): [string, string] | null => {
   return null;
 };
 /** 맵 위에서 하는 게임의 조작 안내 */
-const WORLD_GAME_HINT: Record<string, string> = { patrol: '손전등 빛을 피해 108동 현관까지 간다 · 빛에 오래 닿으면 들킨다 · 현관 앞에서 Z', crowd: '→ 계단까지 간다 · ↑↓ 로 사람 사이를 피한다 · 기둥 뒤에서 숨을 고른다' };
+const WORLD_GAME_HINT: Record<string, string> = { sneak: '코 고는 소리가 날 때만 걷는다 · 소리가 끊기면 멈춘다 · 현관 앞까지', patrol: '손전등 빛을 피해 108동 현관까지 간다 · 빛에 오래 닿으면 들킨다 · 현관 앞에서 Z', crowd: '→ 계단까지 간다 · ↑↓ 로 사람 사이를 피한다 · 기둥 뒤에서 숨을 고른다' };
 
 /** 선택지의 "# timer: 초" (at: timeout 과 함께 쓴다) */
 const timerOf = (tags: string[] | null | undefined): number => {

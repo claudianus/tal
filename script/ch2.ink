@@ -574,6 +574,8 @@ VAR saw_pills = false
 # sfx: subway_announce
 이번 역은 신도림. 2호선으로 갈아타실 분은 이번 역에서.
 갈아타야 한다.
+* [내릴 문 앞으로 간다 # at: z_doorway]
+- 문 앞에 선다. 어두운 유리에 고양이 귀가 비친다. 그 뒤로 사람들이 일어선다.
 -> c2_panic
 
 === c2_panic ===

@@ -37,7 +37,7 @@ for (let r = 0; r < runs; r++) {
     const KEYED = /^(move|wait|timeout|up|down|left|right)$/;
     const ats = ch.map((c) => { for (const t of c.tags || []) { const m = /^at:\s*(\S+)/.exec(t.trim()); if (m) return m[1]; } return ''; });
     const hasMap = !!SCENES[p.scene]?.map;
-    const walkable = ats.every((a) => a) && new Set(ats.filter((a) => KEYED.test(a))).size === ats.filter((a) => KEYED.test(a)).length && hasMap && (p.skin === 'none' || ats.every((a) => KEYED.test(a)));
+    const walkable = ats.every((a) => a) && new Set(ats).size === ats.length && hasMap && (p.skin === 'none' || ats.every((a) => KEYED.test(a)));
     const kinds = ch.map(kindOf);
     const k = kinds.includes('game') ? 'game' : walkable ? kinds.find((x) => x) : '';
     if (k) { close(); get(p.chapter)[k]++; }

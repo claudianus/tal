@@ -216,4 +216,4 @@ export const WARNS: Record<string, { line: string; skip?: string[] }> = {
 };
 
 // 미니게임 이름 (games.ts 의 판, world.ts 의 맵 위 게임)
-export const GAMES = ['dodge', 'zoom', 'breath', 'bill', 'coins', 'stitch', 'still', 'flood', 'crowd', 'type', 'closet', 'dial', 'gaze', 'tilt', 'tug', 'lurk', 'watch', 'leave', 'leaveall', 'swing', 'swing2', 'stillhot', 'photo', 'catchb', 'zip', 'knock', 'sleeve', 'album', 'point', 'pills', 'grab', 'push', 'bag', 'beam', 'history', 'longmsg', 'buzz', 'lining', 'headoff', 'tape', 'swing3', 'book', 'bookok', 'erase', 'dates', 'leak', 'react', 'unsend', 'patrol'];
+export const GAMES = ['dodge', 'zoom', 'breath', 'bill', 'coins', 'stitch', 'still', 'flood', 'crowd', 'type', 'closet', 'dial', 'gaze', 'tilt', 'tug', 'lurk', 'watch', 'leave', 'leaveall', 'swing', 'swing2', 'stillhot', 'photo', 'catchb', 'zip', 'knock', 'sleeve', 'album', 'point', 'pills', 'grab', 'push', 'bag', 'beam', 'history', 'longmsg', 'buzz', 'lining', 'headoff', 'tape', 'swing3', 'book', 'bookok', 'erase', 'dates', 'leak', 'react', 'unsend', 'patrol', 'hush', 'sneak'];

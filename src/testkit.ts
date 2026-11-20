@@ -12,7 +12,7 @@ window.__hold=hold;
 const DIR={'0,-1':'ArrowUp','0,1':'ArrowDown','-1,0':'ArrowLeft','1,0':'ArrowRight'};
 const FACE={up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'};
 async function walk(at){ const w=window.tal.world; const rt=w.routeFor(at); if(!rt) return false;
-  for(const [x,y] of rt.path.slice(1)){ const p=w.player; const k=DIR[(x-p.x)+','+(y-p.y)]; if(!k) break; let t=0; down(k); while((p.x!==x||p.y!==y)&&t<40){await S(15);t++;} up(k); let u=0; while((p.px!==p.x*16||p.py!==p.y*16)&&u<40){await S(15);u++;} }
+  for(const [x,y] of rt.path.slice(1)){ const p=w.player; for(let q=0;q<200&&w.sneak&&w.sneak.game&&(!w.sneak.snore||w.sneak.phase<0.45);q++) await S(30); const k=DIR[(x-p.x)+','+(y-p.y)]; if(!k) break; let t=0; down(k); while((p.x!==x||p.y!==y)&&t<40){await S(15);t++;} up(k); let u=0; while((p.px!==p.x*16||p.py!==p.y*16)&&u<40){await S(15);u++;} }
   await hold(FACE[rt.face],40); { const p=w.player; let u=0; await S(60); while((p.px!==p.x*16||p.py!==p.y*16)&&u<60){await S(15);u++;} } await S(80); await hold('z',50); await S(500); return true; }
 async function game(h){
   if(/화면을 붙잡는다/.test(h)){ for(let i=0;i<60&&document.querySelector('#game.on');i++) await hold('ArrowUp',700); return 'leak'; }
@@ -88,6 +88,7 @@ async function game(h){
     for(let i=0;i<80&&!/^들이쉰다/.test(hint())&&document.querySelector('#game.on');i++) await S(100);
     for(let i=0;i<8&&document.querySelector('#game.on');i++){ await hold('z',8000); await S(4000);} return 'breath'; }
   if(/가만히 있는다/.test(h)){ while(document.querySelector('#game.on')) await S(200); return 'still'; }
+  if(/문틈을 지날/.test(h)){ for(let i=0;i<30&&document.querySelector('#game.on');i++){ await hold('z',1400); await S(900);} return 'hush'; }
   if(/숨을 참는다/.test(h)){ for(let i=0;i<30&&document.querySelector('#game.on');i++){ await hold('z',1500); await S(700);} return 'closet'; }
   if(/알림을 밀어/.test(h)){ for(let i=0;i<40&&document.querySelector('#game.on');i++){ await hold(i%2?'ArrowLeft':'ArrowRight',80); await S(150);} await hold('z',50); return 'flood'; }
   if(/고개를 기울인다/.test(h)){ await hold('ArrowLeft',900); await S(400); await hold('ArrowRight',900); for(let i=0;i<40&&document.querySelector('#game.on');i++) await S(100); return 'tilt'; }

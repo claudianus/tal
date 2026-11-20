@@ -373,7 +373,7 @@ export const MAPS: Record<string, MapDef> = {
       stand_a: [3, 2, 'down'], stand_b: [14, 3, 'up'], stand_c: [16, 2, 'left'],
       kid_c: [11, 2, 'left'], mom_c: [12, 2, 'left'], kid_s: [6, 3, 'up'], mom_s: [7, 3, 'left'], far: [15, 3, 'left'], far2: [16, 3, 'left'],
     },
-    objs: [{ id: 'z_corner', x: 10, y: 1, touch: true }, { id: 'z_seat', x: 5, y: 4, touch: true }],
+    objs: [{ id: 'z_corner', x: 10, y: 1, touch: true }, { id: 'z_seat', x: 5, y: 4, touch: true }, { id: 'z_doorway', x: 7, y: 4, touch: true }],
     lights: [
       ...[48, 112, 176, 240].map((x) => ({ x, y: -50, r: 72, a: 0.75, col: 'rgba(235,240,240,A)' })), // 천장 형광등 넷
       { x: 144, y: 30, r: 130, a: 0.8 },

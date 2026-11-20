@@ -92,7 +92,7 @@ VAR p_acts = 0
 * {not frag_1} [옷장을 연다 # at: closet]
     ~ p_acts++
     -> p_closet
-* {p_doorlock} [헤드를 마저 만든다 # at: head]
+* {p_doorlock and p_desk} [헤드를 마저 만든다 # at: head]
     -> p_head
 + {not p_doorlock} [눕는다 # at: bed]
     ~ p_acts++

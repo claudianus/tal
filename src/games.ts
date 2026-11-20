@@ -74,7 +74,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', swing3: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail', history: 'read', longmsg: 'read', buzz: 'caught', lining: 'held', headoff: 'off', tape: 'matched', book: 'off', bookok: 'booked', erase: 'gone', dates: 'counted', leak: 'seen', react: 'heart', unsend: 'erased' };
+const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', swing3: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail', history: 'read', longmsg: 'read', buzz: 'caught', lining: 'held', headoff: 'off', tape: 'matched', book: 'off', bookok: 'booked', erase: 'gone', dates: 'counted', leak: 'seen', react: 'heart', unsend: 'erased', hush: 'held' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -465,6 +465,90 @@ function closet(opt: { ghosts?: string[]; text?: string }): Play {
       // 숨: 참을수록 가운데 아래의 띠가 줄어든다. 내쉬면 하얀 김이 아주 조금.
       px(c, 20, H - 22, 50, 2, '#1a171a'); px(c, 20, H - 22, Math.round(50 * air), 2, air < 0.25 ? '#c45050' : '#8a8078');
       if (gasp > 0) ell(c, 44, H - 34 - gasp * 6, 3 + (1 - gasp) * 4, 2, `rgba(220,214,206,${0.25 * gasp})`);
+    },
+  };
+}
+
+// ═══════════ 숨죽이기 (4장: 새벽 한 시 반, 아버지의 발소리) ═══════════
+// 침대에 누운 눈높이. 한 뼘 열린 방문, 그 틈으로 거실 불빛이 바닥에 쐐기를 그린다.
+// 비틀거리는 발소리가 거실을 오가며 그 쐐기를 끊는다. 그림자가 틈에 걸릴 때 숨을 쉬면 소리가 난다.
+// Z 를 누르고 있으면 숨을 참는다. 숨은 모자라고, 모자라면 터진다. 마지막에 발소리는 거실에서 멈춘다.
+function hush(): Play {
+  let air = 1, tt = 0, heard = 0, gasp = 0, shake = 0, stopT = -1, said = 0, lastStep = 0;
+  // 그림자 위치: 0 = 틈 한가운데. 세 번 지나가고, 네 번째에 틈 언저리에서 멈춘다.
+  const pass = (t: number) => {
+    if (t < 2) return -2;
+    if (t < 5) return -1.6 + (t - 2) * 1.1;          // 왼쪽에서 오른쪽으로
+    if (t < 6.5) return 2;
+    if (t < 9.5) return 1.7 - (t - 6.5) * 1.15;      // 되돌아온다 (비틀거려서 느렸다 빨랐다)
+    if (t < 10.5) return -2;
+    return Math.max(0.55, -1.6 + (t - 10.5) * 0.9);  // 들어오다가 틈 오른쪽 언저리에서 멈춘다
+  };
+  return {
+    hint: 'Z 를 누르고 있으면 숨을 참는다 · 그림자가 문틈을 지날 때 숨을 쉬면 들린다',
+    step(dt, _t, k) {
+      tt += dt; gasp = Math.max(0, gasp - dt * 2); shake = Math.max(0, shake - dt * 3);
+      const x = pass(tt), near = Math.abs(x) < 0.6;
+      if (k.z) air = Math.max(0, air - dt * 0.2);
+      else { if (air < 0.97 && Math.random() < dt * 3) gasp = 1; air = Math.min(1, air + dt * 0.45); }
+      if (k.z && air <= 0) { gasp = 1; air = 0.2; sfx('breath_fast'); if (near) { heard++; shake = 1; } }
+      if (near && !k.z && gasp > 0.9) { heard++; shake = 1; sfx('heartbeat'); gasp = 0.8; }
+      // 발소리: 그림자가 움직이는 동안만, 비틀거리는 박자로
+      if (stopT < 0 && Math.abs(pass(tt) - pass(tt - dt)) > 1e-4 && tt - lastStep > 0.55 + Math.sin(tt * 3) * 0.2) { lastStep = tt; sfx('footsteps_near'); }
+      if (tt > 6 && said === 0) { said = 1; ui.hint('다시 온다'); }
+      if (tt > 11.5 && said === 1) { said = 2; ui.hint('멈췄다'); }
+      if (tt > 12.5 && stopT < 0) stopT = 0;
+      if (stopT >= 0) { stopT += dt; if (stopT > 3) return heard ? 'heard' : 'held'; }
+      return null;
+    },
+    draw(c, t) {
+      const sx = Math.round(Math.sin(t * 50) * 2 * shake);
+      c.fillStyle = '#060507'; c.fillRect(0, 0, W, H);
+      // 방: 천장 모서리, 벽, 바닥. 누운 눈높이라 바닥이 가깝다.
+      px(c, 0, 16, W, 1, '#0e0c10'); px(c, 0, 17, W, 87, '#09080b');
+      for (let y = 20; y < 104; y += 6) px(c, 0, y, W, 1, 'rgba(255,255,255,0.012)'); // 벽지 결
+      px(c, 0, 104, W, 1, '#141117'); px(c, 0, 105, W, 13, '#0b090c');
+      // 왼쪽: 책상과 꺼진 모니터, 의자 등받이. 문 쪽 빛이 모서리에만 닿는다.
+      px(c, 14, 70, 70, 3, '#121015'); px(c, 18, 73, 3, 31, '#0f0d11'); px(c, 78, 73, 3, 31, '#0f0d11');
+      px(c, 30, 46, 34, 22, '#0f0d12'); px(c, 31, 47, 32, 20, '#08070a'); px(c, 45, 68, 4, 2, '#0f0d12');
+      px(c, 63, 47, 1, 20, 'rgba(217,192,142,0.10)');
+      px(c, 52, 76, 22, 3, '#0d0b10'); px(c, 54, 79, 2, 25, '#0d0b10'); px(c, 70, 79, 2, 25, '#0d0b10');
+      // 커튼 틈: 아주 희미한 가로등 한 줄
+      px(c, 104, 22, 1, 50, 'rgba(120,130,160,0.10)'); px(c, 92, 20, 26, 54, 'rgba(30,28,40,0.35)');
+      // 문 (한 뼘 열림)
+      const dx = 160 + sx, dw = 30, gap = 6, top = 26, bot = 104;
+      px(c, dx - 3, top - 3, dw + 6, bot - top + 3, '#0d0b0f'); px(c, dx - 3, top - 3, dw + 6, 1, '#141117');
+      px(c, dx, top, dw - gap, bot - top, '#131116'); px(c, dx + 1, top + 1, 1, bot - top - 2, '#19161c');
+      px(c, dx + 3, top + 6, dw - gap - 7, 24, '#151318'); px(c, dx + 3, top + 40, dw - gap - 7, 30, '#151318'); // 문짝 판
+      px(c, dx + 17, 66, 3, 2, '#221e25'); px(c, dx + 17, 66, 1, 1, 'rgba(217,192,142,0.4)'); // 손잡이에 걸린 빛
+      const x = pass(tt), inGap = Math.abs(x) < 0.9;
+      const gx = dx + dw - gap, flick = 0.92 + Math.sin(t * 9) * 0.03;
+      px(c, gx, top, gap, bot - top, `rgba(217,192,142,${flick})`); px(c, gx + 2, top, 2, bot - top, '#f2dfb2');
+      // 천장에 비친 빛 한 줄
+      for (let i = 0; i < 40; i++) px(c, gx + 3 - i, top - 4 - Math.round(i * 0.18), 1, 1, `rgba(217,192,142,${0.18 * (1 - i / 40)})`);
+      let cx = 0;
+      if (inGap) { // 지나가는 몸: 틈을 덮는 어두운 기둥, 다리 사이로만 빛이 샌다
+        cx = Math.round(gx + gap / 2 + x * 8);
+        px(c, cx - 5, top, 10, 52, '#0a090b'); px(c, cx - 6, top + 8, 12, 30, '#0a090b'); // 어깨·몸통
+        const leg = Math.round(Math.sin(tt * 6) * 2);
+        px(c, cx - 4 + leg, top + 52, 3, bot - top - 52, '#0a090b'); px(c, cx + 1 - leg, top + 52, 3, bot - top - 52, '#0a090b');
+      }
+      // 바닥으로 쏟아지는 쐐기 (그림자가 지나가면 끊긴다)
+      for (let y = bot + 1; y < 118; y++) {
+        const k = (y - bot) / (118 - bot), x0 = gx - k * 40, x1 = gx + gap + k * 6;
+        for (let xx = Math.floor(x0); xx < x1; xx++) {
+          const cut = inGap && Math.abs(xx - (cx - k * 26)) < 4 + k * 7;
+          if (!cut) px(c, xx, y, 1, 1, `rgba(217,192,142,${(0.34 - k * 0.2) * flick})`);
+        }
+      }
+      // 이불 끝: 눈높이 바로 아래. 숨 쉴 때 오르내린다.
+      const rise = gasp > 0 ? -1 : 0;
+      px(c, 0, 118 + rise, W, 26, '#0e0c10'); for (let i = 0; i < W; i += 9) px(c, i, 118 + rise + ((i * 7) % 3), 6, 1, '#17141b');
+      px(c, 0, 118 + rise, W, 1, '#1b1820');
+      // 숨
+      px(c, 20, H - 10, 50, 2, '#1a171a'); px(c, 20, H - 10, Math.round(50 * air), 2, air < 0.25 ? '#c45050' : '#8a8078');
+      if (gasp > 0) ell(c, 120, 112 - gasp * 6, 3 + (1 - gasp) * 4, 2, `rgba(220,214,206,${0.22 * gasp})`);
+      if (stopT >= 0) { c.fillStyle = `rgba(6,5,7,${Math.min(0.5, stopT * 0.25)})`; c.fillRect(0, 0, W, H); }
     },
   };
 }
@@ -2533,7 +2617,7 @@ function react(opt: GameOpt): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), swing3: () => swing(true, true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam, history, longmsg, buzz, lining, headoff, tape, book: () => book(false), bookok: () => book(true), erase, dates, leak, react, unsend: (o: GameOpt) => type(o, true) };
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), swing3: () => swing(true, true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam, history, longmsg, buzz, lining, headoff, tape, book: () => book(false), bookok: () => book(true), erase, dates, leak, react, unsend: (o: GameOpt) => type(o, true), hush };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;
