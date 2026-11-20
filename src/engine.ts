@@ -266,7 +266,8 @@ export class Game {
           const text = (this.story.Continue() || '').trim();
           const tags = this.story.currentTags;
           const { dirs } = parseTags(tags);
-          if (dirs.some((d) => d.name === 'chapter' && d.val === title)) return { text, tags };
+          // 검사용: '@대사 일부' 로 부르면 그 대사가 나오는 자리에서 시작한다 (?test 에서만 부를 수 있다)
+          if (title.startsWith('@') ? text.includes(title.slice(1)) : dirs.some((d) => d.name === 'chapter' && d.val === title)) return { text, tags };
           dirs.forEach((d) => applyTag(this.pres, d));
         }
         const ch = this.story.currentChoices;

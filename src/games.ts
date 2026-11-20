@@ -1497,7 +1497,7 @@ function sleeve(): Play {
 // ═══════════ 졸업앨범 (1장: 3학년 4반) ═══════════
 // 얼굴 없는 반 아이들 사이에서 내 사진을 찾는다. 찾으면, 누가 볼펜으로 그려 둔 수염과 귀가 있다.
 function album(): Play {
-  const COLS = 6, ROWS = 4, me = 7 + Math.floor(Math.random() * 16); // 둘째 줄부터 어딘가
+  const COLS = 6, ROWS = 4, me = 7 + Math.floor(Math.random() * 11); // 둘째·셋째 줄 어딘가 (아래 줄이면 글씨가 화면 밖으로 나간다)
   let cx = 0, cy = 0, tt = 0, end = -1, wrong = 0, wrongT = 0, said = 0;
   const hair = ['#1a1614', '#2a201a', '#141418', '#3a2a20', '#201814'];
   return {
@@ -1623,10 +1623,10 @@ function point(): Play {
 // ═══════════ 약봉지 (3장: 영수증) ═══════════
 // 아침마다 한 봉지. 날이 점점 빨리 간다. 뜯을수록 창이 밝아진다. 석 달째, 띠째 사라진다.
 function pills(): Play {
-  const DAYS = 84, PW = 24;
-  let tt = 0, pos = 0, taken = 0, L = 0, gone = -1, end = -1, lastDay = -1, said = 0;
+  const DAYS = 72, PW = 24; // 석 달째 중간에 끝난다
+  let tt = 0, fumble = 0, pos = 0, taken = 0, L = 0, gone = -1, end = -1, lastDay = -1, said = 0;
   const torn = new Set<number>(), dropped = new Set<number>();
-  const speed = (t: number): number => Math.min(4.6, 1.4 + t * 0.5); // 하루에 몇 봉지 지나가나
+  const speed = (t: number): number => Math.min(3.6, 1.4 + t * 0.45); // 하루에 몇 봉지 지나가나
   return {
     scale: 2,
     peek: () => ({ pos, taken, gone }),
@@ -1638,13 +1638,14 @@ function pills(): Play {
       pos += speed(tt) * dt;
       const day = Math.round(pos);
       if (day !== lastDay) { lastDay = day; if (day % 7 === 0 && day > 0) sfx('tap'); }
-      if (hit.has('z')) {
-        const near = Math.abs(pos - day) < 0.22 && !torn.has(day) && day < DAYS;
+      fumble -= dt;
+      if (hit.has('z') && fumble <= 0) {
+        const near = Math.abs(pos - day) < 0.3 && !torn.has(day) && !dropped.has(day) && day < DAYS;
         if (near) { torn.add(day); taken++; sfx('fabric_tear'); }
-        else { const nd = Math.ceil(pos); if (!torn.has(nd) && nd < DAYS) { dropped.add(nd); sfx('bump'); } } /* 서두르면 봉지를 놓친다 */
+        else { fumble = 0.4; const nd = Math.round(pos); if (!torn.has(nd) && !dropped.has(nd) && nd < DAYS) { dropped.add(nd); sfx('bump'); } } /* 서두르면 손이 미끄러져 그날 봉지를 떨어뜨린다 */
       }
       L += ((taken / DAYS) * 1.4 - L) * Math.min(1, dt * 0.8); L = Math.min(1, L);
-      if (pos > 20 && said === 0) { said = 1; ui.hint('아침이 조금 덜 무겁다'); }
+      if (taken > 18 && said === 0) { said = 1; ui.hint('아침이 조금 덜 무겁다'); }
       if (pos >= DAYS - 4) { gone = 0; sfx('door_open'); ui.hint(''); }
       return null;
     },

@@ -301,11 +301,11 @@ export const MAPS: Record<string, MapDef> = {
     points: {
       in: [9, 1, 'down'], swing1: [9, 6, 'down'], swing2: [11, 6, 'down'], swing_front: [9, 7, 'up'],
       edge: [16, 10, 'left'], near: [13, 8, 'left'], slide_under: [3, 4, 'down'], away: [0, 4, 'left'],
-      floor_slide: [4, 4, 'left'], by_swing2: [12, 7, 'left'], closer: [13, 6, 'left'],
+      floor_slide: [4, 4, 'left'], rainside: [5, 4, 'left'], by_swing2: [12, 7, 'left'], closer: [13, 6, 'left'],
       floor_kneel: [11, 7, 'up'], ask: [8, 7, 'up'],
     },
     objs: [
-      { id: 'swing1', x: 9, y: 6 }, { id: 'z_recycle', x: 0, y: 7, h: 3, touch: true }, { id: 'z_slide', x: 2, y: 4, w: 2, touch: true },
+      { id: 'swing1', x: 9, y: 6 }, { id: 'z_recycle', x: 0, y: 7, h: 3, touch: true }, { id: 'z_slide', x: 2, y: 4, w: 2, touch: true }, { id: 'z_rainside', x: 5, y: 4, touch: true },
     ],
     lights: [
       { x: 232, y: 40, r: 84, a: 0.9, col: 'rgba(232,150,70,A)', tint: 0.5 },
