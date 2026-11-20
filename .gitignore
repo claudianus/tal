@@ -1,0 +1,9 @@
+node_modules
+dist
+src/story.json
+.art-before
+shots
+.claude
+/k*.png
+.DS_Store
+기획서*.md
