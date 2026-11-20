@@ -161,17 +161,19 @@ export const DIRECTIVES = [
   'pos',   // pos: 자리 이름      윤재를 그 자리에 놓는다
   'go',    // go: 자리 이름       윤재가 그 자리까지 걸어간다
   'npc',   // npc: 누구 자리 [walk]   다른 사람을 놓거나(off 면 치운다) 걷게 한다
+  'swing', // swing: swing1 high   그네 (놀이터). 앉은 사람과 함께 흔들린다. still 이면 멈춘다
   'pose',  // pose: stand / lie / sit / curl
   'face',  // face: up / down / left / right
   'carry', // carry: bag / off      윤재가 등에 멘 것 (탈을 쓰면 저절로 벗는다)
   'warn',  // warn: 경고 이름 / end   장면 경고 (설정에서 켰을 때만). 넘기면 end 까지 감고 요약을 보여 준다
-  'room',  // room: torn / sewn / box / box_open / tidy   방과 얼룩이 머리에 남는 자국
+  'room',  // room: torn / sewn / box / box_open / tidy   방과 삼색이 머리에 남는 자국
 ];
 export const ROOM_MARKS = ['torn', 'sewn', 'box', 'box_open', 'tidy'];
 // 선택지에 붙는 태그. "[모니터를 본다 # at: monitor]" → 맵의 그 물건을 조사하면 골라진다.
 // at: move 는 방향키, at: wait 는 아무것도 없는 데서 누르는 Z 다.
 export const CHOICE_TAGS = ['at'];
-export const POSES = ['stand', 'lie', 'sit', 'curl', 'floor', 'gone']; // gone: 윤재가 화면에 없다 (엔딩 C)
+export const POSES = ['stand', 'lie', 'sit', 'curl', 'floor', 'gone', 'stoop']; // stoop: 허리와 고개를 숙인다 (숙인 채로 걸을 수 있다)
+export const SWINGS = ['still', 'gentle', 'high']; // swing: 자리 세기   그네가 흔들리는 정도 // gone: 윤재가 화면에 없다 (엔딩 C)
 export const CARRY = ['bag', 'off'];
 export const FACES = ['up', 'down', 'left', 'right'];
 
@@ -182,7 +184,7 @@ export const WARNS: Record<string, { line: string; skip?: string[] }> = {
     line: '이어지는 장면에는 가정폭력이 직접 나옵니다. 30초쯤 걸립니다.',
     skip: [
       '아버지가 손을 들었다. 윤재는 맞았다.',
-      '아버지는 얼룩이를 찢었다. 등 솔기와 왼팔이 뜯겼고, 처진 귀는 실 두 가닥에 매달렸다.',
+      '아버지는 삼색이를 찢었다. 등 솔기와 왼팔이 뜯겼고, 처진 귀는 실 두 가닥에 매달렸다.',
       '말리던 엄마도 맞았다. 아버지는 안방으로 들어갔다.',
     ],
   },

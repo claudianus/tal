@@ -38,7 +38,7 @@ export function drawTile(c: C, name: string, x: number, y: number, k: TileCtx): 
       break;
     case 'desk_head':
       floor(c, x, y, FL, k); r(c, x, y + 4, 16, 9, '#3b3027'); r(c, x, y + 13, 16, 2, '#231c17');
-      // 얼룩이의 머리. 이 방에서 색이 있는 건 이것뿐이다.
+      // 삼색이의 머리. 이 방에서 색이 있는 건 이것뿐이다.
       if (!k.headGone) {
         r(c, x + 4, y + 2, 8, 7, '#e6e1d6'); r(c, x + 9, y + 2, 3, 3, '#d9853b'); r(c, x + 4, y + 2, 3, 3, '#22201e');
         r(c, x + 4, y, 2, 2, '#e6e1d6'); r(c, x + 10, y + 1, 3, 1, '#d9853b');

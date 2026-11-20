@@ -62,6 +62,7 @@ export class Game {
     const look: Look = { kind: p.suitFull ? (p.suit ? 'cat' : 'cat_nohead') : p.suit ? 'yunjae_cathead' : 'yunjae', droopy, bare: p.bare, bag: p.carry === 'bag' && !p.suit && !p.suitFull, mark: p.mark || '' };
     w.setLook(look);
     w.setPose(p.pose);
+    w.swings = p.swings || {};
     w.fast = ui.isFast();
     ambient(spec.amb);
     setMuffle(p.suit);

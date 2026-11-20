@@ -10,9 +10,9 @@ export type Look = {
     | 'hyunwoo' | 'moka' | 'gombyo' | 'silbap' | Species | 'fox_nohead' | 'mother';
   droopy?: boolean; eyes?: boolean;
   bare?: boolean; // 엔딩 A: 맨얼굴의 윤재에게 처음으로 눈과 입이 생긴다
-  bag?: boolean; // 윤재가 등에 멘 국방색 의류대. 안에 얼룩이가 들었다.
+  bag?: boolean; // 윤재가 등에 멘 국방색 의류대. 안에 삼색이가 들었다.
   case?: boolean; // 현우가 끄는 남색 캐리어. 안에 여우가 접혀 있다.
-  mark?: '' | 'torn' | 'sewn'; // 얼룩이 머리: 3장에서 귀가 뜯기고 주둥이 옆이 벌어진다. 4장에서 주황 실로 꿰맨다.
+  mark?: '' | 'torn' | 'sewn'; // 삼색이 머리: 3장에서 귀가 뜯기고 주둥이 옆이 벌어진다. 4장에서 주황 실로 꿰맨다.
 };
 let curMark: '' | 'torn' | 'sewn' = ''; // catHeadOps 가 부를 때의 머리 상태
 export const FW = 44, FH = 56, FOOT = 54, CX = 22;
@@ -87,7 +87,7 @@ function hexAt(p: Pix, x: number, y: number): string {
   return '#' + [0, 1, 2].map((k) => p.d[i + k].toString(16).padStart(2, '0')).join('');
 }
 /** 부위 하나를 찍는다: 테두리 먼저, 그 안을 빛에 따라 칠한다.
- *  얼룩이(sel)의 바깥 테두리는 검은 선이 아니라 맞닿은 털의 가장 깊은 그늘을 선 쪽으로 당긴 색이다.
+ *  삼색이(sel)의 바깥 테두리는 검은 선이 아니라 맞닿은 털의 가장 깊은 그늘을 선 쪽으로 당긴 색이다.
  *  빛이 오는 왼쪽 위는 옅고, 오른쪽 아래는 진하다. 그래서 털 뭉치가 선에 갇히지 않고 둥글게 떠 보인다. */
 export function stamp(dest: Pix, pt: Part, R: Ramps, sel = false): void {
   const PW = pt.w, PH = pt.h;
@@ -134,7 +134,7 @@ function paint(p: Pix, rows: string[], x: number, y: number, pal: Record<string,
   rows.forEach((r, j) => [...r].forEach((c, i) => { if (pal[c]) p.set(x + i, y + j, pal[c]); }));
 }
 
-// ── 얼룩이 ── 삼색. 그의 오른쪽은 주황, 왼쪽은 검정. 얼굴 가운데와 가슴, 손발, 꼬리 끝은 흰색. 왼쪽 귀 끝이 접혔다.
+// ── 삼색이 ── 삼색. 그의 오른쪽은 주황, 왼쪽은 검정. 얼굴 가운데와 가슴, 손발, 꼬리 끝은 흰색. 왼쪽 귀 끝이 접혔다.
 export const CAT_R: Ramps = {
   W: ['#fffdf8', '#f4eadf', '#dccac0', '#ae949e'],
   O: ['#ffc57c', '#f79d43', '#d8702f', '#984421'],
@@ -262,7 +262,7 @@ export function catHeadOps(dir: Dir, c: number, oy: number, droopy: boolean, bla
 type SuitOps = { under: Op[]; arms: Op[]; ruff: Op[]; last: Op[]; uy: number };
 /** 서 있을 때의 작은 움직임. tail 은 꼬리 끝이 -1/0/1 만큼 기운다, br 은 숨을 들이쉰 박자. */
 export type Idle = { tail?: number; br?: number };
-/** 얼룩이의 몸. dir 은 down/up/right 만 (left 는 right 를 black 으로 그려서 뒤집는다). */
+/** 삼색이의 몸. dir 은 down/up/right 만 (left 는 right 를 black 으로 그려서 뒤집는다). */
 function suitOps(dir: Dir, step: number, sit: boolean, emote: string, ph: number, black: boolean, idle: Idle = {}): SuitOps {
   const bob = step === 1 || step === 3 ? 1 : 0;         // 디딜 때 몸이 1px 내려앉는다
   const sw = (step === 1 ? -1 : step === 3 ? 1 : 0) + (idle.tail || 0); // 꼬리는 한 박자 늦게 따라온다. 서 있을 때는 천천히 흔든다
@@ -293,7 +293,7 @@ function suitOps(dir: Dir, step: number, sit: boolean, emote: string, ph: number
     });
     const belly: ColorFn = (X, Y) => {
       if (!back) return inEll(X, Y, CX, 33 + uy, 3.3, 6.6) ? 'W' : stripe(X < CX ? Lc : Rc, X, Y, 1.5);
-      // 등: 가운데가 물결지게 갈리고, 어깨와 엉덩이에 반대 색 얼룩이 하나씩
+      // 등: 가운데가 물결지게 갈리고, 어깨와 엉덩이에 반대 색 삼색이 하나씩
       let k = X < CX + Math.sin(Y * 0.55 + 1) * 1.3 ? 'K' : 'O';
       if (inEll(X, Y, CX - 3.6, 27.8 + uy, 2.4, 1.8)) k = 'O';
       if (inEll(X, Y, CX + 3.6, 36.4 + uy, 2.6, 2)) k = 'K';
@@ -363,8 +363,8 @@ function suitOps(dir: Dir, step: number, sit: boolean, emote: string, ph: number
   return o;
 }
 
-// ── 다른 탈들 ── 정모에 온 여우, 토끼, 강아지, 곰. 몸의 뼈대는 얼룩이와 같고, 만든 사람이 달라서
-// 눈은 얼룩이와 같은 만화 눈이고 홍채 색이 다르다. 셋은 탈 위에 티셔츠를 입었다 (단체 사진과 같은 색).
+// ── 다른 탈들 ── 정모에 온 여우, 토끼, 강아지, 곰. 몸의 뼈대는 삼색이와 같고, 만든 사람이 달라서
+// 눈은 삼색이와 같은 만화 눈이고 홍채 색이 다르다. 셋은 탈 위에 티셔츠를 입었다 (단체 사진과 같은 색).
 export type Species = 'fox' | 'rabbit' | 'dog' | 'bear';
 export const SUIT_R: Record<Species, Ramps> = {
   fox: { A: ['#ffb877', '#ef8a3e', '#c9652b', '#8a421d'], W: CAT_R.W, K: ['#54484f', '#3b3138', '#2a2228', '#1a1418'], P: CAT_R.P },
@@ -381,7 +381,7 @@ const FUR_R: Record<Species, Ramps> = Object.fromEntries((Object.keys(SUIT_R) as
 /** 털 테두리(검은 선 대신 털의 깊은 그늘)를 쓰는 탈들 */
 const FURRY = new Set<Ramps>([CAT_R, ...Object.values(FUR_R)]);
 const PUPIL: Record<Species, string> = { fox: '#5a3a10', rabbit: '#1c1622', dog: '#3a2416', bear: '#1c1622' };
-// 다른 탈들의 눈: 흰자 위의 점(구슬 눈)이 아니라 얼룩이와 같은 만화 눈. 색 있는 홍채, 반짝임 둘, 위 눈꺼풀이 두껍다.
+// 다른 탈들의 눈: 흰자 위의 점(구슬 눈)이 아니라 삼색이와 같은 만화 눈. 색 있는 홍채, 반짝임 둘, 위 눈꺼풀이 두껍다.
 const TOON = { front: ['.LLL.', 'LHiiL', 'LHiIL', 'LiIIL', 'LIIhL', '.LLL.'], frontL: ['LLLL.', '.HiiL', 'LHiIL', 'LiIIL', 'LIIhL', '.LLL.'], frontR: ['.LLLL', 'LHii.', 'LHiIL', 'LiIIL', 'LIIhL', '.LLL.'], side: ['LLL.', 'HiiL', 'HiIL', 'iIIL', 'IIhL', 'LLL.'] };
 const IRIS: Record<Species, [string, string, string]> = { // 밝은 홍채, 어두운 홍채, 아래 반사
   fox: ['#f2b048', '#a8601c', '#ffe0a0'], rabbit: ['#c49ae0', '#6e48a0', '#ecd8ff'], dog: ['#c88a4a', '#6e4420', '#f0c890'], bear: ['#d09a58', '#6a3e1c', '#f4d4a0'],
@@ -456,7 +456,7 @@ function furHeadOps(sp: Species, dir: Dir, c: number, oy: number): Op[] {
   return ops;
 }
 
-/** 탈의 몸. 얼룩이의 몸과 같은 뼈대에 종마다 색, 티셔츠, 꼬리. 곰은 이 미터: 어깨와 몸통이 한 뼘 넓다. */
+/** 탈의 몸. 삼색이의 몸과 같은 뼈대에 종마다 색, 티셔츠, 꼬리. 곰은 이 미터: 어깨와 몸통이 한 뼘 넓다. */
 function furOps(sp: Species, dir: Dir, step: number, sit: boolean, emote: string, ph: number, idle: Idle = {}): SuitOps {
   const R = FUR_R[sp], shirt = !!SUIT_SHIRT[sp];
   const bob = step === 1 || step === 3 ? 1 : 0;
@@ -663,7 +663,7 @@ const YJ: HSpec = {
   R: YJ_R, head: [19.6, 4.9, 5.5], hair: yjHair, sh: 27, hem: 41.4, hip: 40.6, tw: 5.3,
   armR: 1.8, legR: 2.1, legW: 2.5, sleeve: (y) => (y > 12.6 ? 'S' : 'T'), foot: [2.4, 1.6], collar: true,
 };
-// 국방색 의류대. 전역하던 날 메고 나온 원통형 가방을 등에 비스듬히 멨다. 안에 얼룩이가 접혀 들었고,
+// 국방색 의류대. 전역하던 날 메고 나온 원통형 가방을 등에 비스듬히 멨다. 안에 삼색이가 접혀 들었고,
 // 지퍼 끝으로 주황 털이 조금 삐져나온다. behind 는 몸보다 먼저, front 는 몸 위·머리 아래에 그린다.
 const BAG_R: Ramps = {
   B: ['#8e935c', '#6f7446', '#555a37', '#3c3f27'],
@@ -1018,9 +1018,36 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
   }
   // 왼쪽을 보면 통째로 뒤집는다.
   run(ops, p);
-  const out = left ? (() => { const q = new Pix(FW, FH); q.blit(p, 0, 0, true); return q; })() : p;
+  let out = left ? (() => { const q = new Pix(FW, FH); q.blit(p, 0, 0, true); return q; })() : p;
+  if (pose === 'stoop') out = stoopOf(out, dir);
   cache.set(key, out);
   return out;
+}
+
+/** 허리와 고개를 숙였다: 발은 그대로 두고 위를 눌러 키를 낮춘다. 머리는 보는 쪽으로 내밀고 아래로 떨군다.
+ *  앞이나 뒤를 볼 때는 머리가 어깨 속으로 더 묻힌다. 모든 사람과 탈에 같이 쓴다. */
+function stoopOf(src: Pix, dir: Dir): Pix {
+  const q = new Pix(FW, FH), side = dir === 'right' ? 1 : dir === 'left' ? -1 : 0;
+  let top = FH; for (let y = 0; y < FH && top === FH; y++) for (let x = 0; x < FW; x++) if (src.alpha(x, y)) { top = y; break; }
+  const knee = FOOT - 6, headH = Math.round((FOOT - top) * 0.36), neck = top + headH;
+  const K = 0.8, drop = Math.round((knee - neck) * (1 - K)) + (side ? 0 : 1); // 몸통만 눌리고 머리는 그 만큼 내려앉는다
+  const srcY = (y: number): number => {
+    if (y >= knee) return y;
+    const bodyTop = neck + drop;
+    if (y >= bodyTop) return Math.round(knee - (knee - y) / ((knee - bodyTop) / (knee - neck)));
+    return y - drop; // 머리
+  };
+  for (let y = 0; y < FH; y++) {
+    const sy = srcY(y); if (sy < 0 || sy >= FH) continue;
+    const h = FOOT - y;
+    const lean = side * (y < neck + drop ? 3 : Math.max(0, (h - 12) * 0.1)); // 고개가 앞으로 나온다
+    for (let x = 0; x < FW; x++) {
+      const sx = Math.round(x - lean);
+      if (sx < 0 || sx >= FW || !src.alpha(sx, sy)) continue;
+      const i = (sy * FW + sx) * 4; q.d.set(src.d.subarray(i, i + 4), (y * FW + x) * 4);
+    }
+  }
+  return q;
 }
 
 /** 그림에서 빈 자리를 잘라 낸다. */
@@ -1039,7 +1066,7 @@ export function topOf(p: Pix): number {
   if (v === undefined) { v = trim(p).y; tops.set(p, v); }
   return v;
 }
-/** 얼룩이의 머리만, 정면. 책상 위에 놓인 머리. blank 면 아직 눈이 없다. */
+/** 삼색이의 머리만, 정면. 책상 위에 놓인 머리. blank 면 아직 눈이 없다. */
 export function catHeadAlone(blank: boolean, droopy = false, mark: '' | 'torn' | 'sewn' = ''): Pix {
   const k = `alone/${blank}/${droopy}/${mark}`;
   let v = cache.get(k);

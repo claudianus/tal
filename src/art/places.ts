@@ -698,15 +698,10 @@ function playground(s: PlaceState): Place {
     for (let i = 0; i < 30; i++) { const x = x0 + 18 + i, y = y0 - 26 + Math.round(i * 1.4); L.vl(x, y, 7, i % 6 < 3 ? '#d06040' : '#c05030'); L.set(x, y, '#e88060'); L.set(x, y + 7, '#7a3020'); }
     L.rect(x0 + 44, y0 + 16, 6, 3, '#9a4a30');
   }, 4);
-  prop((L) => { // 그네 틀 (8-12칸, 6줄), 앉는 판 둘
+  prop((L) => { // 그네 틀 (8-12칸, 6줄). 쇠사슬과 앉는 판은 흔들리므로 world.ts 가 그린다 (SWING_SEATS).
     const x0 = 8 * T + 4, x1 = 13 * T - 4, by = iy(7) - 2, ty = by - 64;
     for (const x of [x0, x1]) { L.line(x - 4, by, x, ty, '#3a4a5a'); L.line(x - 3, by, x + 1, ty, '#5a6a7a'); L.line(x + 4, by, x, ty, '#3a4a5a'); }
     L.rect(x0 - 2, ty - 3, x1 - x0 + 5, 4, '#4a5a6a'); L.hl(x0 - 2, ty - 3, x1 - x0 + 5, '#7a8a9a');
-    for (const sx of [9 * T + 8, 11 * T + 8]) {
-      L.vl(sx - 6, ty, 54, '#8a8e94'); L.vl(sx + 5, ty, 54, '#8a8e94');
-      for (let y = ty + 1; y < ty + 54; y += 2) { L.set(sx - 6, y, '#5a5e64'); L.set(sx + 5, y, '#5a5e64'); } // 쇠사슬
-      L.rect(sx - 8, ty + 54, 16, 3, '#2a2c30'); L.hl(sx - 8, ty + 54, 16, '#4a4c54');
-    }
   }, 7);
   // 앉는 판은 앉은 사람 밑이라서 바닥 그림에도 그림자를 둔다
   for (const sx of [9 * T + 8, 11 * T + 8]) p.ell(sx, iy(7) - 4, 7, 2, '#8a7a58');

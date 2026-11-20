@@ -262,7 +262,7 @@ export function kemonoHead(p: Pix, tf: (x: number, y: number) => [number, number
   });
 }
 
-/** 얼룩이: 보는 쪽 왼쪽(그의 오른쪽)이 주황, 오른쪽이 검정, 가운데 흰 줄. 오른쪽 귀가 접혔다. 초록 눈. */
+/** 삼색이: 보는 쪽 왼쪽(그의 오른쪽)이 주황, 오른쪽이 검정, 가운데 흰 줄. 오른쪽 귀가 접혔다. 초록 눈. */
 export function catSpec(R: Ramps): KSpec {
   return {
     R,

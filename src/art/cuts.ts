@@ -34,7 +34,7 @@ function shade(p: Pix, f: (x: number, y: number) => [number, number, number]): v
 }
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * Math.max(0, Math.min(1, t));
 
-// ── 얼룩이의 상반신 ──
+// ── 삼색이의 상반신 ──
 export type BustOpt = { k: number; tilt?: number; droopy?: boolean; blank?: boolean; body?: boolean; mark?: '' | 'torn' | 'sewn' };
 const bustCache = new Map<string, Pix>();
 const C = CX; // 머리 가운데 (도형 좌표)
@@ -160,11 +160,11 @@ export function mirrorScene(o: MirrorOpt): Pix {
 }
 
 // ── 단체 사진: 곰이 뒤에서 팔을 둘러 앞줄 어깨에 앞발을 얹는다 ──
-/** 다른 탈들. 눈은 얼룩이와 같은 문법(유리알, 위 눈꺼풀, 반짝임 둘)이고 홍채 색만 탈마다 다르다. */
+/** 다른 탈들. 눈은 삼색이와 같은 문법(유리알, 위 눈꺼풀, 반짝임 둘)이고 홍채 색만 탈마다 다르다. */
 function suiter(p: Pix, sp: Sp, sp0: Sp, kind: Species, shirt: string | null, bodyOn = true): void {
   const R = SUIT_R[kind];
   const c = C;
-  // 몸: 얼룩이와 같은 퍼슈트 상반신. 셋은 탈 위에 반팔 티셔츠를 입었다. 목둘레로 털이 비어져 나오고, 소매 밑으로 털 팔이 나온다.
+  // 몸: 삼색이와 같은 퍼슈트 상반신. 셋은 탈 위에 반팔 티셔츠를 입었다. 목둘레로 털이 비어져 나오고, 소매 밑으로 털 팔이 나온다.
   if (bodyOn) {
     const R2: Ramps = shirt ? { ...R, S: [mix(shirt, '#ffffff', 0.3), shirt, mix(shirt, '#000000', 0.25), mix(shirt, '#000000', 0.5)] } : R;
     const neck = (u: number, v: number, n: number): boolean => v < 2.4 + (n - 0.5) * 0.9 - Math.abs(u) * 0.12 && Math.abs(u) < 6.4; // 목털이 옷깃 위로 비어져 나온다
@@ -173,7 +173,7 @@ function suiter(p: Pix, sp: Sp, sp0: Sp, kind: Species, shirt: string | null, bo
       : (u: number, v: number): string => (inE(u, v, 0, 20, 7.4, 10) ? 'W' : 'A'); // 곰: 배에 밝은 털
     kemonoTorso(p, (x, y) => { const [U, V] = sp0.tf!(x, y); return [U - c, V - 25]; }, R2, key, (_s, v) => (shirt && v < 10.5 ? 'S' : 'A'), false);
   }
-  // 머리: 얼룩이와 같은 케모노 머리 (kemono.ts). 귀, 주둥이, 홍채 색만 탈마다 다르다.
+  // 머리: 삼색이와 같은 케모노 머리 (kemono.ts). 귀, 주둥이, 홍채 색만 탈마다 다르다.
   kemonoHead(p, (x, y) => { const [U, V] = sp.tf!(x, y); return [U - c, V - 16.6]; }, sp.k, suitSpec(kind, R));
 }
 export function groupPhoto(droopy = false): Pix {
@@ -214,7 +214,7 @@ export function groupPhoto(droopy = false): Pix {
   put(80, 36, 1.75, 'fox', '#2f3540', 0.06);
   put(170, 36, 1.75, 'dog', '#c54848', -0.1);
   // 곰의 팔 (대본: 곰이 뒤에서 전부를 끌어안는다. 팔 안에 여우와 토끼와 강아지와 고양이가 들어간다.)
-  // 두 팔이 얼룩이 뒤에서 나와 여우·토끼, 강아지의 어깨 위를 지나 바깥 어깨를 감싼다. 털결이 팔을 따라 흐른다.
+  // 두 팔이 삼색이 뒤에서 나와 여우·토끼, 강아지의 어깨 위를 지나 바깥 어깨를 감싼다. 털결이 팔을 따라 흐른다.
   const BR = SUIT_R.bear;
   const arms = new Pix(W, H); // 팔만 따로 그려 털결을 얹는다 (머리까지 얼룩지지 않게)
   inSpace({ w: W, h: H, k: 1 }, () => {
@@ -224,7 +224,7 @@ export function groupPhoto(droopy = false): Pix {
   });
   furPass(arms, BR, ['A'], 120, 40, 43);
   p.blit(arms, 0, 0);
-  // 얼룩이: 가운데. 여우가 끌어다 놓은 자리.
+  // 삼색이: 가운데. 여우가 끌어다 놓은 자리.
   const cat = catBust({ k: 1.75, droopy });
   p.blit(cat, 124 - Math.round(cat.w / 2), 40);
   // 플래시: 가운데가 밝고 가장자리가 가라앉는다

@@ -5,7 +5,7 @@ import { catHeadAlone } from './chars.ts';
 
 export type RoomState = {
   monitor: boolean; headGone: boolean; headDone: boolean; open: boolean; slit: string; day: boolean; lie: boolean;
-  mark?: '' | 'torn' | 'sewn'; // 얼룩이 머리의 귀
+  mark?: '' | 'torn' | 'sewn'; // 삼색이 머리의 귀
   box?: '' | 'shut' | 'open';  // 문 앞의 실밥 상자
   tidy?: boolean;              // 위기의 밤에 쓰레기를 치웠다
 };
@@ -84,7 +84,7 @@ function desk(p: Pix, s: RoomState): void {
   p.rect(53, 6, 9, 12, '#d9d6cc'); p.rect(53, 6, 9, 3, '#b0554c'); p.hl(53, 18, 9, '#9a978e');
   for (let y = 10; y < 17; y += 2) for (let x = 54; x < 61; x += 2) p.set(x, y, '#8d8a84');
   p.set(57, 5, '#c8c4b8');
-  p.rect(92, 5, 9, 11, '#e2ded2'); p.hl(92, 16, 9, '#a9a59a');             // 얼룩이 도안: 정면
+  p.rect(92, 5, 9, 11, '#e2ded2'); p.hl(92, 16, 9, '#a9a59a');             // 삼색이 도안: 정면
   p.dots('94,8 95,7 96,8 97,7 98,8', '#e9822f'); p.dots('98,9 99,9 99,8', '#3b2e38'); p.dots('95,10 98,10', '#3a7a3a'); p.dots('96,12 97,12', '#e2718d');
   p.set(96, 4, '#d8c070'); // 마스킹 테이프
   p.rect(103, 8, 7, 8, '#dedacd'); p.dots('104,10 105,11 106,10 107,12 105,13', '#8d8a84'); p.set(106, 7, '#d8c070');
@@ -121,7 +121,7 @@ function desk(p: Pix, s: RoomState): void {
   p.rect(89, 37, 5, 2, '#d9b53a'); p.set(94, 37, '#8d8a84'); p.rect(90, 39, 2, 1, '#2a2a30');
   p.dots('82,30 83,31 84,30', '#8d8f96'); p.dots('81,32 85,32', '#c0443a');
   p.dots('70,31 71,32 73,30', '#f08a32'); p.dots('69,33 72,33', '#46353f'); p.dots('68,31 71,30', '#fffaf0');
-  // 머리 받침대와 얼룩이의 머리. 이 방에서 색이 있는 건 이것뿐이다.
+  // 머리 받침대와 삼색이의 머리. 이 방에서 색이 있는 건 이것뿐이다.
   p.rect(74, 24, 4, 4, '#b8b4a8'); p.hl(72, 28, 8, '#9a968a'); p.hl(73, 27, 6, '#cfcbc0');
   if (!s.headGone) {
     const head = catHeadAlone(!s.headDone, false, s.mark || ''); // 눈을 붙이기 전에는 눈 자리에 망사만 대 놓았다
@@ -240,7 +240,7 @@ function clutter(p: Pix, s: RoomState): void {
     p.rect(136, 99, 18, 10, '#a08660'); p.hl(136, 99, 18, '#b89c74'); p.hl(136, 108, 18, '#7c6646'); p.vl(144, 99, 10, '#8a7250'); p.rect(141, 102, 7, 3, '#d8d4c8'); p.hl(142, 103, 5, '#8d8a84');
     p.rect(128, 52, 3, 9, '#9fbac6'); p.vl(128, 54, 5, '#c6dde6'); p.set(129, 51, '#3a6ea8'); p.rect(128, 56, 3, 2, '#3a6ea8', 0.7);
   }
-  if (s.box) { // 실밥이 부친 상자. 엄마가 문 안쪽으로 밀어 넣었다. 받는 사람, 얼룩이.
+  if (s.box) { // 실밥이 부친 상자. 엄마가 문 안쪽으로 밀어 넣었다. 받는 사람, 삼색이.
     const X = 146, Y = 84;
     p.hl(X, Y + 10, 12, '#1d1820', 0.4);
     p.rect(X, Y + 6, 12, 4, '#8a7250'); p.hl(X, Y + 9, 12, '#6a563a'); p.rect(X + 1, Y + 7, 4, 2, '#e8e4da'); p.hl(X + 2, Y + 7, 2, '#8d8a84'); // 앞면과 송장

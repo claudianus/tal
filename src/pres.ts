@@ -13,7 +13,7 @@ export type Pres = {
   suit: boolean;       // 머리를 쓰고 있다
   suitFull: boolean;   // 몸까지 입었다
   lampOff: boolean;    // 형광등을 껐다
-  headDone: boolean;   // 얼룩이의 머리에 눈을 붙였다
+  headDone: boolean;   // 삼색이의 머리에 눈을 붙였다
   pov: 'yunjae' | 'yunseo' | 'world';
   quiet: boolean;      // '목소리'가 멈췄다
   time: string;
@@ -28,11 +28,12 @@ export type Pres = {
   // 맵 위의 자리
   pos: string;                  // 마지막으로 놓인 자리 이름 ('' 이면 그 맵의 기본 자리)
   pose: string; face: string;
-  carry?: string;               // 등에 멘 것 ('bag' = 얼룩이가 든 의류대)
-  mark?: '' | 'torn' | 'sewn';  // 얼룩이 머리: 3장에서 귀가 뜯기고, 4장에서 꿰맨다
+  carry?: string;               // 등에 멘 것 ('bag' = 삼색이가 든 의류대)
+  mark?: '' | 'torn' | 'sewn';  // 삼색이 머리: 3장에서 귀가 뜯기고, 4장에서 꿰맨다
   box?: '' | 'shut' | 'open';   // 엄마가 문 앞에 둔 실밥의 상자
   tidy?: boolean;               // 위기의 밤에 쓰레기를 치웠다
   npcs: Record<string, string>; // 누가 어느 자리에 있는가
+  swings?: Record<string, string>; // 그네 자리 → still / gentle / high
   px?: number; py?: number; pdir?: string; // 저장할 때의 실제 칸
 };
 
@@ -68,7 +69,7 @@ export function applyTag(p: Pres, { name, val }: Tag): void {
     case 'chapter': p.chapter = val; p.tail = []; p.bare = false; p.lampOff = false; p.carry = ''; if (!val.startsWith('프롤로그')) p.headDone = true; break;
     case 'sfx': if (val === 'switch_off') p.lampOff = true; else if (val === 'switch_on') p.lampOff = false; break;
     case 'scene':
-      if ((SCENES[p.scene]?.map || '') !== (SCENES[val]?.map || '')) { p.pos = ''; p.pose = 'stand'; p.face = ''; p.npcs = {}; }
+      if ((SCENES[p.scene]?.map || '') !== (SCENES[val]?.map || '')) { p.pos = ''; p.pose = 'stand'; p.face = ''; p.npcs = {}; p.swings = {}; }
       p.px = undefined; p.py = undefined;
       p.scene = val; p.eyes = false; p.cat = false; p.cine = 0;
       if (p.skin === 'browser' || p.skin === 'call') p.skin = 'none';
@@ -94,6 +95,7 @@ export function applyTag(p: Pres, { name, val }: Tag): void {
     case 'posture': p.posture = val; break;
     case 'pos': case 'go': p.pos = val; p.face = ''; p.px = undefined; p.py = undefined; break;
     case 'pose': p.pose = val; break;
+    case 'swing': { const [seat, how] = val.split(/\s+/); p.swings = { ...(p.swings || {}), [seat]: how }; break; }
     case 'carry': p.carry = val === 'off' ? '' : val; break;
     case 'face': p.face = val; break;
     case 'npc': {

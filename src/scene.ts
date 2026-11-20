@@ -14,7 +14,7 @@ export type SceneState = {
   eyes: boolean;      // 아버지의 눈 (3장)
   cat: boolean;       // 거울 속 고양이
   monitor: boolean;   // 모니터가 켜져 있는가
-  droopy: boolean;    // 얼룩이의 눈매 (플레이어가 골랐다)
+  droopy: boolean;    // 삼색이의 눈매 (플레이어가 골랐다)
 };
 
 type C = CanvasRenderingContext2D;
@@ -79,8 +79,8 @@ function rain(c: C, t: number, a: number): void {
   c.stroke();
 }
 
-// 얼룩이. 화면에서 유일하게 얼굴이 있다. 한쪽 귀가 처져 있다.
-/** 화면 구석이나 먼 곳의 얼룩이: 맵에서 걷는 그 머리를 정수 배로 키워서 찍는다. s 는 예전 벡터 고양이의 반지름. */
+// 삼색이. 화면에서 유일하게 얼굴이 있다. 한쪽 귀가 처져 있다.
+/** 화면 구석이나 먼 곳의 삼색이: 맵에서 걷는 그 머리를 정수 배로 키워서 찍는다. s 는 예전 벡터 고양이의 반지름. */
 export function drawCat(c: C, x: number, y: number, s: number, droopy: boolean, alpha = 1): void {
   const pix = catHeadAlone(false, droopy);
   const n = Math.max(1, Math.round((s * 1.9) / pix.w));
@@ -349,7 +349,7 @@ export class SceneView {
 }
 
 // 글 사이에 끼는 사진·영상·종이. 전부 자리 표시용 그림이다.
-/** 사진·영상 속 얼룩이의 눈매: 플레이어가 고른 것. SceneView 가 장면을 그릴 때마다 맞춘다. */
+/** 사진·영상 속 삼색이의 눈매: 플레이어가 고른 것. SceneView 가 장면을 그릴 때마다 맞춘다. */
 let frameDroopy = false;
 export function drawFrame(cv: HTMLCanvasElement, art: string): void {
   const droopy = frameDroopy;

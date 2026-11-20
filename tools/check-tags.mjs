@@ -39,6 +39,7 @@ for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.ink'))) {
         name === 'pos' || name === 'go' ? allPoints.has(val) :
         name === 'npc' ? (val.split(/\s+/)[1] === 'off' || allPoints.has(val.split(/\s+/)[1])) :
         name === 'pose' ? T.POSES.includes(val) :
+        name === 'swing' ? allPoints.has(val.split(/\s+/)[0]) && T.SWINGS.includes(val.split(/\s+/)[1]) :
         name === 'carry' ? T.CARRY.includes(val) :
         name === 'room' ? T.ROOM_MARKS.includes(val) :
         name === 'warn' ? val === 'end' || val in T.WARNS :

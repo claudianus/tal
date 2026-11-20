@@ -51,7 +51,7 @@ VAR suit_on = false
 VAR frag_1 = false      // 과거 조각 1: 옷장 안쪽의 날짜들
 VAR frag_2 = false      // 과거 조각 2: 졸업앨범과 찢어진 공책
 
-VAR eye_shape = "round" // 얼룩이의 눈매: round / droopy
+VAR eye_shape = "round" // 삼색이의 눈매: round / droopy
 VAR talked_toto = false // 프롤로그에서 토토에게 답장했는가
 VAR promised_haeun = 0  // 1장에서 하은에게 한 대답: 0 대답 없음, 1 온다, 2 모르겠다
 VAR posted_photo = false
