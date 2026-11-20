@@ -334,7 +334,8 @@ const TYPED_YS = '제발 죽든지, 그런 짓 좀 하지 말든지 해.'; // �
 function type(opt: GameOpt): Play {
   const ghosts = opt.ghosts || [];
   const TYPED = opt.text || TYPED_YS; // 선택지에 "…" 로 적힌 말이 있으면 그 말을 친다
-  const srv = !!opt.text && opt.skin !== 'kakao'; // 카톡 창이 아니면 퍼리 서버 창이다 (어두운 화면, 방금 붙인 사진)
+  const form = opt.skin === 'browser'; // 웹 양식에 적는다
+  const srv = !!opt.text && opt.skin !== 'kakao' && !form; // 카톡 창이 아니면 퍼리 서버 창이다 (어두운 화면, 방금 붙인 사진)
   let n = 0, sent = -1, key = -1, keyT = 0, said = 0;
   return {
     scale: 3,
@@ -357,7 +358,7 @@ function type(opt: GameOpt): Play {
       px(c, X, Y, PW, 9, srv ? '#25272d' : '#a3afbc'); px(c, X + 4, Y + 3, 22, 3, srv ? '#8e94a8' : '#59626e'); // 위 칸: 오빠 / 채널 이름
       if (srv && /완성/.test(TYPED)) { // 퍼리 서버: 방금 붙인 사진 한 장 (거울 앞의 고양이)
         px(c, X + PW - 40, Y + 12, 36, 16, '#1d1f24'); px(c, X + PW - 30, Y + 14, 14, 12, '#f2ece2'); px(c, X + PW - 30, Y + 14, 5, 5, '#ee9440'); px(c, X + PW - 20, Y + 14, 4, 4, '#3a2c3a'); px(c, X + PW - 26, Y + 20, 2, 2, '#4a9a5a'); px(c, X + PW - 21, Y + 20, 2, 2, '#4a9a5a');
-      } else if (!srv) {
+      } else if (!srv && !form) {
         // 지난 말풍선: '나 이번에 안 내려감' (내 것, 오른쪽, 노랑)
         px(c, X + PW - 46, Y + 14, 42, 9, '#f4e04a'); px(c, X + PW - 42, Y + 17, 30, 2, '#6e6420');
         px(c, X + PW - 54, Y + 20, 6, 2, '#59626e'); // 읽음 시각
@@ -365,7 +366,21 @@ function type(opt: GameOpt): Play {
       // 지금 치는 말풍선: 친 글자가 그대로 보인다 (한 줄 16자 남짓에서 접는다)
       const TF = '600 5px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
       c.font = TF; c.textBaseline = 'middle';
-      if (n > 0) {
+      if (form) { // 웹 양식 (병원 예약): 흰 종이에 칸이 있고, 친 글자는 칸 안에 들어간다
+        px(c, X, Y, PW, PH - 50, '#f3f4f6'); px(c, X, Y, PW, 9, '#2f6fd0'); px(c, X + 4, Y + 3, 26, 3, '#dfe9fb');
+        const field = /\s/.test(TYPED) || TYPED.length > 5; // 이름은 한 줄, 증상은 큰 칸
+        px(c, X + 4, Y + 13, field ? 30 : 10, 2, '#7a808c'); // 칸 이름
+        const FY = Y + 18, FH = field ? 30 : 10;
+        px(c, X + 4, FY, PW - 8, FH, '#ffffff'); px(c, X + 4, FY, PW - 8, 1, sent >= 0 ? '#2f6fd0' : '#b9bec8'); px(c, X + 4, FY + FH - 1, PW - 8, 1, sent >= 0 ? '#2f6fd0' : '#b9bec8');
+        px(c, X + 4, FY, 1, FH, sent >= 0 ? '#2f6fd0' : '#b9bec8'); px(c, X + PW - 5, FY, 1, FH, sent >= 0 ? '#2f6fd0' : '#b9bec8');
+        const rows: string[] = []; let cur = '';
+        for (const ch of TYPED.slice(0, n)) { if (c.measureText(cur + ch).width > PW - 16) { rows.push(cur); cur = ch; } else cur += ch; }
+        rows.push(cur);
+        c.fillStyle = '#20242c'; rows.forEach((r, i) => c.fillText(r, X + 7, FY + 5 + i * 7));
+        const last = rows[rows.length - 1];
+        if (n < TYPED.length && Math.sin(t * 8) > 0) px(c, X + 7 + Math.ceil(c.measureText(last).width), FY + 2 + (rows.length - 1) * 7, 1, 5, '#20242c');
+        px(c, X + 4, Y + PH - 74, PW - 8, 9, n >= TYPED.length ? '#2f6fd0' : '#9db8e6'); px(c, X + PW / 2 - 10, Y + PH - 71, 20, 3, '#eef3fd'); // 다음 · 예약하기
+      } else if (n > 0) {
         const shown = TYPED.slice(0, n), rows: string[] = [];
         let cur = '';
         for (const ch of shown) { if (c.measureText(cur + ch).width > 58) { rows.push(cur); cur = ch; } else cur += ch; }
@@ -381,7 +396,7 @@ function type(opt: GameOpt): Play {
       // 입력창과 자판
       const KY = Y + PH - 50;
       px(c, X, KY - 10, PW, 9, '#e9edf1');
-      const inField = sent >= 0 ? '' : TYPED.slice(0, n);
+      const inField = sent >= 0 || form ? '' : TYPED.slice(0, n);
       let tail = inField; while (tail && c.measureText(tail).width > PW - 22) tail = tail.slice(1);
       c.fillStyle = '#2a2e36'; c.fillText(tail, X + 3, KY - 5.5);
       const cx = X + 4 + Math.ceil(c.measureText(tail).width);
