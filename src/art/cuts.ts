@@ -4,7 +4,8 @@
 // 규칙(기획서 11장): 사람에게는 이목구비가 없다. 얼굴이 있는 건 고양이(와 탈)뿐이다.
 import { Pix, mix, rnd } from './pix.ts';
 import { furPass, kemonoHead, kemonoTorso, catSpec, suitSpec } from './kemono.ts';
-import { CAT_R, CX, Part, SUIT_R, catHeadAlone, charFrame, inSpace, stamp, stripe, type Ramps, type Space, type Species } from './chars.ts';
+import { humanBust, HAIR, SKIN, type HSpec } from './human.ts';
+import { CAT_R, CX, Part, SUIT_R, charFrame, inSpace, stamp, stripe, type Ramps, type Space, type Species } from './chars.ts';
 
 type UV = [number, number];
 /** 도형 좌표의 (pu,pv) 가 판의 (ax,ay) 에 오도록, k 배로 키우고 th 만큼 돌린 판 */
@@ -56,26 +57,15 @@ export function catBust(o: BustOpt): Pix {
 }
 
 // ── 사람: 실루엣. 이목구비가 없다. ──
-const SIL: Ramps = { S: ['#2e3849', '#161c27', '#0e121a', '#08090e'], H: ['#1c1d24', '#111217', '#0b0c10', '#060609'] };
-/** 윤재. 머리가 눈을 덮었다. 목이 늘어난 티셔츠, 한여름인데 긴소매. (cx, top) 은 정수리. */
-function yunjae(p: Pix, cx: number, top: number, R: Ramps = SIL, neat = false): void {
-  inSpace({ w: p.w, h: p.h, k: 1 }, () => {
-    const s = (pts: number[]): number[] => pts.map((v, i) => (i % 2 ? v + top : v + cx));
-    stamp(p, new Part('S').path(s([-26, 50, -32, 80, -34, 120]), 6, 7).light(cx - 30, top + 60, 8, 40), R); // 긴소매: 몸 뒤에
-    stamp(p, new Part('S').path(s([26, 50, 32, 80, 34, 120]), 6, 7).set({ dim: 1 }), R);
-    stamp(p, new Part('S').poly(s([-30, 120, -29, 62, -24, 46, -12, 38, 12, 38, 24, 46, 29, 62, 30, 120])).light(cx - 10, top + 50, 30, 40).set({ soft: 0.8 }), R);
-    stamp(p, new Part(R.F ? 'F' : 'S').poly(s([-6, 26, 6, 26, 7, 40, -7, 40])).set({ dim: 1 }), R); // 목
-    if (!neat) stamp(p, new Part('S').ell(cx, top + 41, 11, 5).set({ dim: 2 }), R); // 늘어난 목: 깊게 처진 깃
-    stamp(p, new Part(R.F ? 'F' : 'S').ell(cx, top + 16, 13, 16).light(cx - 5, top + 10, 14, 18), R); // 머리
-    // 머리카락: 눈썹 밑까지 덮고, 끝이 들쭉날쭉하다
-    if (neat) { // 현우: 짧게 정리한 머리, 이마가 드러난다. 셔츠 깃.
-      stamp(p, new Part('H').poly(s([-14, 12, -13, 2, -6, -3, 6, -3, 13, 1, 14, 12, 11, 7, 2, 5, -8, 6, -12, 9])).light(cx - 6, top + 1, 14, 10), R);
-      for (const d of [-1, 1]) stamp(p, new Part('S').poly(s([d * 2, 38, d * 11, 38, d * 7, 47])).set({ dim: 0, soft: 0.9 }), R);
-      return;
-    }
-    const hair = s([-15, 18, -16, 4, -9, -3, 3, -4, 12, 0, 16, 8, 16, 22, 13, 20, 11, 25, 8, 19, 5, 24, 2, 18, -2, 23, -5, 18, -8, 24, -11, 18, -14, 26]);
-    stamp(p, new Part('H').poly(hair).light(cx - 6, top + 2, 16, 16), R);
-  });
+const SIL: Ramps = { S: ['#2e3849', '#161c27', '#0e121a', '#08090e'], H: ['#1c1d24', '#111217', '#0b0c10', '#060609'], F: ['#4a4c58', '#34363f', '#24252c', '#15161b'] };
+/** 윤재. 머리가 눈을 덮었다. 목이 늘어난 티셔츠, 한여름인데 긴소매. (cx, top) 은 정수리.
+ *  neat: 현우. 짧게 정리한 머리, 셔츠 깃. 그림은 human.ts 가 찍는다 (얼굴 없는 행인처럼: 살결에 빛과 그늘만). */
+function yunjae(p: Pix, cx: number, top: number, R: Ramps = SIL, neat = false, extra: Partial<HSpec> = {}): void {
+  const k = 2.05;
+  const spec: HSpec = neat
+    ? { skin: R.F ?? SKIN.fair, hair: R.H, cloth: R.S, style: 'neat', top: 'shirt', part: 0.6, seed: 13, ...extra }
+    : { skin: R.F ?? SKIN.pale, hair: R.H, cloth: R.S, style: 'mop', top: 'stretch', sleeve: 'long', seed: 3, ...extra };
+  humanBust(p, (x, y) => [(x - cx) / k, (y - top) / k - 8.8], spec);
 }
 
 // ── 거울 ──
@@ -147,11 +137,11 @@ export function mirrorScene(o: MirrorOpt): Pix {
     }
     glass.rect(0, 0, glass.w, 4, '#f4f8f6'); // 비친 형광등
     const fig = new Pix(glass.w, glass.h);
-    const R: Ramps = { S: ['#6d7377', '#4f5559', '#3c4144', '#2a2e31'], H: ['#3a3634', '#2a2725', '#1f1c1b', '#141211'] };
+    const R: Ramps = { S: ['#8a9094', '#6d7377', '#53595d', '#3a3f42'], H: HAIR.black, F: SKIN.pale };
     if (o.cat) { const b = catBust({ k: 2.2, droopy: o.droopy }); fig.blit(b, 60 - Math.round(b.w / 2), 8, true); }
     else yunjae(fig, 62, 18, R);
     // 현우: 셔츠 차림. 거울 속에서 눈이 마주친다 — 하지만 그에게도 눈은 그려지지 않는다.
-    const HW: Ramps = { S: ['#e9ecef', '#cfd5da', '#aeb6bd', '#7f8890'], F: ['#8d96a0', '#6f7884', '#58606b', '#3f4650'], H: ['#2d2723', '#211c19', '#18140f', '#0e0b09'] };
+    const HW: Ramps = { S: ['#f2f4f6', '#d8dde2', '#b2bac2', '#7f8890'], F: SKIN.fair, H: HAIR.dark };
     yunjae(fig, 128, 24, HW, true);
     glass.blit(fig, 0, 0);
     p.blit(glass, gx0, gy0);
@@ -245,19 +235,28 @@ export function groupPhoto(droopy = false): Pix {
 // ── 영상: 높은 층에서, 끝까지 당겨서 찍었다 ──
 export function videoPlayground(droopy = false): Pix {
   const W = 240, H = 135, p = new Pix(W, H);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) p.set(x, y, mix('#8a7556', '#6a5a44', (rnd(x, y, 8) * 0.5)));
-  // 그네 틀
-  const fx0 = 70, fx1 = 172, ty = 30, by = 104;
-  for (const x of [fx0, fx0 + 2, fx1 - 2, fx1]) p.vl(x, ty, by - ty, '#4a5458');
-  p.rect(fx0, ty, fx1 - fx0 + 1, 3, '#5a666b');
-  for (const sx of [96, 146]) { p.vl(sx - 9, ty + 3, 58, '#6c7276'); p.vl(sx + 9, ty + 3, 58, '#6c7276'); }
-  const cat = charFrame({ kind: 'cat', droopy }, 'down', 0, 'sit', 'wave', 1);
-  const ha = charFrame({ kind: 'haeun' }, 'down', 0, 'sit');
-  p.rect(84, 86, 24, 3, '#3a2a20'); p.rect(134, 86, 24, 3, '#3a2a20');
-  p.blit(cat, 96 - 22, 86 - 50); p.blit(ha, 146 - 22, 86 - 50);
-  // 가로등: 왼쪽 위에서 주황 빛
-  shade(p, (x, y) => { const d = Math.hypot((x - 112) / 150, (y - 74) / 96); const v = lerp(1.6, 0.3, d * 1.1); return [v, v * 0.76, v * 0.5]; });
-  return grain(p); // 줌: 3×3 칸씩 뭉개고, 잡음과 주사선
+  // 모래: 가로등 밑이 밝고, 발자국과 그네 밑 파인 자리가 그늘진다
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const pit = Math.min(Math.hypot((x - 82) / 22, (y - 122) / 6), Math.hypot((x - 160) / 22, (y - 122) / 6));
+    p.set(x, y, mix('#9a8462', '#6a5a44', rnd(x, y, 8) * 0.4 + (pit < 1 ? (1 - pit) * 0.5 : 0) + (y < 60 ? 0.2 : 0)));
+  }
+  for (let x = 0; x < W; x++) for (let y = 0; y < 44; y++) p.set(x, y, mix('#3a3a36', '#2a2a28', rnd(x, y, 2) * 0.5)); // 놀이터 뒤 화단과 담
+  p.rect(0, 44, W, 2, '#4a4a44');
+  // 그네 틀: 굵은 철 기둥, 위에 가로대. 사슬은 점선.
+  const fx0 = 36, fx1 = 206, ty = 6;
+  for (const x of [fx0, fx1]) { p.rect(x - 2, ty, 5, 120 - ty, '#3f4a50'); p.vl(x - 1, ty, 120 - ty, '#6a7a82'); }
+  p.rect(fx0 - 2, ty, fx1 - fx0 + 5, 5, '#4a565c'); p.hl(fx0 - 2, ty, fx1 - fx0 + 5, '#7a8a92');
+  const seat = 112;
+  for (const sx of [82, 160]) for (const dx of [-16, 16]) for (let y = ty + 5; y < seat; y++) if (y % 3) p.set(sx + dx, y, '#8a9296');
+  // 둘: 고양이는 손을 흔들고, 아이는 옆 그네에서 발을 흔든다. 그림은 걷는 그림을 두 배로.
+  const up2 = (q: Pix): Pix => { const r = new Pix(q.w * 2, q.h * 2); for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) { const i = ((y >> 1) * q.w + (x >> 1)) * 4; if (q.d[i + 3]) r.d.set(q.d.subarray(i, i + 4), (y * r.w + x) * 4); } return r; };
+  const cat = up2(charFrame({ kind: 'cat', droopy }, 'down', 0, 'sit', 'wave', 1));
+  const ha = up2(charFrame({ kind: 'haeun' }, 'down', 0, 'sit'));
+  for (const sx of [82, 160]) { p.rect(sx - 18, seat, 37, 4, '#2a1e18'); p.hl(sx - 18, seat, 37, '#5a4232'); }
+  p.blit(cat, 82 - 44, seat + 6 - 100); p.blit(ha, 160 - 44, seat + 6 - 100);
+  // 가로등: 화면 밖 왼쪽 위에서 주황 빛
+  shade(p, (x, y) => { const d = Math.hypot((x - 110) / 150, (y - 80) / 100); const v = lerp(1.55, 0.3, d * 1.05); return [v, v * 0.78, v * 0.52]; });
+  return grain(p, 2); // 줌: 2×2 칸씩 뭉개고, 잡음과 주사선
 }
 
 // ── 졸업앨범: 3학년 4반. 하복들 사이에 혼자 긴소매. ──
@@ -268,21 +267,18 @@ export function yearbook(scribble: boolean): Pix {
   const ME = 5;
   cells.forEach(([i, j], n) => {
     const x = 22 + i * 52, y = 8 + j * 62, w = 40, h = 46;
-    p.rect(x, y, w, h, '#7d93a6'); p.rect(x, y + h - 14, w, 14, '#6a8094');
-    // 얼굴 없는 증명사진. 하복은 흰 반소매, 나만 긴소매.
-    const R: Ramps = { S: n === ME ? ['#cfd3d6', '#b7bcc0', '#9aa0a6', '#71777e'] : ['#ffffff', '#f2f3f1', '#d8dbda', '#a7acad'], H: ['#2e2c30', '#211f23', '#18161a', '#0e0d10'] };
-    const FACE: Ramps = { H: ['#56606c', '#444d58', '#363e48', '#262c34'] }; // 얼굴은 그림자: 이목구비가 없다
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) p.set(x + xx, y + yy, mix('#b4c8d8', '#6d849a', Math.hypot((xx - 20) / 30, (yy - 14) / 40) + (rnd(xx, yy, n) - 0.5) * 0.05));
+    // 얼굴 없는 증명사진. 하복은 흰 반소매 셔츠, 나만 긴소매. 사진관 배경은 위가 밝은 하늘색.
     const f = new Pix(w, h);
-    const hw = 7.5 + rnd(n, 1) * 1.4, hh = 9 + rnd(n, 2) * 1.2, long = rnd(n, 3) > 0.6, part = rnd(n, 4) > 0.5 ? 1 : -1;
-    inSpace({ w, h, k: 1 }, () => {
-      if (n === ME) for (const s2 of [-1, 1]) stamp(f, new Part('S').path([20 + s2 * 14, 34, 20 + s2 * 16, h], 3, 3.4).set({ fur: false }), R);
-      stamp(f, new Part('S').poly([3, h, 5, 34, 12, 30, 28, 30, 35, 34, 37, h]).light(14, 34, 14, 10).set({ fur: false, soft: 0.8 }), R);
-      stamp(f, new Part('H').ell(20, 20, hw, hh).set({ fur: false }), FACE);
-      const fringe = n === ME ? 23 : 15; // 나는 앞머리가 눈을 덮었다
-      const hair = [20 - hw - 0.4, 21, 20 - hw, 12, 20 + part * 2, 8 - rnd(n, 5) * 2.5, 20 + hw, 12, 20 + hw + 0.4, 21, 20 + hw - 2, fringe, 20 - part * 3, fringe - 1 + rnd(n, 6) * 2, 20 - hw + 2, fringe];
-      if (long && n !== ME) for (const s2 of [-1, 1]) stamp(f, new Part('H').path([20 + s2 * (hw - 0.5), 14, 20 + s2 * (hw + 0.8), 24, 20 + s2 * (hw + 0.6), 31], 2, 2.2).set({ fur: false }), R);
-      stamp(f, new Part('H').poly(hair).set({ fur: false }), R);
-    });
+    const boy = n % 2 === 0 || n === 3;
+    const styles = ['short', 'long', 'short', 'bob', 'short', 'mop', 'pony', 'long'] as const;
+    const skins = [SKIN.warm, SKIN.fair, SKIN.tan, SKIN.warm, SKIN.fair, SKIN.pale, SKIN.warm, SKIN.fair];
+    const hairs = [HAIR.black, HAIR.dark, HAIR.dark, HAIR.black, HAIR.brown, HAIR.black, HAIR.dark, HAIR.black];
+    const white = ['#ffffff', '#eef1f3', '#ccd3da', '#98a1ad'] as const;
+    const spec: HSpec = n === ME
+      ? { skin: SKIN.pale, hair: HAIR.black, cloth: ['#e2e4e6', '#c4c8cc', '#a2a8ae', '#737a82'], trim: ['#56607a', '#3a4460', '#2a324a', '#1a2032'], style: 'mop', top: 'shirt', sleeve: 'long', tag: true, seed: 3 }
+      : { skin: skins[n], hair: hairs[n], cloth: white, trim: boy ? ['#56607a', '#3a4460', '#2a324a', '#1a2032'] : ['#e86a78', '#c84a5a', '#9a3446', '#6a2232'], style: boy && styles[n] !== 'bob' ? 'short' : styles[n], top: boy ? 'shirt' : 'blouse', sleeve: 'short', tag: boy, ribbon: !boy, part: rnd(n, 4) * 1.4 - 0.7, seed: 20 + n };
+    humanBust(f, (X, Y) => [(X - 20) / 1.25, Y / 1.25 - 14.4], spec);
     p.blit(f, x, y);
     p.hl(x + 6, y + h + 5, 28, '#9a9282'); p.hl(x + 10, y + h + 8, 20, '#b4ac9c');
     if (n === ME && scribble) {
@@ -481,6 +477,59 @@ export function bearPhoto(): Pix {
   return p;
 }
 
+/** 오른쪽을 보는 옆얼굴. 이마, 콧등, 입술, 턱으로 이어지는 옆선만 있고 이목구비는 없다.
+ *  젖은 머리카락이 이마와 목덜미에 들러붙었다. 가로등 빛이 왼쪽 뒤에서 와서 뒤통수와 목덜미가 밝고, 얼굴 앞선에는 가는 테만 남는다. */
+function profileHead(p: Pix, R: Ramps): void {
+  // 얼굴 앞선: y 마다 가장 앞으로 나온 x
+  const FR: [number, number][] = [[24, 128], [30, 136], [36, 139], [42, 140], [46, 141], [49, 143], [53, 147], [56, 147], [58, 142], [61, 143], [63, 142.5], [65, 140.5], [67, 141], [70, 141], [73, 137], [75, 130]];
+  const front = (y: number): number => {
+    if (y < FR[0][0] || y > FR[FR.length - 1][0]) return -1;
+    for (let i = 1; i < FR.length; i++) if (y <= FR[i][0]) { const [y0, x0] = FR[i - 1], [y1, x1] = FR[i]; return x0 + (x1 - x0) * (y - y0) / (y1 - y0); }
+    return -1;
+  };
+  const jaw = (x: number): number => 74 - (130 - x) * 0.42; // 턱 밑선: 턱 끝에서 귀 밑으로 올라간다
+  const skull = (x: number, y: number): boolean => inE(x, y, 118, 44, 21, 24);
+  const faceIn = (x: number, y: number): boolean => (skull(x, y) && y < jaw(x)) || (x >= 112 && x <= front(y) && y < jaw(x) && y > 24);
+  const neckIn = (x: number, y: number): boolean => y > 56 && y < 96 && x > 106 + (y - 60) * 0.05 && x < 131 - Math.max(0, 76 - y) * 0.15 + (y > 80 ? (y - 80) * 0.1 : 0);
+  const hairIn = (x: number, y: number): boolean => {
+    if (!inE(x, y, 117, 41, 23.5, 25)) return false;
+    if (y < 28 - (x - 120) * 0.1) return true; // 정수리
+    if (x < 112 - (y - 40) * 0.2 && y < 66) return true; // 뒤통수와 목덜미
+    // 이마에 들러붙은 다발: 끝이 뾰족하다
+    const c = Math.floor((x - 112) / 5), t = (x - 112) / 5 - c;
+    const tip = 33 + (1 - Math.abs(2 * t - 1)) * (6 + rnd(c, 3, 7) * 7);
+    return x >= 112 && x < front(y) + 1 && y < tip;
+  };
+  const W = p.w, H = p.h, id = new Uint8Array(W * H), col: string[] = new Array(W * H);
+  const LT = [-0.7, -0.35, 0.55];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let r = 0, c = '';
+    const nx = (x - 120) / 26, ny = (y - 48) / 30, nz = Math.sqrt(Math.max(0.05, 1 - nx * nx - ny * ny));
+    const lam = nx * LT[0] + ny * LT[1] + nz * LT[2];
+    if (neckIn(x, y)) { r = 1; c = R.F[y < jaw(x) + 6 ? 3 : tone4(0.5 + lam * 0.3 - (x - 110) * 0.012)]; }
+    if (faceIn(x, y)) { r = 2; c = R.F[tone4(0.5 + lam * 0.4 - Math.max(0, x - front(y) + 4) * 0.08)]; }
+    if (inE(x, y, 111, 52, 3.4, 5.6) && !hairIn(x, y)) { r = 3; c = R.F[inE(x, y, 111.5, 52.5, 1.5, 3) ? 3 : tone4(0.62 + lam * 0.2)]; } // 귀
+    if (hairIn(x, y)) {
+      r = 4;
+      const sn = rnd(Math.floor(x * 0.7 + y * 0.25), 5, 9);
+      let b = 0.42 + lam * 0.5 + (sn - 0.5) * 0.3;
+      if (Math.abs(y - (26 + (x - 112) * 0.18)) < 1.2 && sn > 0.3 && x < 128) b = 0.95; // 젖은 머리의 반짝임
+      c = R.H[tone4(b)];
+    }
+    id[y * W + x] = r; if (r) col[y * W + x] = c;
+  }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, r = id[i]; if (!r) continue;
+    let e = 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const q = id[(y + dy) * W + x + dx] ?? 0; if (!q) e = 2; else if (q > r && !(r === 1 && q === 2)) e = Math.max(e, 1); }
+    let c = col[i];
+    if (e === 2 && r !== 4 && x > 120) c = mix(c, '#d8a07a', 0.6); // 앞선의 가는 빛 테
+    else if (e) c = mix(c, '#140f14', e === 2 ? 0.6 : 0.4);
+    p.set(x, y, c);
+  }
+}
+const tone4 = (b: number): number => (b > 0.78 ? 0 : b > 0.5 ? 1 : b > 0.26 ? 2 : 3);
+
 // ── 영상 2: 분리수거장 뒤. 고양이가 머리를 벗는다. 2초. ──
 export function videoFace(droopy = false): Pix {
   const W = 240, H = 135, p = new Pix(W, H);
@@ -491,26 +540,16 @@ export function videoFace(droopy = false): Pix {
   p.rect(0, 112, W, H - 112, '#3a3834');
   shade(p, (x) => { const v = lerp(0.95, 0.22, x / 200); return [v, v * 0.8, v * 0.6]; }); // 담: 오른쪽으로 갈수록 그늘
   // 가까이 당겼다: 오른쪽을 보는 옆얼굴. 목 아래는 탈의 몸통(가까운 쪽이 검정), 목털, 그리고 겨드랑이에 낀 고양이 머리.
-  const SKIN: Ramps = { F: ['#8f97a2', '#6f7782', '#575e68', '#3c424a'], H: ['#2a2a30', '#1a1a1f', '#121216', '#09090c'] };
+  const PF: Ramps = { F: ['#e6c4b0', '#c49c88', '#987868', '#64504a'], H: ['#2a2a30', '#1a1a1f', '#121216', '#09090c'] };
+  profileHead(p, PF);
   inSpace({ w: W, h: H, k: 1 }, () => {
     stamp(p, new Part((X, Y) => stripe(X > 150 ? 'W' : 'K', X / 2.2, Y / 2.2, 0.4)).poly([58, 135, 66, 104, 92, 90, 150, 88, 178, 98, 192, 135]).light(110, 96, 50, 30), CAT_R, true);
     stamp(p, new Part('W').poly([96, 92, 104, 84, 124, 82, 146, 84, 158, 92, 150, 98, 140, 94, 130, 100, 118, 95, 106, 100]).light(120, 86, 22, 8).set({ cap: 2 }), CAT_R, true); // 목털
-    stamp(p, new Part('F').poly([108, 64, 134, 66, 132, 90, 110, 90]).set({ dim: 1 }), SKIN); // 목
-    // 머리: 이마, 콧등, 입술, 턱으로 이어지는 옆선. 이목구비는 없다. 가로등 빛이 옆선에만 걸린다.
-    const hd = new Pix(W, H);
-    stamp(hd, new Part('F').ell(120, 46, 22, 25).poly([132, 34, 143, 42, 150, 55, 143, 57, 145, 62, 140, 65, 141, 70, 134, 75, 124, 75]).light(134, 44, 14, 22), SKIN);
-    for (let y = 0; y < H; y++) for (let x = W - 2; x > 0; x--) if (hd.alpha(x, y) && !hd.alpha(x + 1, y)) { hd.set(x - 1, y, '#b89478', 0.8); hd.set(x - 2, y, '#8a7262', 0.5); break; }
-    p.blit(hd, 0, 0);
-    // 젖은 머리카락: 뒤통수부터 덮고, 이마와 목덜미에 가닥이 들러붙었다
-    const hair = [98, 52, 97, 34, 104, 22, 118, 18, 132, 20, 141, 28, 143, 36, 136, 33, 138, 42, 131, 36, 129, 46, 124, 36, 119, 44, 112, 40, 108, 58, 104, 70, 100, 66];
-    stamp(p, new Part('H').poly(hair).light(122, 24, 20, 14), SKIN);
-    for (const [x0, y0, x1, y1] of [[136, 33, 139, 46], [129, 38, 131, 50], [104, 62, 106, 76]]) p.line(x0, y0, x1, y1, '#15151a');
-    for (const [x, y] of [[112, 22], [116, 21], [120, 20], [125, 21], [108, 26], [130, 24]]) p.set(x, y, '#a8b0c0'); // 젖은 머리의 반짝임
   });
-  const head = catHeadAlone(false, droopy);
-  const hb = new Pix(head.w * 2, head.h * 2);
-  for (let y = 0; y < hb.h; y++) for (let x = 0; x < hb.w; x++) { const i = ((y >> 1) * head.w + (x >> 1)) * 4; if (head.d[i + 3]) hb.d.set(head.d.subarray(i, i + 4), (y * hb.w + x) * 4); }
-  p.blit(hb, 156, 82);
+  // 겨드랑이에 낀 고양이 머리: 옆으로 누워 렌즈를 본다. 몸이 빠진 탈은 눈만 그대로다.
+  const hb = new Pix(W, H), hk = 2.2, th = 0.42;
+  kemonoHead(hb, (x, y) => { const dx = (x - 188) / hk, dy = (y - 112) / hk; return [dx * Math.cos(th) + dy * Math.sin(th), -dx * Math.sin(th) + dy * Math.cos(th)]; }, hk, catSpec(CAT_R), { droopy });
+  p.blit(hb, 0, 0);
   // 빛: 가로등이 담에 반쯤 가려 왼쪽에서만 든다
   shade(p, (x, y) => { const v = lerp(1.35, 0.55, Math.hypot((x - 135) / 90, (y - 50) / 90)); return [v, v * 0.8, v * 0.58]; });
   return grain(p, 2);
@@ -567,9 +606,9 @@ function storeScene0(cat: boolean, droopy: boolean): Pix {
     p.vl(x0 + 22, 17, 86, '#9aa6a8');
   }
   // 알바: 계산대 뒤, 고개를 숙이고 휴대폰을 본다. 조끼.
-  const AL: Ramps = { S: ['#5aa878', '#3f8a5e', '#2f6e4a', '#1f4e34'], F: ['#9aa2ac', '#7c8490', '#646b76', '#4a5058'], H: ['#3a3230', '#2a2422', '#1e1a18', '#121010'] };
+  const AL: Ramps = { S: ['#5aa878', '#3f8a5e', '#2f6e4a', '#1f4e34'], F: SKIN.tan, H: HAIR.dark };
   const fig = new Pix(W, H);
-  yunjae(fig, 196, 34, AL, true);
+  yunjae(fig, 196, 34, AL, true, { style: 'short', top: 'vest', trim: ['#f2efe8', '#d6d0c6', '#aea69a', '#7e766a'], down: 0.8, seed: 11 });
   p.blit(fig, 0, 0);
   p.rect(176, 92, 8, 5, '#20262a'); p.rect(177, 93, 6, 3, '#bfe0ff'); // 휴대폰의 빛
   // 손님: 삼색 고양이. 계산대 너머로 상반신만.
