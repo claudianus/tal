@@ -440,7 +440,8 @@ VAR c1_dressed = 0
 분리수거장 뒤. 가로등 빛이 벽에 잘려 반만 들어온다.
 # go: hide
 아무도 없다.
-* [헤드를 벗는다]
+땀이 폼에 붙었다. 헤드가 얼굴에서 안 떨어진다.
+* [헤드를 벗는다 # game: headoff off]
 - # suit: head_off
 # voice_back
 ~ heat = 40
