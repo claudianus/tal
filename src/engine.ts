@@ -33,6 +33,9 @@ const gameOf = (tags: string[] | null | undefined): [string, string] | null => {
   for (const t of tags || []) { const m = /^game:\s*(\S+)(?:\s+(\S+))?/.exec(t.trim()); if (m) return [m[1], m[2] || '']; }
   return null;
 };
+/** 맵 위에서 하는 게임의 조작 안내 */
+const WORLD_GAME_HINT: Record<string, string> = { crowd: '→ 계단까지 간다 · ↑↓ 로 사람 사이를 피한다 · 기둥 뒤에서 숨을 고른다' };
+
 /** 선택지의 "# timer: 초" (at: timeout 과 함께 쓴다) */
 const timerOf = (tags: string[] | null | undefined): number => {
   for (const t of tags || []) { const m = /^timer:\s*([\d.]+)/.exec(t.trim()); if (m) return Number(m[1]); }
@@ -71,7 +74,7 @@ export class Game {
     Object.assign(this.view.state, { spec, suit: p.suit, gaze: p.gaze ? vars.gaze : 0, eyes: p.eyes, cat: p.cat, monitor: p.monitor, droopy });
     w.flags.monitor = p.monitor; w.flags.eyes = p.eyes; w.flags.lampOff = p.lampOff; w.flags.headGone = p.suit || p.suitFull; w.flags.headDone = p.headDone; w.flags.mark = p.mark || ''; w.flags.box = p.box || ''; w.flags.tidy = !!p.tidy; w.haeunEyes = p.pov === 'yunjae' && !/^(프롤로그|1장)/.test(p.chapter); // 윤재가 본 사람이라서. 윤재가 없는 엔딩 C 에는 없다
     const look: Look = { kind: p.suitFull ? (p.suit ? 'cat' : 'cat_nohead') : p.suit ? 'yunjae_cathead' : 'yunjae', droopy, bare: p.bare, bag: p.carry === 'bag' && !p.suit && !p.suitFull, mark: p.mark || '' };
-    w.posture = p.posture || '';
+    w.posture = spec.past ? '' : p.posture || '';
     w.setLook(look);
     w.setPose(p.pose);
     w.swings = p.swings || {};
@@ -218,7 +221,9 @@ export class Game {
     if (gi >= 0) {
       const id = games[gi]![0];
       const ghosts = this.pres.tail.filter((t) => t.kind === 'voice').map((t) => t.text);
+      if (!GAME_IDS.includes(id)) ui.hint(WORLD_GAME_HINT[id] || '');
       const out = GAME_IDS.includes(id) ? await playGame(id, { ghosts: ghosts.length ? ghosts : undefined }) : await w.runGame(id);
+      ui.hint('');
       const k = games.findIndex((g) => g && g[1] === out);
       return k >= 0 ? k : gi;
     }

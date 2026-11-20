@@ -70,7 +70,7 @@ export class World {
   fast = false; autopilot = false;
   rain = false; // 바깥 맵에 비가 내린다
   train = { state: '' as '' | 'arrive' | 'stop' | 'open' | 'leave' | 'gone', x: 0, v: 0, done: null as (() => void) | null };
-  private crowd: { walkers: Walker[]; meter: number; t: number; spawn: number; game: boolean; end: (o: string) => void } | null = null;
+  private crowd: { walkers: Walker[]; meter: number; t: number; spawn: number; game: boolean; hitAt: number; end: (o: string) => void } | null = null;
   onMoved: () => void = () => {};
   private held: Dir[] = [];
   private binds: Bind[] | null = null;
@@ -162,8 +162,9 @@ export class World {
       let done = false;
       const mine = (): void => { if (done) return; done = true; who.dir = d; res(); };
       who.onArrive = mine; who.dest = [x, y];
-      // 6초 안에 못 오면 옮겨 놓는다. 이 걸음이 아직 끝나지 않았을 때만: 이미 도착해 다음 걸음이 시작됐으면 건드리지 않는다.
-      setTimeout(() => { if (!done) { if (who.onArrive === mine) { who.path = []; who.onArrive = null; } who.x = x; who.y = y; who.px = x * TILE; who.py = y * TILE; who.dest = null; mine(); } }, 6000);
+      // 걸어서 걸릴 시간보다 한참 늦으면(최소 6초) 옮겨 놓는다. 이 걸음이 아직 끝나지 않았을 때만: 이미 도착해 다음 걸음이 시작됐으면 건드리지 않는다.
+      const limit = Math.max(6000, (path.length * TILE / Math.max(10, who.speed)) * 1000 * 1.6 + 1500);
+      setTimeout(() => { if (!done) { if (who.onArrive === mine) { who.path = []; who.onArrive = null; } who.x = x; who.y = y; who.px = x * TILE; who.py = y * TILE; who.dest = null; mine(); } }, limit);
     });
   }
   npc(id: string, where: string, walk: boolean): Promise<void> {
@@ -191,7 +192,7 @@ export class World {
     return new Promise((res) => {
       const end = (o: string): void => { const cr = this.crowd; if (!cr || !cr.game) return; cr.game = false; cr.meter = 0; this.cancelWalk(); res(o); };
       if (!this.crowd) this.crowdOn(true);
-      Object.assign(this.crowd!, { game: true, meter: 0.25, t: 0, end });
+      Object.assign(this.crowd!, { game: true, meter: 0.15, t: 0, hitAt: -9, end });
       void this.waitChoice([{ at: 'z_down', idx: 0 }]).then(() => end('made'));
     });
   }
@@ -199,7 +200,7 @@ export class World {
   crowdOn(on: boolean): void {
     if (!on || !this.map) { this.crowd = null; return; }
     if (this.crowd) return;
-    this.crowd = { walkers: [], meter: 0, t: 0, spawn: 0, game: false, end: () => {} };
+    this.crowd = { walkers: [], meter: 0, t: 0, spawn: 0, game: false, hitAt: -9, end: () => {} };
     for (let i = 0; i < 10; i++) this.spawnWalker(true);
   }
   private spawnWalker(anywhere = false): void {
@@ -214,23 +215,23 @@ export class World {
     const cr = this.crowd, m = this.map;
     if (!cr || !m) return;
     cr.t += dt; cr.spawn -= dt;
-    if (cr.spawn <= 0) { this.spawnWalker(); cr.spawn = 0.22 + Math.random() * 0.3; }
+    if (cr.spawn <= 0) { this.spawnWalker(); cr.spawn = cr.game ? 0.4 + Math.random() * 0.35 : 0.22 + Math.random() * 0.3; } // 게임 중에는 틈이 보일 만큼만
     const p = this.player, mw = m.grid[0].length * TILE;
     const pillar = (x: number): boolean => [6, 9, 13, 17, 21].some((k) => Math.abs(x - k * TILE) < 22);
     for (const w of cr.walkers) {
       w.x += w.vx * dt; w.walked += Math.abs(w.vx) * dt;
       const ty = w.lane !== 3 && pillar(w.x) ? 3 * TILE : w.lane * TILE;
       w.y += Math.sign(ty - w.y) * Math.min(Math.abs(ty - w.y), 46 * dt);
-      if (Math.abs(w.x - p.px) < 11 && Math.abs(w.y - p.py) < 9 && cr.t - w.hitAt > 0.8) { // 어깨가 부딪친다
-        w.hitAt = cr.t;
+      if (Math.abs(w.x - p.px) < 11 && Math.abs(w.y - p.py) < 9 && cr.t - w.hitAt > 0.8 && cr.t - cr.hitAt > 0.7) { // 어깨가 부딪친다 (한 번 밀리면 잠깐은 다시 안 밀린다)
+        w.hitAt = cr.t; cr.hitAt = cr.t;
         const dx = Math.sign(w.vx);
         if (!this.solid(p.x + dx, p.y)) { p.x += dx; p.path = []; }
-        if (cr.game) { cr.meter += 0.085; sfx('bump'); this.shake(160); }
+        if (cr.game) { cr.meter += 0.07; sfx('bump'); this.shake(160); }
       }
     }
     cr.walkers = cr.walkers.filter((w) => w.x > 6 * TILE && w.x < mw + 20);
     if (!cr.game) return;
-    cr.meter = Math.max(0, cr.meter + dt * (0.012 - (p.x >= 22 ? 0.03 : 0)));
+    cr.meter = Math.max(0, cr.meter + dt * (0.006 - (cr.t - cr.hitAt > 1.5 ? 0.025 : 0) - (p.x >= 22 ? 0.03 : 0))); // 안 부딪히고 버티면 숨이 조금 돌아온다
     if (Math.floor(cr.t * (1 + cr.meter * 2)) !== Math.floor((cr.t - dt) * (1 + cr.meter * 2))) sfx(cr.meter > 0.6 ? 'heartbeat' : 'heartbeat_soft');
     if (cr.meter >= 1 || cr.t > 45) cr.end('pushed');
   }

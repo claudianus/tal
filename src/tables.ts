@@ -2,7 +2,8 @@
 // 지금은 자리 표시용이다. 장면은 '가족'별로 묶어서 빛과 실루엣만 그린다.
 
 // map 이 있으면 걸어 다니는 맵으로, 없으면 그림 한 장으로 보여 준다. lit 은 맵의 조명 분위기.
-export type SceneSpec = { f: string; mood: string; amb: string; map?: string; lit?: string; rain?: boolean };
+/** past: 지난 기억 속 장면. 3장 뒤의 다친 자세(posture)를 그리지 않는다. */
+export type SceneSpec = { f: string; mood: string; amb: string; map?: string; lit?: string; rain?: boolean; past?: boolean };
 
 export const SCENES: Record<string, SceneSpec> = {
   black: { f: 'black', mood: 'night', amb: 'room' },
@@ -47,11 +48,11 @@ export const SCENES: Record<string, SceneSpec> = {
   dorm_stairwell: { f: 'stairs', mood: 'day', amb: 'still' },
   // 4장
   room_dark_rain: { f: 'room', mood: 'dark', amb: 'rain_in', map: 'room', lit: 'dark' },
-  grandma_house: { f: 'grandma', mood: 'color', amb: 'day', map: 'grandma', lit: 'color' },   // 이 게임에서 유일하게 색이 있는 장면
-  funeral_front: { f: 'funeral', mood: 'night', amb: 'still', map: 'funeral', lit: 'night' },
+  grandma_house: { f: 'grandma', mood: 'color', amb: 'day', map: 'grandma', lit: 'color', past: true },   // 이 게임에서 유일하게 색이 있는 장면
+  funeral_front: { f: 'funeral', mood: 'night', amb: 'still', map: 'funeral', lit: 'night', past: true },
   funeral_front_c: { f: 'funeral', mood: 'night', amb: 'still', map: 'funeral', lit: 'few' }, // 엔딩 C: 화환이 둘
   er_ceiling: { f: 'er', mood: 'white', amb: 'still', map: 'er', lit: 'white' },
-  dinner_past: { f: 'living', mood: 'dim', amb: 'room', map: 'living', lit: 'tv' },
+  dinner_past: { f: 'living', mood: 'dim', amb: 'room', map: 'living', lit: 'tv', past: true },
 };
 
 // 효과음: 합성 방식(k)과 인자.

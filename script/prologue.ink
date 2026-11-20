@@ -448,7 +448,7 @@ TV 속에서 사람들이 웃는다.
 저 꼴로. # voice
 # scene: room_night
 # face: left
-삼색이의 머리는 책상 위에 있다. 네 걸음.
+삼색이의 머리는 책상 위에 있다.
 * [머리를 가지러 간다 # at: head]
 - # go: mirror_front
 # face: up
