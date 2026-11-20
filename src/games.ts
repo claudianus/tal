@@ -73,7 +73,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt' };
+const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -754,7 +754,108 @@ function zoom(opt: GameOpt): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze, tilt };
+
+// ═══════════ 붙잡기 (3장: 아버지가 삼색이를 잡아당긴다) ═══════════
+// 내 손은 꼬리를, 아버지 손은 몸통을 잡고 있다. Z 를 연타하면 당겨 온다. 당길수록 솔기가 버티지 못한다.
+// 가만히 있으면 금방 끊어진다. 붙잡으면 조금 더 버틴다. 아버지는 점점 세게 잡아챈다. 어느 쪽이든 끊어진다.
+function tug(): Play {
+  const N = 9; // 꼬리 솔기의 땀 수
+  let tt = 0, popped = 0, strain = 0, mine = 0, pull = 0, yank = 0, end = -1, shake = 0, presses = 0;
+  const fluff: { x: number; y: number; vx: number; vy: number; l: number }[] = [];
+  return {
+    scale: 2,
+    hint: 'Z 를 연타해서 붙잡는다',
+    step(dt, _t, _k, hit) {
+      tt += dt; shake = Math.max(0, shake - dt * 4); pull = Math.max(0, pull - dt * 3); yank = Math.max(0, yank - dt * 2.5);
+      for (const f of fluff) { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 30 * dt; f.l -= dt; }
+      for (let i = fluff.length - 1; i >= 0; i--) if (fluff[i].l <= 0) fluff.splice(i, 1);
+      if (end >= 0) { end += dt; return end > 1.6 ? 'torn' : null; }
+      if (hit.has('z')) { presses++; pull = 1; mine = Math.min(1, mine + 0.12); strain = Math.max(popped / N, strain - 0.018); sfx('tap'); }
+      mine = Math.max(0, mine - dt * 0.35);
+      // 아버지는 몇 박자마다 잡아챈다
+      if (Math.random() < dt * (tt > 2 ? 1.2 : 0.5)) { yank = 1; strain += 0.1 + tt * 0.012; shake = 1; sfx('bump'); }
+      strain += dt * 0.08;
+      if (strain >= 1 / N * (popped + 1) * 1.0 + 0.02) {
+        popped++; shake = 0.7; sfx('hit');
+        const sx = 150, sy = 62 + (popped * 20) / N;
+        for (let i = 0; i < 4; i++) fluff.push({ x: sx, y: sy, vx: (Math.random() - 0.5) * 40, vy: -10 - Math.random() * 20, l: 1 + Math.random() });
+        if (popped === 3) ui.hint('놓지 않는다');
+        if (popped >= N) { end = 0; ui.hint(''); sfx('fabric_tear'); }
+      }
+      void presses;
+      return null;
+    },
+    draw(c, t) {
+      // 반 칸(실제 1px) 단위로 그린다. 판은 두 배로 키워져 있다.
+      const q = (x: number, y: number, w: number, h: number, col: string): void => { c.fillStyle = col; c.fillRect(Math.round(x * 2) / 2, Math.round(y * 2) / 2, w, h); };
+      c.fillStyle = '#060508'; c.fillRect(0, 0, W, H);
+      const vg = c.createRadialGradient(W / 2, 70, 20, W / 2, 70, 150);
+      vg.addColorStop(0, 'rgba(60,40,36,0.35)'); vg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = vg; c.fillRect(0, 0, W, H);
+      if (shake > 0.6) { c.fillStyle = `rgba(120,20,20,${((shake - 0.6) * 0.5).toFixed(2)})`; c.fillRect(0, 0, W, H); }
+      // 바닥 장판 줄
+      for (let y = 104; y < H; y += 7) q(0, y, W, 0.5, 'rgba(70,58,48,0.35)');
+      const sh = Math.round(Math.sin(t * 70) * 2 * shake);
+      const gap = end >= 0 ? Math.min(46, end * 90) : 0;
+      const Y = 64; // 꼬리 가운데 높이
+      const seamX = 150 + sh;
+      const myX = 40 - (mine * 8 + pull * 3) - gap * 0.6 + sh; // 내 손 (꼬리 끝)
+      const bodyX = seamX + gap * 0.4;
+      const faX = bodyX + 22 + yank * 6;
+      // ── 몸통: 등판 한 자락. 흰 바탕에 주황·검정 얼룩, 털결과 음영 ──
+      const BW = 44, BT = Y - 26, BH = 58;
+      q(bodyX, BT, BW, BH, '#efe8dc');
+      for (let y = BT; y < BT + BH; y += 1) { const e = Math.sin(y * 0.9) * 0.8; q(bodyX - 1 + e, y, 1, 1, '#f7f2ea'); } // 왼쪽 가장자리 털끝
+      q(bodyX + 4, BT, 22, 16, '#e3843a'); q(bodyX + 6, BT + 16, 14, 4, '#e3843a'); q(bodyX + 8, BT + 2, 10, 2, '#f19a52');
+      q(bodyX + 26, BT + 34, 18, 24, '#2c282e'); q(bodyX + 30, BT + 30, 12, 4, '#2c282e'); q(bodyX + 28, BT + 36, 6, 1, '#454048');
+      for (let y = BT + 2; y < BT + BH; y += 3) for (let x = bodyX + 2; x < bodyX + BW; x += 5) q(x + ((y * 7) % 3), y, 1, 0.5, 'rgba(0,0,0,0.07)'); // 털결
+      q(bodyX, BT + BH - 4, BW, 4, 'rgba(0,0,0,0.18)'); q(bodyX + BW - 3, BT, 3, BH, 'rgba(0,0,0,0.15)');
+      // ── 아버지 손: 몸통을 위에서 움켜쥔다. 굵은 마디, 거무스름한 손등, 소매 ──
+      const fy = Y - 16;
+      q(faX + 14, fy - 4, 40, 34, '#2f2b2e'); q(faX + 14, fy - 4, 3, 34, '#1f1c1f'); q(faX + 16, fy + 4, 38, 1, '#3b3639'); // 점퍼 소매
+      q(faX, fy, 18, 26, '#7a5a48'); q(faX + 2, fy + 2, 12, 2, '#8e6c58'); // 손등
+      for (let i = 0; i < 4; i++) { // 몸통을 파고든 손가락 넷
+        const fx = faX - 9 + (i % 2), fyy = fy + 2 + i * 6;
+        q(fx, fyy, 11, 5, '#7a5a48'); q(fx, fyy + 4, 11, 1, '#4e382d'); q(fx, fyy, 2, 5, '#5e4335'); q(fx + 7, fyy + 1, 1, 3, '#5e4335');
+        q(fx - 1, fyy + 1, 2, 3, 'rgba(60,40,30,0.5)'); // 털을 누른 자국
+      }
+      q(faX + 5, fy + 6, 1, 8, '#5e4335'); q(faX + 9, fy + 4, 1, 10, '#5e4335'); // 힘줄
+      // ── 꼬리: 굵은 털 관. 주황·흰·검 줄무늬, 위는 밝고 아래는 어둡다. 끝으로 갈수록 가늘다 ──
+      const x0 = myX + 16, x1 = seamX - gap * 0.6;
+      for (let x = x0; x < x1; x += 0.5) {
+        const u = (x - x0) / Math.max(1, x1 - x0); // 0 = 끝, 1 = 뿌리
+        const r = 4.5 + u * 2.5;
+        const wob = Math.sin(x * 0.35 + t * 28) * yank * 1.1;
+        const band = Math.floor((x - x0 + 3) / 11) % 3;
+        const base = band === 0 ? ['#f19a52', '#e3843a', '#b8622a'] : band === 1 ? ['#fbf7f0', '#e9e1d4', '#bfb5a6'] : ['#4a444c', '#2c282e', '#18161a'];
+        const cy = Y + wob;
+        q(x, cy - r, 0.5, 1.5, base[0]); q(x, cy - r + 1.5, 0.5, r * 2 - 3, base[1]); q(x, cy + r - 1.5, 0.5, 1.5, base[2]);
+        if (Math.sin(x * 2.3) > 0.7) { q(x, cy - r - 0.5, 0.5, 0.5, base[0]); } // 위로 삐친 털
+        if (Math.sin(x * 1.7 + 1) > 0.8) { q(x, cy + r, 0.5, 0.5, base[2]); }
+      }
+      // ── 솔기: 꼬리와 몸통 사이 주황 실. 끊어진 땀은 벌어지고 흰 폼이 드러난다 ──
+      for (let i = 0; i < N; i++) {
+        const sy = Y - 6 + (i * 12) / (N - 1);
+        if (i < N - popped) { q(seamX - 1.5, sy, 3.5, 1, '#ff9a3c'); q(seamX - 1.5, sy + 1, 3.5, 0.5, '#b8601c'); }
+        else { q(seamX - 2 - gap * 0.1, sy, 1, 1, '#ff9a3c'); q(seamX + 1.5 + gap * 0.1, sy, 1, 1, '#ff9a3c'); q(seamX - 0.5, sy - 0.5, 1.5, 1.5, '#ece6d4'); }
+      }
+      // ── 내 손: 꼬리 끝을 쥔 하얀 손. 손가락이 꼬리를 감고, 힘을 주면 마디가 질린다 ──
+      const my = Y - 9;
+      q(myX - 34, my - 2, 34, 22, '#25272d'); q(myX - 4, my - 2, 4, 22, '#1b1c21'); q(myX - 34, my + 2, 30, 0.5, '#33363e'); // 긴소매
+      q(myX, my, 16, 18, '#c9ab92'); q(myX + 1, my + 1, 12, 1.5, '#dcc0a8'); q(myX, my + 16, 16, 2, '#9c7f68');
+      for (let i = 0; i < 4; i++) { // 꼬리를 위에서 감싼 손가락
+        const gx = myX + 14, gy = my + 1 + i * 4.2;
+        q(gx, gy, 6, 3.5, '#c9ab92'); q(gx + 5, gy + 0.5, 1, 2.5, '#9c7f68'); q(gx, gy + 3, 6, 0.5, '#8a6e58');
+        if (mine > 0.35) q(gx + 2, gy + 1, 2, 1, '#efe2d6'); // 질린 마디
+      }
+      q(myX + 10, my - 3, 7, 4, '#c9ab92'); q(myX + 10, my - 3, 7, 1, '#dcc0a8'); // 엄지
+      for (const f of fluff) q(f.x, f.y, 1.5, 1.5, 'rgba(236,230,212,' + Math.max(0, Math.min(1, f.l)).toFixed(2) + ')');
+      // 아래: 남은 땀
+      for (let i = 0; i < N; i++) { const x = W / 2 - N * 3 + i * 6; q(x, H - 13, 4, 3, i < N - popped ? '#ff9a3c' : '#2a2224'); if (i >= N - popped) q(x + 1, H - 12, 2, 1, '#5a4a40'); }
+    },
+  };
+}
+
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze, tilt, tug };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;

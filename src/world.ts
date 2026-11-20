@@ -308,6 +308,10 @@ export class World {
     if (SPECIAL.has(at)) { this.resolve(at); return; }
     this.walkTo(this.obj(at)!);
   }
+  routeFor(at: string): { path: [number, number][]; face: Dir } | null { // 검사용: 키보드로 걸어갈 길
+    const o = this.obj(at);
+    return this.map && o ? routeTo(this.map, [this.player.x, this.player.y], o, (x, y) => this.solid(x, y)) : null;
+  }
   private walkTo(o: Obj): void {
     if (!this.map) return;
     const p = this.player;
