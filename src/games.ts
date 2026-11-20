@@ -74,7 +74,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared' };
+const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -1494,7 +1494,133 @@ function sleeve(): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), photo, catchb, zip, knock, sleeve };
+// ═══════════ 졸업앨범 (1장: 3학년 4반) ═══════════
+// 얼굴 없는 반 아이들 사이에서 내 사진을 찾는다. 찾으면, 누가 볼펜으로 그려 둔 수염과 귀가 있다.
+function album(): Play {
+  const COLS = 6, ROWS = 4, me = 7 + Math.floor(Math.random() * 16); // 둘째 줄부터 어딘가
+  let cx = 0, cy = 0, tt = 0, end = -1, wrong = 0, wrongT = 0, said = 0;
+  const hair = ['#1a1614', '#2a201a', '#141418', '#3a2a20', '#201814'];
+  return {
+    scale: 2,
+    peek: () => ({ cx, cy, me }),
+    hint: '방향키로 휴대폰 불빛을 옮긴다 · Z 로 짚는다 · 내 사진을 찾는다',
+    step(dt, _t, _k, hit) {
+      tt += dt; wrongT -= dt;
+      if (end >= 0) { end += dt; return end > 2.6 ? 'found' : null; }
+      if (hit.has('left')) cx = (cx + COLS - 1) % COLS; if (hit.has('right')) cx = (cx + 1) % COLS;
+      if (hit.has('up')) cy = (cy + ROWS - 1) % ROWS; if (hit.has('down')) cy = (cy + 1) % ROWS;
+      if (hit.size && !hit.has('z')) sfx('tap');
+      if (hit.has('z')) { if (cy * COLS + cx === me) { end = 0; ui.hint(''); sfx('ringing_ear'); } else { wrong++; wrongT = 0.4; sfx('bump'); } }
+      if (wrong >= 3 && said === 0) { said = 1; ui.hint('그해 사진 찍던 날은 더웠다 · 나만 긴소매였다'); }
+      if (tt > 30 && end < 0) { cx = me % COLS; cy = Math.floor(me / COLS); end = 0; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      // 앨범 한 면: 누렇게 바랜 종이, 반 이름
+      c.fillStyle = '#1a1612'; c.fillRect(0, 0, W, H);
+      c.fillStyle = '#e8e0cc'; c.fillRect(20, 4, W - 40, H - 8); c.fillStyle = '#d8ceb6'; c.fillRect(20, 4, 2, H - 8); c.fillRect(W - 22, 4, 2, H - 8);
+      c.fillStyle = '#4a3a2a'; c.font = '600 7px "Pretendard", sans-serif'; c.fillText('3학년 4반', 30, 15);
+      const PW = 26, PH = 28, GX = 46, GY = 22, SX = 30, SY = 30;
+      for (let r = 0; r < ROWS; r++) for (let k = 0; k < COLS; k++) {
+        const i = r * COLS + k, x = GX + k * SX, y = GY + r * SY;
+        c.fillStyle = '#9aa8b8'; c.fillRect(x, y, PW, PH - 6); // 파란 배경 증명사진
+        const long = i === me; // 나만 긴소매
+        c.fillStyle = long ? '#3a3e5a' : '#f2f2ee'; c.fillRect(x + 4, y + 16, PW - 8, 6); // 교복: 다들 하복 흰 셔츠
+        if (!long) { c.fillStyle = '#d8d8d4'; c.fillRect(x + 11, y + 16, 4, 3); }
+        c.fillStyle = '#c9ab92'; c.beginPath(); c.ellipse(x + PW / 2, y + 10, 6, 7, 0, 0, 7); c.fill(); // 얼굴 (그리지 않는다)
+        c.fillStyle = hair[(i * 7) % hair.length]; c.beginPath(); c.ellipse(x + PW / 2, y + 6, 7, 4.5, 0, Math.PI, 0); c.fill(); c.fillRect(x + PW / 2 - 7, y + 5, 14, 2);
+        if (i === me) { // 볼펜 수염과 세모 귀
+          c.strokeStyle = '#2a3aa8'; c.lineWidth = 0.6; c.beginPath();
+          for (const s2 of [-1, 1]) for (let w = -1; w <= 1; w++) { c.moveTo(x + PW / 2 + s2 * 2, y + 11 + w); c.lineTo(x + PW / 2 + s2 * 9, y + 10 + w * 2); }
+          c.moveTo(x + PW / 2 - 6, y + 4); c.lineTo(x + PW / 2 - 4, y - 1); c.lineTo(x + PW / 2 - 1, y + 3);
+          c.moveTo(x + PW / 2 + 1, y + 3); c.lineTo(x + PW / 2 + 4, y - 1); c.lineTo(x + PW / 2 + 6, y + 4); c.stroke();
+        }
+        c.fillStyle = '#6a5a48'; c.fillRect(x + 6, y + PH - 4, PW - 12, 1); // 이름 자리
+      }
+      // 침대 밑: 휴대폰 불빛 하나. 찾으면 천천히 페이지 전체가 보인다
+      const x = GX + cx * SX, y = GY + cy * SY, sh = wrongT > 0 ? Math.round(Math.sin(t * 60) * 2) : 0;
+      const lx = x + PW / 2 + Math.sin(t * 1.3) * 1.5, ly = y + PH / 2, open = end >= 0 ? Math.min(1, end * 0.6) : 0;
+      const dark = c.createRadialGradient(lx, ly, 8 + open * 120, lx, ly, 34 + open * 200);
+      dark.addColorStop(0, 'rgba(4,3,2,0)'); dark.addColorStop(0.55, 'rgba(4,3,2,0.55)'); dark.addColorStop(1, 'rgba(4,3,2,0.97)');
+      c.fillStyle = dark; c.fillRect(0, 0, W, H);
+      c.strokeStyle = end >= 0 ? '#c84a3a' : '#2a2a2a'; c.lineWidth = 1; c.strokeRect(x - 2 + sh + 0.5, y - 2 + 0.5, PW + 3, PH + 1);
+      if (end >= 0) { // 찾았다: 그 밑의 글씨
+        c.fillStyle = 'rgba(232,224,204,' + Math.min(1, end * 2).toFixed(2) + ')'; c.fillRect(x - 4, y + PH, PW + 20, 10);
+        c.fillStyle = 'rgba(42,58,168,' + Math.min(1, end * 2).toFixed(2) + ')'; c.font = '600 6px "Pretendard", sans-serif'; c.fillText('임대 고양이', x - 2, y + PH + 7);
+      }
+    },
+  };
+}
+
+// ═══════════ 가리키기 (1장: 107동) ═══════════
+// 아래에서 올려다본 다섯 동. 젤리 손이 창문들을 훑는다. 불 켜진 창 앞에서 오래 머물면 누가 커튼을 연다.
+function point(): Play {
+  const B = 5, BW = 46, GAP = 5;
+  let x = 30, tt = 0, end = -1, out = '', stare = 0, wrong = 0, said = 0, who = -1, whoT = 0;
+  const bx = (b: number): number => 3 + b * (BW + GAP);
+  const lit = (b: number, wx: number, wy: number): boolean => ((Math.imul(wx + 3, 73856093) ^ Math.imul(wy + 7, 19349663) ^ Math.imul(b + 11, 83492791)) >>> 0) % 9 === 0;
+  return {
+    scale: 2,
+    peek: () => ({ x, target: bx(2) + BW / 2, stare }),
+    hint: '← → 로 손을 옮긴다 · Z 로 가리킨다 · 아이 집이 있는 107동',
+    step(dt, _t, k, hit) {
+      tt += dt;
+      if (end >= 0) { end += dt; return end > 2.2 ? out : null; }
+      if (k.left) x -= dt * 70; if (k.right) x += dt * 70; x = Math.max(6, Math.min(W - 6, x));
+      const b = Math.floor((x - 3) / (BW + GAP));
+      // 불 켜진 창 쪽에 손이 오래 머물면 누가 내려다본다
+      const onLit = b >= 0 && b < B && b !== 2 && Math.abs(((x - 3) % (BW + GAP)) - BW / 2) < 14;
+      stare = Math.max(0, Math.min(1, stare + (onLit ? dt * 0.35 : -dt * 0.12) + dt * 0.02));
+      if (stare > 0.5 && who < 0) { who = b; whoT = 0; sfx('bump'); ui.hint('누가 커튼을 연다'); }
+      if (who >= 0) whoT += dt;
+      if (hit.has('z')) {
+        if (b === 2) { end = 0; out = stare > 0.5 ? 'seen' : 'home'; ui.hint(''); sfx('tap'); }
+        else { wrong++; stare = Math.min(1, stare + 0.2); sfx('bump'); if (said < 1) { said = 1; ui.hint('하은: 거기 아닌데요'); } }
+      }
+      if (tt > 25) { end = 0; out = 'seen'; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#04060b'); g.addColorStop(1, '#121724'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+      for (let b = 0; b < B; b++) { // 아래에서 올려다본 동: 위로 갈수록 좁아진다
+        const X = bx(b), top = 4 + (b % 2) * 10;
+        c.fillStyle = '#0e121c'; c.fillRect(X, top, BW, H - top); c.fillStyle = '#0a0d15'; c.fillRect(X + BW - 4, top, 4, H - top);
+        for (let wy = 0; wy < 15; wy++) for (let wx = 0; wx < 7; wx++) {
+          const yy = top + 12 + wy * 8, xx = X + 4 + wx * 6;
+          if (yy > H - 10) continue;
+          let col = lit(b, wx, wy) ? '#c89a52' : '#161b29';
+          if (b === 2 && wx === 3 && wy === 9) col = '#161b29'; // 아이 집: 불이 꺼져 있다
+          c.fillStyle = col; c.fillRect(xx, yy, 3, 4);
+        }
+        c.fillStyle = b === 2 ? '#4a5470' : '#262c3c'; c.font = '600 6px sans-serif'; c.fillText(String(105 + b), X + 15, top + 9);
+      }
+      // 내려다보는 사람: 창 하나에 불이 들어오고, 커튼이 걷히고, 머리와 어깨가 창을 채운다
+      if (who >= 0) {
+        const X = bx(who) + 4 + 3 * 6 - 2, Y = 4 + (who % 2) * 10 + 12 + 5 * 8, a = Math.min(1, whoT * 1.2), cur = Math.max(0, Math.round(3 - whoT * 3));
+        c.fillStyle = '#e8c070'; c.fillRect(X, Y, 7, 12);
+        c.fillStyle = '#b08a48'; c.fillRect(X, Y, cur, 12); c.fillRect(X + 7 - cur, Y, cur, 12);
+        c.fillStyle = 'rgba(12,10,14,' + a.toFixed(2) + ')';
+        c.beginPath(); c.ellipse(X + 3.5, Y + 5, 2, 2.4, 0, 0, 7); c.fill(); c.fillRect(X + 1, Y + 8, 5, 4);
+        c.fillStyle = '#3a3428'; c.fillRect(X - 1, Y + 12, 9, 1);
+      }
+      // 아래쪽 어둠과 내 팔: 화면 아래 가운데에서 손이 있는 쪽으로 뻗는다
+      const gg = c.createLinearGradient(0, H - 40, 0, H); gg.addColorStop(0, 'rgba(0,0,0,0)'); gg.addColorStop(1, 'rgba(0,0,0,0.85)'); c.fillStyle = gg; c.fillRect(0, H - 40, W, 40);
+      const hx = Math.round(x), hy = H - 40 + (end >= 0 ? -8 : Math.round(Math.sin(t * 2) * 1) + Math.round(stare * Math.sin(t * 40)));
+      const sx = W / 2 + (hx - W / 2) * 0.35, ang = Math.atan2(hy - H, hx - sx);
+      c.strokeStyle = '#34343e'; c.lineWidth = 11; c.lineCap = 'round'; c.beginPath(); c.moveTo(sx, H + 6); c.lineTo(hx - Math.cos(ang) * 6, hy - Math.sin(ang) * 6); c.stroke();
+      c.strokeStyle = '#26262e'; c.lineWidth = 3; c.beginPath(); c.moveTo(sx + 4, H + 6); c.lineTo(hx - Math.cos(ang) * 6 + 4, hy - Math.sin(ang) * 6); c.stroke(); c.lineCap = 'butt';
+      c.save(); c.translate(hx, hy); c.rotate(ang + Math.PI / 2);
+      c.fillStyle = '#efe6d6'; c.beginPath(); c.ellipse(0, 0, 6, 7, 0, 0, 7); c.fill(); // 손등 (털)
+      c.fillStyle = '#e07a2a'; c.beginPath(); c.ellipse(2, 2, 3, 3, 0, 0, 7); c.fill(); // 주황 얼룩
+      c.fillStyle = '#c8bca8'; c.fillRect(-3, -6, 1, 3); c.fillRect(0, -7, 1, 3); c.fillRect(3, -6, 1, 3); // 발가락 사이 골
+      c.restore();
+      // 내려다봄
+      if (stare > 0.05) { c.fillStyle = '#1a1e2a'; c.fillRect(8, H - 8, 60, 3); c.fillStyle = '#c84a3a'; c.fillRect(8, H - 8, Math.round(60 * stare), 3); }
+    },
+  };
+}
+
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), photo, catchb, zip, knock, sleeve, album, point };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;
