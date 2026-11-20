@@ -74,7 +74,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home' };
+const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -1511,7 +1511,7 @@ function album(): Play {
       if (hit.has('up')) cy = (cy + ROWS - 1) % ROWS; if (hit.has('down')) cy = (cy + 1) % ROWS;
       if (hit.size && !hit.has('z')) sfx('tap');
       if (hit.has('z')) { if (cy * COLS + cx === me) { end = 0; ui.hint(''); sfx('ringing_ear'); } else { wrong++; wrongT = 0.4; sfx('bump'); } }
-      if (wrong >= 3 && said === 0) { said = 1; ui.hint('그해 사진 찍던 날은 더웠다 · 나만 긴소매였다'); }
+      if (wrong >= 3 && said === 0) { said = 1; ui.hint('그날도 소매를 내리고 있었다'); }
       if (tt > 30 && end < 0) { cx = me % COLS; cy = Math.floor(me / COLS); end = 0; ui.hint(''); }
       return null;
     },
@@ -1556,7 +1556,7 @@ function album(): Play {
 // 아래에서 올려다본 다섯 동. 젤리 손이 창문들을 훑는다. 불 켜진 창 앞에서 오래 머물면 누가 커튼을 연다.
 function point(): Play {
   const B = 5, BW = 46, GAP = 5;
-  let x = 30, tt = 0, end = -1, out = '', stare = 0, wrong = 0, said = 0, who = -1, whoT = 0;
+  let x = 30, moved = false, tt = 0, end = -1, out = '', stare = 0, wrong = 0, said = 0, who = -1, whoT = 0;
   const bx = (b: number): number => 3 + b * (BW + GAP);
   const lit = (b: number, wx: number, wy: number): boolean => ((Math.imul(wx + 3, 73856093) ^ Math.imul(wy + 7, 19349663) ^ Math.imul(b + 11, 83492791)) >>> 0) % 9 === 0;
   return {
@@ -1566,12 +1566,12 @@ function point(): Play {
     step(dt, _t, k, hit) {
       tt += dt;
       if (end >= 0) { end += dt; return end > 2.2 ? out : null; }
-      if (k.left) x -= dt * 70; if (k.right) x += dt * 70; x = Math.max(6, Math.min(W - 6, x));
+      if (k.left || k.right) moved = true; if (k.left) x -= dt * 70; if (k.right) x += dt * 70; x = Math.max(6, Math.min(W - 6, x));
       const b = Math.floor((x - 3) / (BW + GAP));
       // 불 켜진 창 쪽에 손이 오래 머물면 누가 내려다본다
       const onLit = b >= 0 && b < B && b !== 2 && Math.abs(((x - 3) % (BW + GAP)) - BW / 2) < 14;
-      stare = Math.max(0, Math.min(1, stare + (onLit ? dt * 0.35 : -dt * 0.12) + dt * 0.02));
-      if (stare > 0.5 && who < 0) { who = b; whoT = 0; sfx('bump'); ui.hint('누가 커튼을 연다'); }
+      if (moved) stare = Math.max(0, Math.min(1, stare + (onLit ? dt * 0.3 : -dt * 0.1))); // 손을 움직이기 전에는 아무도 안 본다
+      if (stare > 0.5 && who < 0) { who = b; whoT = 0; sfx('bump'); }
       if (who >= 0) whoT += dt;
       if (hit.has('z')) {
         if (b === 2) { end = 0; out = stare > 0.5 ? 'seen' : 'home'; ui.hint(''); sfx('tap'); }
@@ -1620,7 +1620,319 @@ function point(): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), photo, catchb, zip, knock, sleeve, album, point };
+// ═══════════ 약봉지 (3장: 영수증) ═══════════
+// 아침마다 한 봉지. 날이 점점 빨리 간다. 뜯을수록 창이 밝아진다. 석 달째, 띠째 사라진다.
+function pills(): Play {
+  const DAYS = 84, PW = 24;
+  let tt = 0, pos = 0, taken = 0, L = 0, gone = -1, end = -1, lastDay = -1, said = 0;
+  const torn = new Set<number>(), dropped = new Set<number>();
+  const speed = (t: number): number => Math.min(4.6, 1.4 + t * 0.5); // 하루에 몇 봉지 지나가나
+  return {
+    scale: 2,
+    peek: () => ({ pos, taken, gone }),
+    hint: 'Z · 봉지가 가운데 오면 뜯는다 · 하루에 한 봉지',
+    step(dt, _t, _k, hit) {
+      tt += dt;
+      if (end >= 0) { end += dt; L = Math.max(0, L - dt * 0.6); return end > 2.4 ? 'taken' : null; }
+      if (gone >= 0) { gone += dt; if (gone > 1.6 && end < 0) { end = 0; sfx('water_run'); ui.hint(''); } return null; }
+      pos += speed(tt) * dt;
+      const day = Math.round(pos);
+      if (day !== lastDay) { lastDay = day; if (day % 7 === 0 && day > 0) sfx('tap'); }
+      if (hit.has('z')) {
+        const near = Math.abs(pos - day) < 0.22 && !torn.has(day) && day < DAYS;
+        if (near) { torn.add(day); taken++; sfx('fabric_tear'); }
+        else { const nd = Math.ceil(pos); if (!torn.has(nd) && nd < DAYS) { dropped.add(nd); sfx('bump'); } } /* 서두르면 봉지를 놓친다 */
+      }
+      L += ((taken / DAYS) * 1.4 - L) * Math.min(1, dt * 0.8); L = Math.min(1, L);
+      if (pos > 20 && said === 0) { said = 1; ui.hint('아침이 조금 덜 무겁다'); }
+      if (pos >= DAYS - 4) { gone = 0; sfx('door_open'); ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      // 방: 창으로 드는 아침빛이 먹은 날만큼 밝다
+      const lv = Math.min(1, L);
+      c.fillStyle = 'rgb(' + Math.round(14 + lv * 30) + ',' + Math.round(14 + lv * 28) + ',' + Math.round(18 + lv * 24) + ')'; c.fillRect(0, 0, W, H);
+      c.fillStyle = 'rgb(' + Math.round(30 + lv * 170) + ',' + Math.round(34 + lv * 150) + ',' + Math.round(46 + lv * 100) + ')'; c.fillRect(24, 10, 56, 40);
+      c.fillStyle = '#1a1a20'; c.fillRect(51, 10, 2, 40); c.fillRect(24, 29, 56, 2);
+      if (lv > 0.05) { c.fillStyle = 'rgba(255,230,180,' + (lv * 0.12).toFixed(3) + ')'; c.beginPath(); c.moveTo(24, 50); c.lineTo(80, 50); c.lineTo(140, H); c.lineTo(40, H); c.fill(); }
+      // 문틈: 열리면 어둠 속에 붉은 눈 두 개
+      c.fillStyle = '#0c0c10'; c.fillRect(W - 40, 8, 30, H - 30);
+      const gap = gone >= 0 ? Math.min(14, gone * 30) : 0;
+      c.fillStyle = '#2a2420'; c.fillRect(W - 40, 8, 30 - gap, H - 30); c.fillStyle = '#3a322a'; c.fillRect(W - 14 - gap, 50, 2, 3);
+      if (gone > 0.4) { const a = Math.min(1, (gone - 0.4) * 2); c.fillStyle = 'rgba(200,40,30,' + a.toFixed(2) + ')'; c.fillRect(W - 15, 34, 2, 1); c.fillRect(W - 11, 34, 2, 1); }
+      // 약봉지 띠: 가운데 표시 위로 흘러간다
+      const cx = W / 2 - 20, y = 70;
+      const yank = gone >= 0 ? gone * gone * 200 : 0;
+      c.save(); c.translate(yank, -yank * 0.2); if (gone >= 0) c.rotate(Math.min(0.5, gone * 0.4));
+      for (let d = Math.floor(pos) - 6; d <= Math.floor(pos) + 8; d++) {
+        if (d < 0 || d >= DAYS) continue;
+        if (dropped.has(d)) { const x0 = cx + (d - pos) * PW; c.fillStyle = '#2a2e34'; c.fillRect(Math.round(x0) - PW / 2 + 1, y, PW - 2, 30); continue; }
+        const x = cx + (d - pos) * PW;
+        c.fillStyle = torn.has(d) ? '#cfd6d8' : '#e8eef0'; c.fillRect(Math.round(x) - PW / 2 + 1, y, PW - 2, 30);
+        c.fillStyle = '#b8c4c8'; c.fillRect(Math.round(x) + PW / 2 - 1, y, 1, 30);
+        c.fillStyle = '#4a6a8a'; c.font = '600 5px sans-serif'; const m = 9 + Math.floor(d / 30), dd = (d % 30) + 1; c.fillText(m + '/' + dd, Math.round(x) - 7, y + 7);
+        if (torn.has(d)) { c.fillStyle = '#a8b0b4'; c.fillRect(Math.round(x) - 9, y, 18, 2); }
+        else { c.fillStyle = '#f4f4f0'; c.beginPath(); c.ellipse(x - 3, y + 19, 3, 2, 0, 0, 7); c.fill(); c.fillStyle = '#e8b8a0'; c.beginPath(); c.ellipse(x + 4, y + 20, 2.5, 2.5, 0, 0, 7); c.fill(); }
+      }
+      c.restore();
+      if (gone < 0) { c.fillStyle = '#c84a3a'; c.fillRect(cx - 1, y - 6, 2, 4); c.fillRect(cx - 1, y + 32, 2, 4); }
+      // 날수
+      c.fillStyle = '#6a7080'; c.font = '600 6px sans-serif'; c.fillText(Math.min(DAYS, Math.max(0, Math.round(pos))) + '일째 · 먹은 날 ' + taken, 8, H - 8);
+    },
+  };
+}
+
+// ═══════════ 공책 (1장: 교탁 앞) ═══════════
+// 정민이가 공책을 들고 읽는다. 따라가서 손을 뻗으면 다른 애한테 던진다. 한 장씩 찢어진다.
+function grab(): Play {
+  const SEATS = [[40, 62], [84, 66], [172, 66], [216, 62], [60, 92], [128, 96], [196, 92]];
+  let x = 128, tt = 0, holder = -1, toss = -1, from = -1, end = -1, reach = 0, flips = 0, pageT = 0, said = 0;
+  const pages: { x: number; y: number; vx: number; vy: number; r: number }[] = [];
+  const laughs: { x: number; y: number; t: number }[] = [];
+  const holdPos = (h: number): [number, number] => (h < 0 ? [128, 30] : [SEATS[h][0], SEATS[h][1] - 14]);
+  const laugh = (): void => { for (let i = 0; i < 4; i++) { const s2 = SEATS[(Math.floor(tt * 10) + i * 3) % SEATS.length]; laughs.push({ x: s2[0] + (i % 2) * 4, y: s2[1] - 12, t: 0 }); } sfx('tv_laugh'); };
+  const tear = (px2: number, py: number): void => { pages.push({ x: px2, y: py, vx: (Math.random() - 0.5) * 30, vy: -10, r: Math.random() * 3 }); sfx('fabric_tear'); };
+  return {
+    scale: 2,
+    peek: () => { const [hx] = holdPos(holder); return { x, hx, toss: toss >= 0 ? 1 : 0, flips }; },
+    hint: '← → 로 따라간다 · ↑ 로 손을 뻗는다 · 공책을 되찾는다',
+    step(dt, _t, k, hit) {
+      tt += dt; reach = Math.max(0, reach - dt * 3); pageT += dt;
+      for (const p of pages) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy = Math.min(14, p.vy + 20 * dt); p.vx *= 0.98; if (p.y > H - 14) { p.y = H - 14; p.vy = 0; p.vx = 0; } }
+      for (const l of laughs) l.t += dt;
+      while (laughs.length && laughs[0].t > 1.4) laughs.shift();
+      if (end >= 0) { end += dt; return end > 2.4 ? 'gone' : null; }
+      if (k.left) x -= dt * 60; if (k.right) x += dt * 60; x = Math.max(16, Math.min(W - 16, x));
+      if (hit.has('up')) reach = 1;
+      if (toss >= 0) { toss += dt * 1.6; if (toss >= 1) { toss = -1; laugh(); } }
+      else {
+        const [hx, hy] = holdPos(holder);
+        if (reach > 0.7 && Math.abs(hx - x) < 18) { // 닿기 직전에 던진다
+          from = holder; let n = holder; while (n === holder || Math.abs(holdPos(n)[0] - x) < 30) n = Math.floor(Math.random() * SEATS.length);
+          holder = n; toss = 0; flips++; tear(hx, hy); reach = 0;
+          if (flips === 2 && said === 0) { said = 1; ui.hint('닿을 것 같으면 다른 데로 간다'); }
+        }
+        if (pageT > 2.6) { pageT = 0; laugh(); } // 그 사이에도 한 장씩 넘기며 읽는다
+      }
+      if (flips >= 4 || tt > 16) { end = 0; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      // 교실 앞: 칠판, 교탁, 얼굴 없는 반 아이들
+      c.fillStyle = '#2a2622'; c.fillRect(0, 0, W, H);
+      c.fillStyle = '#26402e'; c.fillRect(30, 6, W - 60, 34); c.fillStyle = '#5a4430'; c.fillRect(28, 40, W - 56, 3);
+      c.fillStyle = 'rgba(220,220,210,0.25)'; c.fillRect(44, 14, 22, 1); c.fillRect(44, 20, 30, 1); c.fillRect(170, 16, 26, 1);
+      px(c, 0, H - 14, W, 14, '#3a3028');
+      for (const [sx, sy] of SEATS) {
+        px(c, sx - 12, sy + 6, 24, 4, '#7a5a3a'); px(c, sx - 11, sy + 10, 2, 8, '#4a3a2a'); px(c, sx + 9, sy + 10, 2, 8, '#4a3a2a');
+        px(c, sx - 6, sy - 4, 12, 10, '#f0f0ea'); // 하복 셔츠
+        // 칠판 쪽을 보고 앉았다: 뒤통수와 귀만 보인다. 웃을 때는 고개가 반쯤 돌아온다
+        const turn = laughs.some((l) => Math.abs(l.x - sx) < 6 && l.t < 1) ? 2 : 0;
+        c.fillStyle = '#c9ab92'; c.fillRect(sx - 6 + turn, sy - 10, 12, 4);
+        c.fillStyle = '#1e1a18'; c.beginPath(); c.ellipse(sx - turn, sy - 10, 5.5, 6, 0, 0, 7); c.fill();
+      }
+      // 정민: 교탁 뒤에 서 있다
+      px(c, 110, 44, 36, 20, '#6a4a30'); px(c, 110, 44, 36, 2, '#8a6a48');
+      px(c, 120, 26, 16, 18, '#f0f0ea'); c.fillStyle = '#c9ab92'; c.beginPath(); c.ellipse(128, 20, 6, 7, 0, 0, 7); c.fill(); c.fillStyle = '#141210'; c.beginPath(); c.ellipse(128, 16, 7, 4.5, 0, Math.PI, 0); c.fill();
+      // 공책
+      let nx: number, ny: number;
+      if (toss >= 0) { const [ax, ay] = holdPos(from), [bx2, by] = holdPos(holder); nx = ax + (bx2 - ax) * toss; ny = ay + (by - ay) * toss - Math.sin(toss * Math.PI) * 30; }
+      else { [nx, ny] = holdPos(holder); ny += Math.sin(t * 3) * 1; }
+      c.save(); c.translate(nx, ny); c.rotate(toss >= 0 ? toss * 6 : -0.1);
+      px(c, -7, -5, 14, 10, '#d8d0b8'); px(c, -7, -5, 1, 10, '#8a8070'); px(c, -4, -2, 4, 3, '#6a6a6a'); px(c, 1, -1, 4, 1, '#8a8a8a');
+      c.restore();
+      for (const p of pages) { c.save(); c.translate(p.x, p.y); c.rotate(p.r + (p.vy ? t * 3 : 0)); px(c, -4, -3, 8, 6, '#e8e0cc'); px(c, -2, -1, 3, 2, '#8a8a8a'); c.restore(); }
+      for (const l of laughs) { c.fillStyle = 'rgba(232,224,204,' + Math.max(0, 1 - l.t / 1.4).toFixed(2) + ')'; c.font = '600 7px "Pretendard", sans-serif'; c.fillText('ㅋ', l.x, l.y - l.t * 12); }
+      // 나: 뒤에서 본 열다섯 살. 혼자 긴소매
+      const by2 = H - 4;
+      px(c, x - 7, by2 - 22, 14, 22, '#2e3450'); c.fillStyle = '#1a1614'; c.beginPath(); c.ellipse(x, by2 - 27, 6, 6, 0, 0, 7); c.fill();
+      const ry = by2 - 20 - reach * 26;
+      c.strokeStyle = '#2e3450'; c.lineWidth = 4; c.beginPath(); c.moveTo(x + 5, by2 - 18); c.lineTo(x + 8, ry); c.stroke();
+      px(c, x + 6, Math.round(ry) - 3, 4, 3, '#c9ab92');
+    },
+  };
+}
+
+// ═══════════ 그네 밀어 주기 (1장: 하은) ═══════════
+function push(): Play {
+  const OM = 2.2, TX = 120, TY = 24, L = 66;
+  let A = 0.05, ph = -Math.PI / 2, tt = 0, good = 0, end = -1, lunge = 0, said = 0, lock = 0;
+  return {
+    scale: 2,
+    peek: () => ({ A, back: Math.sin(ph), good }),
+    hint: 'Z · 그네가 내 앞으로 돌아왔을 때 민다',
+    step(dt, _t, _k, hit) {
+      tt += dt; lunge = Math.max(0, lunge - dt * 3); lock -= dt;
+      ph += OM * dt; A = Math.max(0.04, A - dt * 0.012);
+      if (end >= 0) { end += dt; return end > 1.8 ? 'pushed' : null; }
+      if (hit.has('z') && lock <= 0) {
+        lunge = 1;
+        if (Math.sin(ph) < -0.8 && Math.cos(ph) > -0.4) { A = Math.min(0.62, A + 0.1 * (1 - A)); good++; sfx('swing_creak'); if (good === 2) ui.hint('하은: 더요! 더!'); }
+        else { A = Math.max(0.04, A - 0.03); lock = 1.2; sfx('bump'); /* 허공을 밀면 몸이 앞으로 쏠린다 */ if (said === 0) { said = 1; ui.hint('그네가 멀리 있을 때 밀면 허공을 민다'); } }
+      }
+      if (good >= 5 || tt > 16) { end = 0; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05070d'); g.addColorStop(1, '#161a22'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+      const lg = c.createRadialGradient(200, 24, 2, 200, 24, 80); lg.addColorStop(0, 'rgba(255,214,140,0.45)'); lg.addColorStop(1, 'rgba(255,214,140,0)'); c.fillStyle = lg; c.fillRect(110, 0, 146, 120);
+      px(c, 199, 24, 2, H - 54, '#2a2a30'); px(c, 194, 22, 12, 3, '#e8d2a0');
+      px(c, 0, H - 30, W, 30, '#2a2620'); for (let i = 0; i < 50; i++) px(c, (i * 37) % W, H - 28 + ((i * 11) % 26), 1, 1, '#3a342a');
+      px(c, TX - 50, TY, 100, 3, '#4a4038'); c.strokeStyle = '#4a4038'; c.lineWidth = 3; c.beginPath(); c.moveTo(TX - 48, TY); c.lineTo(TX - 64, H - 30); c.moveTo(TX + 48, TY); c.lineTo(TX + 64, H - 30); c.stroke();
+      const ang = Math.sin(ph) * A, sx = TX + Math.sin(ang) * L, sy = TY + Math.cos(ang) * L;
+      c.strokeStyle = '#8a8f99'; c.lineWidth = 1; c.beginPath(); c.moveTo(TX, TY + 2); c.lineTo(sx, sy); c.stroke();
+      px(c, sx - 7, sy, 14, 2, '#6a4a30');
+      // 하은: 잠옷, 슬리퍼, 얼굴은 그리지 않는다. 앞으로 갈 때 다리를 편다
+      const fwd = Math.cos(ph) > 0 ? 1 : 0;
+      c.strokeStyle = '#8aa6c8'; c.lineWidth = 2; c.beginPath(); c.moveTo(sx + 1, sy); c.lineTo(sx + 3 + fwd * 3, sy + 5 - fwd * 2); c.stroke();
+      px(c, Math.round(sx + 3 + fwd * 3), Math.round(sy + 5 - fwd * 2), 3, 1, '#e8c0d0');
+      px(c, sx - 3, sy - 9, 6, 9, '#e8e4dc'); px(c, sx - 3, sy - 15, 6, 6, '#2a2220'); px(c, sx - 2, sy - 13, 4, 4, '#c9a48a');
+      // 삼색이: 그네 뒤에 서서 두 손을 내민다
+      const mx = TX - 28, my = H - 30;
+      px(c, mx - 6, my - 26, 12, 26, '#34343e'); px(c, mx - 6, my - 26, 2, 26, '#26262e');
+      c.strokeStyle = '#e07a2a'; c.lineWidth = 2; c.beginPath(); c.moveTo(mx - 6, my - 4); c.quadraticCurveTo(mx - 16, my - 2, mx - 14, my - 12); c.stroke();
+      const hx = mx - 7, hy = my - 40;
+      px(c, hx, hy, 14, 13, '#efe6d6'); px(c, hx, hy, 6, 6, '#e07a2a'); px(c, hx + 9, hy + 1, 5, 4, '#1c1c20'); px(c, hx - 1, hy - 2, 3, 3, '#e07a2a'); px(c, hx + 12, hy - 1, 3, 2, '#1c1c20');
+      px(c, hx + 11, hy + 6, 2, 2, '#2a3a2a');
+      const ax = mx + 6 + lunge * 8;
+      c.strokeStyle = '#34343e'; c.lineWidth = 3; c.beginPath(); c.moveTo(mx + 4, my - 20); c.lineTo(ax, my - 22); c.stroke(); px(c, Math.round(ax), my - 24, 4, 4, '#efe6d6');
+    },
+  };
+}
+
+// ═══════════ 가방 건네기 (2장: 모임방 문 앞) ═══════════
+// 토토가 손을 내민다. 끈을 쥔 손가락을 하나씩 편다. 토토가 내 얼굴 쪽을 볼 때 펴고 있으면 도로 오므라든다.
+function bag(): Play {
+  let open = 0, lock = 0, tt = 0, end = -1, out = '', look = 0, nextLook = 2.2, snaps = 0, said = 0, flinch = 0;
+  return {
+    scale: 2,
+    peek: () => ({ open, look: look > 0 ? 1 : 0, danger: look > 0 && look < 0.85 ? 1 : 0 }),
+    hint: 'Z 를 누르고 있으면 손가락이 펴진다 · 이쪽을 볼 때는 뗀다',
+    step(dt, _t, k) {
+      tt += dt; lock -= dt; flinch = Math.max(0, flinch - dt * 2.5);
+      if (end >= 0) { end += dt; return end > 2 ? out : null; }
+      // 토토가 가끔 내 얼굴 쪽으로 고개를 든다 (0.9초)
+      if (look > 0) look -= dt; else if (tt > nextLook) { look = 1.3; nextLook = tt + 1.3 + 1.5 + Math.random() * 1.4; sfx('tap'); } // 앞의 0.4초는 고개가 움찔하는 예고
+      if (k.z) {
+        if (look > 0 && look < 0.85) { open = Math.max(0, Math.floor(open) - 1); lock = 1.2; flinch = 1; look = 0; snaps++; sfx('bump'); if (said === 0) { said = 1; ui.hint('눈이 마주칠 것 같으면 손이 먼저 오므라든다'); } }
+        else if (lock <= 0) open += dt * 0.7;
+      }
+      if (open >= 4) { end = 0; out = 'given'; sfx('fabric_tear'); ui.hint(''); }
+      else if (tt > 16) { end = 0; out = 'kept'; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      // 계단참 형광등 빛, 문틀
+      c.fillStyle = '#1c2024'; c.fillRect(0, 0, W, H);
+      c.fillStyle = '#2a3034'; c.fillRect(150, 0, 106, H); c.fillStyle = '#3a3428'; c.fillRect(146, 0, 4, H);
+      c.fillStyle = 'rgba(255,200,140,0.12)'; c.fillRect(150, 0, 106, H);
+      // 토토: 흰 셔츠, 넥타이를 주머니에 꽂았다. 얼굴은 그리지 않는다. 볼 때는 고개가 든다
+      const up = look > 0.9 ? 0.25 + Math.sin(t * 40) * 0.1 : look > 0 ? Math.min(1, look * 6) : 0;
+      c.fillStyle = '#eef0f2'; c.fillRect(176, 40, 54, H - 40); c.fillStyle = '#d4d8dc'; c.fillRect(176, 40, 4, H - 40);
+      c.fillStyle = '#c9ab92'; c.fillRect(198, 36, 12, 6); // 목
+      c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(194, 40); c.lineTo(204, 50); c.lineTo(198, 52); c.lineTo(192, 42); c.fill(); c.beginPath(); c.moveTo(214, 40); c.lineTo(204, 50); c.lineTo(210, 52); c.lineTo(216, 42); c.fill(); // 깃 (단추를 하나 풀었다)
+      c.fillStyle = '#c8ccd2'; for (let yy = 56; yy < H; yy += 9) c.fillRect(204, yy, 1, 1); // 단추
+      c.fillStyle = '#dde0e4'; c.fillRect(186, 60, 1, 30); c.fillRect(222, 70, 1, 24); c.fillRect(190, 100, 10, 1); // 주름
+      c.fillStyle = '#1e2a4a'; c.fillRect(214, 74, 5, 12); c.fillStyle = '#2a3a60'; c.fillRect(214, 74, 5, 1); c.fillStyle = '#9aa0a8'; c.fillRect(196, 50, 1, 26); c.fillStyle = '#3a6ab0'; c.fillRect(194, 76, 5, 7); // 넥타이 끝, 사원증 줄과 카드
+      c.fillStyle = '#c9ab92'; c.beginPath(); c.ellipse(204, 26 - up * 4, 13, 15, 0, 0, 7); c.fill(); c.fillStyle = '#b8987e'; c.fillRect(190, 24 - up * 4, 2, 6); c.fillRect(216, 24 - up * 4, 2, 6); // 귀
+      c.fillStyle = '#1a1612'; c.beginPath(); c.ellipse(204 - up * 2, 16 - up * 5, 14, 9, 0, Math.PI, 0); c.fill(); c.fillRect(190, 14 - up * 5, 28, 5);
+      if (up > 0.3) { c.fillStyle = 'rgba(200,74,58,' + (up * 0.5).toFixed(2) + ')'; c.fillRect(0, 0, W, 2); c.fillRect(0, H - 2, W, 2); }
+      // 가방 끈: 내 손과 토토의 손 사이
+      const SY = 92;
+      c.fillStyle = '#3e4430'; c.fillRect(20, SY + 14, 120, H - SY - 14); c.fillStyle = '#343a28'; c.fillRect(20, SY + 14, 120, 3);
+      c.strokeStyle = '#2a2e20'; c.lineWidth = 5; c.beginPath(); c.moveTo(60, SY + 16); c.quadraticCurveTo(100, SY - 10 + (end >= 0 && out === 'given' ? -20 : 0), 150, SY + 2); c.stroke();
+      // 토토의 손: 손바닥을 위로, 기다린다
+      c.fillStyle = '#eef0f2'; c.fillRect(174, SY - 3, 16, 14); c.fillStyle = '#c8ccd2'; c.fillRect(174, SY - 3, 1, 14); c.fillRect(180, SY + 4, 1, 1); // 소맷부리, 단추
+      c.fillStyle = '#c9ab92'; c.fillRect(152, SY + 1, 22, 7); c.fillStyle = '#b8987e'; c.fillRect(152, SY + 7, 22, 1);
+      for (let i = 0; i < 4; i++) { c.fillStyle = '#c9ab92'; c.fillRect(146 - i, SY + 1 + i * 2, 8, 2); c.fillStyle = '#b8987e'; c.fillRect(146 - i, SY + 2 + i * 2, 1, 1); } // 펴서 내민 손가락
+      c.fillStyle = '#d6b8a0'; c.fillRect(166, SY - 2, 6, 3); // 엄지
+      // 내 손: 회색 소매, 손가락 네 개가 끈을 감았다. 편 만큼 끈에서 떨어진다
+      const fx = 82 + Math.sin(t * 30) * flinch * 2;
+      c.fillStyle = '#4a4a52'; c.fillRect(0, SY - 6, fx - 14, 22); c.fillStyle = '#3a3a42'; c.fillRect(0, SY + 12, fx - 14, 4);
+      c.fillStyle = '#c4a28a'; c.fillRect(fx - 16, SY - 4, 14, 18); c.fillStyle = '#ac8a72'; c.fillRect(fx - 16, SY + 12, 14, 2); c.fillRect(fx - 6, SY - 4, 1, 16); // 손등 그늘, 마디
+      c.fillStyle = '#d0b098'; c.fillRect(fx - 12, SY - 6, 8, 3); // 끈 위로 감은 엄지
+      for (let i = 0; i < 4; i++) {
+        const o = Math.max(0, Math.min(1, open - i)); // 집게손가락부터 하나씩
+        const yy = SY - 4 + i * 4.5;
+        if (o < 1) { c.fillStyle = '#b8967e'; c.fillRect(fx - 2, yy, 6 - o * 2, 4); c.fillStyle = '#c4a28a'; c.fillRect(fx + 2 - o * 2, yy + 1, 3, 3 - o * 2); }
+        else { c.fillStyle = '#c4a28a'; c.fillRect(fx - 2, yy, 12, 3); }
+      }
+      c.fillStyle = '#6a7080'; c.font = '600 6px sans-serif'; c.fillText('현우: 무겁죠 이거.', 158, 136);
+    },
+  };
+}
+
+// ═══════════ 손전등 (1장: 분리수거장 뒤) ═══════════
+// 빛이 바닥을 훑는다. 떨리는 몸 때문에 꼬리가 그늘 밖으로 밀려 나간다. ← 로 끌어당기면 천이 바스락거린다.
+function beam(): Play {
+  const SH = 112, GY = 120; // 그늘 끝, 바닥 높이
+  let len = 6, rustle = 0, tt = 0, bx = 250, end = -1, out = '', snap = -1, twitch = 1.4;
+  const path = (t: number): number => { // 오른쪽에서 왼쪽으로, 멈칫, 되돌아 다시
+    if (t < 3.2) return 250 - t * 38;
+    if (t < 4.2) return 128 + Math.sin((t - 3.2) * 6) * 4;
+    if (t < 6.4) return 128 + (t - 4.2) * 50;
+    if (t < 9.6) return 238 - (t - 6.4) * 36;
+    return 123 + (t - 9.6) * 60;
+  };
+  return {
+    scale: 2,
+    peek: () => ({ tip: 96 + len, bx, rustle }),
+    hint: '← 를 누르면 꼬리를 끌어당긴다 · 너무 오래 당기면 바스락거린다',
+    step(dt, _t, k) {
+      tt += dt;
+      if (end >= 0) { end += dt; return end > 2.2 ? out : null; }
+      twitch -= dt; if (twitch < 0) { twitch = 1.1 + Math.random() * 1.2; len += 7 + Math.random() * 6; } // 무릎이 떨려서 꼬리가 밀려 나간다
+      len += dt * 5;
+      if (k.left) { len -= dt * 34; rustle += dt * 0.75; } else rustle = Math.max(0, rustle - dt * 0.45);
+      len = Math.max(0, Math.min(70, len));
+      bx = snap >= 0 ? bx + (Math.max(84, 96 + len) - bx) * Math.min(1, dt * 4) : path(tt);
+      if (rustle >= 1 && snap < 0) { snap = 0; sfx('bump'); ui.hint('박씨: 거기 누구 있소?'); }
+      if (snap >= 0) snap += dt;
+      const tip = 96 + len;
+      if (tip > SH && Math.abs(bx - tip) < 10) { end = 0; out = 'tail'; sfx('heartbeat'); ui.hint(''); }
+      else if (snap > 1.2) { end = 0; out = 'tail'; sfx('heartbeat'); ui.hint(''); } // 소리를 듣고 온 빛은 그늘 안까지 들어온다
+      else if (tt > 11.5) { end = 0; out = 'hidden'; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      // 분리수거장 벽: 벽돌, 그 앞에 수거함과 마대. 왼쪽은 그늘
+      c.fillStyle = '#0e1013'; c.fillRect(0, 0, W, H);
+      for (let y = 8; y < GY; y += 6) for (let x = ((y / 6) % 2) * 6 - 6; x < W; x += 12) { c.fillStyle = ((x * 7 + y * 3) % 5) ? '#1c1e24' : '#202228'; c.fillRect(x, y, 11, 5); }
+      c.fillStyle = '#1e1c18'; c.fillRect(0, GY, W, H - GY); for (let i = 0; i < 40; i++) { c.fillStyle = '#26241e'; c.fillRect((i * 41) % W, GY + 3 + ((i * 13) % 20), 2, 1); }
+      // 수거함: 초록 플라스틱, 흰 글씨 칸
+      c.fillStyle = '#24402c'; c.fillRect(14, 72, 42, 48); c.fillStyle = '#2e5038'; c.fillRect(14, 72, 42, 3); c.fillStyle = '#1a3020'; c.fillRect(52, 75, 4, 45);
+      c.fillStyle = '#c8ccc4'; c.fillRect(22, 86, 24, 7); c.fillStyle = '#5a6a5e'; c.fillRect(25, 88, 18, 1); c.fillRect(25, 90, 12, 1);
+      // 마대: 묶은 주둥이, 삐져나온 페트병, 결
+      c.fillStyle = '#5a5240'; c.beginPath(); c.moveTo(150, GY); c.quadraticCurveTo(146, GY - 26, 166, GY - 30); c.quadraticCurveTo(190, GY - 28, 192, GY); c.fill();
+      c.fillStyle = '#4a4434'; for (let yy = GY - 26; yy < GY; yy += 3) c.fillRect(152, yy, 38, 1);
+      c.fillStyle = '#6a624e'; c.fillRect(164, GY - 34, 6, 5); c.fillStyle = '#8ab0c8'; c.fillRect(176, GY - 36, 4, 9); c.fillStyle = '#c84a3a'; c.fillRect(176, GY - 37, 4, 2);
+      // 그늘: 가장자리가 번진다
+      c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(0, 0, SH - 6, H);
+      for (let i = 0; i < 6; i++) { c.fillStyle = 'rgba(0,0,0,' + (0.6 - i * 0.1).toFixed(2) + ')'; c.fillRect(SH - 6 + i, 0, 1, H); }
+      // 나: 벽에 등을 붙이고 무릎을 세웠다. 헤드를 무릎과 가슴 사이에 끌어안았다
+      const sh2 = Math.round(Math.sin(t * 22) * 0.6);
+      c.fillStyle = '#2c2c34'; c.fillRect(66 + sh2, 88, 22, 32); // 몸통
+      c.fillStyle = '#34343e'; c.beginPath(); c.moveTo(84 + sh2, 120); c.lineTo(98 + sh2, 100); c.lineTo(104 + sh2, 104); c.lineTo(96 + sh2, 120); c.fill(); // 세운 무릎
+      c.fillStyle = '#1a1614'; c.beginPath(); c.ellipse(76 + sh2, 82, 8, 8, 0, 0, 7); c.fill(); c.fillStyle = '#c4a28a'; c.fillRect(81 + sh2, 82, 3, 4); // 머리카락, 땀 젖은 옆얼굴 한 귀퉁이
+      c.fillStyle = '#efe6d6'; c.fillRect(78 + sh2, 92, 15, 13); c.fillStyle = '#e07a2a'; c.fillRect(78 + sh2, 92, 6, 5); c.fillStyle = '#1c1c20'; c.fillRect(89 + sh2, 93, 4, 4); c.fillStyle = '#2a3a2a'; c.fillRect(86 + sh2, 98, 2, 2); // 품에 안은 헤드
+      c.fillStyle = '#2c2c34'; c.fillRect(72 + sh2, 95, 6, 6); c.fillStyle = '#c4a28a'; c.fillRect(76 + sh2, 96, 4, 4); // 손 파츠를 뺐다. 소매를 끝까지 내린 맨손
+      c.fillStyle = 'rgba(0,0,0,0.45)'; c.fillRect(60, 72, 50, 50);
+      // 꼬리: 엉덩이에서 바닥으로, 그늘 밖으로 밀려 나간다. 주황 바탕에 검은 끝
+      const tip = 96 + len;
+      c.strokeStyle = '#e07a2a'; c.lineWidth = 4; c.beginPath(); c.moveTo(86, GY - 1); c.quadraticCurveTo((86 + tip) / 2, GY + 3 + Math.sin(t * 9) * 1, tip, GY); c.stroke();
+      c.strokeStyle = '#efe6d6'; c.lineWidth = 1; c.beginPath(); c.moveTo(88, GY); c.quadraticCurveTo((86 + tip) / 2, GY + 4, tip - 3, GY + 1); c.stroke();
+      c.fillStyle = '#1a1a1a'; c.fillRect(Math.round(tip) - 3, GY - 2, 5, 4);
+      // 손전등 빛
+      const r = 18;
+      const g = c.createRadialGradient(bx, GY - 4, 2, bx, GY - 4, r + 8); g.addColorStop(0, 'rgba(255,246,210,0.55)'); g.addColorStop(0.7, 'rgba(255,240,200,0.25)'); g.addColorStop(1, 'rgba(255,240,200,0)');
+      c.fillStyle = g; c.beginPath(); c.ellipse(bx, GY - 4, r + 8, 16, 0, 0, 7); c.fill();
+      // 바스락거림
+      if (rustle > 0.05) { c.fillStyle = '#1a1e2a'; c.fillRect(8, H - 8, 60, 3); c.fillStyle = rustle > 0.7 ? '#c84a3a' : '#8a8f99'; c.fillRect(8, H - 8, Math.round(60 * Math.min(1, rustle)), 3); }
+    },
+  };
+}
+
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;
