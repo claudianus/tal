@@ -989,7 +989,7 @@ const WATCH_SUB = [
 function watch(opt: GameOpt): Play {
   const face = canvasOf(videoFace(!!opt.droopy)), play = canvasOf(videoPlayground(!!opt.droopy));
   const PER = 1.7, DUR = WATCH_SUB.length * PER + 0.6;
-  let tt = 0, end = -1, out = '', views = 412880, said = 0;
+  let tt = 0, end = -1, out = '', views = 412700, said = 0;
   const F = '600 5px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
   return {
     scale: 4,
@@ -1042,7 +1042,7 @@ function watch(opt: GameOpt): Play {
 
 // ═══════════ 나가기 (4장: 대화방을 하나씩) ═══════════
 // Z 를 누르면 '나가기', 한 번 더 누르면 정말 나간다. 위에서부터. 마지막 방에서는 손이 멈춘다.
-const ROOMS = ['털날림 주의보 · 잡담', '털날림 주의보 · 정모 공지', '털날림 주의보 · 탈 만들기', '털날림 주의보 · 성인', '굿즈 공동구매 3차', '탈 재료 나눔방', '108동 택배 알림', '토토'];
+const ROOMS = ['털날림 주의보 · 잡담', '털날림 주의보 · 정모 공지', '털날림 주의보 · 탈 만들기', '털날림 주의보 · 그림 자랑', '굿즈 공동구매 3차', '탈 재료 나눔방', '108동 택배 알림', '토토'];
 function leave(): Play {
   const rooms = ROOMS.map((n) => ({ n, gone: 0 }));
   let tt = 0, ask = false, idx = 0, end = -1, idle = 0;
