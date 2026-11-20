@@ -24,6 +24,9 @@ VAR saw_pills = false
 === ch2 ===
 # chapter: 2장 — 무리
 # scene: playground_night
+# pos: swing1
+# pose: sit
+# npc: haeun swing2
 # suit: on
 # voice_stop
 ~ suit_on = true
@@ -37,6 +40,7 @@ VAR saw_pills = false
 - else:
     대답도 없이 돌아섰었다. 그런데 눈이 떠졌다.
 }
+# emote: wave haeun
 그네에 아이가 앉아 있었다. 나를 보고 손을 흔들었다. 높이, 진지하게.
 그다음 날에도. 그 다음다음 날에도.
 돌아올 때마다 107동을 가리켰다. 아이는 매번 '조금만 있다가요'라고 했다.
@@ -70,6 +74,8 @@ VAR saw_pills = false
 닷새째.
 식탁 위의 만 원을 집었다. 고양이도 돈이 필요할 때가 있다.
 # scene: convenience_store
+# pos: in
+# npc: clerk clerk
 # sfx: door_chime
 ~ heat = 30
 단지 상가의 편의점. 형광등이 이렇게 밝은 곳에 들어온 건 사 년 만이다.
@@ -79,19 +85,29 @@ VAR saw_pills = false
 알바: 어서 오세요. # say
 그게 전부다.
 새벽 세 시에 두 발로 걷는 삼색 고양이가 들어왔는데, 그게 전부다. 이 사람은 이 시간에 더한 것도 봤을 것이다.
-바나나우유 두 개를 계산대에 올린다.
+* [음료 냉장고 # at: milk]
+- 냉장고 문을 젤리로 밀어서 연다. 바나나우유 두 개. 하나는 아이 거, 하나는 내 거. 내 건 마실 수 없다는 걸 알면서 두 개를 집는다.
+* [계산대 # at: counter]
+- 바나나우유 두 개를 계산대에 올린다.
 알바: 삼천사백 원이요. # say
-고양이 손으로 지폐 한 장을 집는 데 한참 걸린다. 알바는 재촉하지 않는다. 휴대폰도 보지 않는다. 그냥 기다린다.
+* [지폐를 꺼낸다 # game: bill done]
+- 고양이 손으로 지폐 한 장을 집는 데 한참 걸린다. 알바는 재촉하지 않는다. 휴대폰도 보지 않는다. 그냥 기다린다.
 알바: 봉투 필요하세요? # say
 * [고개를 젓는다]
+    # emote: shake
 - 거스름돈이 문제다. 동전은 젤리로 집을 수 없다.
-알바가 그걸 삼 초쯤 지켜보더니, 동전을 내 손바닥 위에 하나씩 올려 준다. 굴러떨어지지 않게, 가운데부터.
+* [동전을 집는다 # game: coins done]
+- 알바가 그걸 삼 초쯤 지켜보더니, 동전을 내 손바닥 위에 하나씩 올려 준다. 굴러떨어지지 않게, 가운데부터.
 알바: …젤리 잘 만드셨네요. # say
 알바: 안녕히 가세요. # say
-# sfx: door_chime
+* [나간다 # at: z_out]
+- # sfx: door_chime
 아무것도 묻지 않았다. 아무 표정도 없었다.
 무관심이 이렇게 따뜻할 수도 있다는 걸 몰랐다.
 # scene: playground_night
+# pos: swing1
+# pose: sit
+# npc: haeun swing2
 하은: 고양이도 편의점 가요? # say
 하은: 빨대는 내가 꽂을게요. 아저씨 손으로는 안 되잖아요. # say
 아이가 두 개 다 꽂아서 하나를 내민다. 그러다 멈춘다.
@@ -99,6 +115,7 @@ VAR saw_pills = false
 * [고개를 갸웃한다]
     # emote: tilt
 * [하은 쪽으로 밀어 준다]
+    # emote: give
     우유를 아이 쪽으로 민다.
 - 하은: 그럼 아저씨 거는 내가 대신 마셔 줄게요. # say
 하은: 맛은 내가 알려 줄게요. 달아요. # say
@@ -109,10 +126,18 @@ VAR saw_pills = false
 === c2_rain ===
 # pause: 1
 8월의 끝.
+# scene: under_slide
+# pos: swing1
+# pose: stand
+# npc: haeun swing2
 # sfx: rain_sudden
 소나기다. 예고도 없이 쏟아진다.
-인조 모피는 젖으면 안 된다. 미끄럼틀 밑으로 뛴다. 아이가 먼저 와 있다.
-# scene: under_slide
+인조 모피는 젖으면 안 된다.
+# npc: haeun floor_slide walk
+* [미끄럼틀 밑으로 뛴다 # at: z_slide]
+- # go: slide_under
+# pose: curl
+아이가 먼저 와 있다.
 둘이 쪼그려 앉는다. 철판 위로 비가 떨어진다.
 # sfx: rain_on_metal
 하은: 집에 가기 싫어요. # say
@@ -132,6 +157,26 @@ VAR saw_pills = false
 
 === c2_rain_choice ===
 * [가만히 있는다]
+    -> c2_rain_still
+* [살짝 깨운다]
+    -> c2_rain_wake
++ [(잠김) 누군가에게 알린다]
+    누구에게. # fail
+    탈을 쓴 채로는 말을 못 한다. 벗은 채로는 방 밖에 못 나온다. # fail
+    -> c2_rain_choice
+
+// 가만히 있기로 했다: 버틴다. 버티지 못하고 움직이면 아이가 깬다.
+=== c2_rain_still ===
+* [버틴다 # game: still still]
+    -> c2_rain_held
+* [움직였다 # game: still wake]
+    팔이 저절로 움찔한다. 아이 머리가 미끄러진다.
+    -> c2_rain_woke
+
+=== c2_rain_wake ===
+-> c2_rain_woke
+
+=== c2_rain_held ===
     ~ heat = 100
     ~ connection++
     십 분. 이십 분.
@@ -141,17 +186,26 @@ VAR saw_pills = false
     비가 가늘어질 때쯤 아이가 눈을 뜬다.
     하은: …잤어요? 나 잤어요? # say
     하은: 아저씨 팔 저렸겠다. # say
-* [살짝 깨운다]
+    -> c2_rain_end
+
+=== c2_rain_woke ===
     젤리로 아이 어깨를 두드린다. 두 번.
     하은: …아. 미안해요. # say
     아이는 금방 사과한다. 사과가 몸에 밴 아이다.
     그 속도를 안다.
-+ [(잠김) 누군가에게 알린다]
-    누구에게. # fail
-    탈을 쓴 채로는 말을 못 한다. 벗은 채로는 방 밖에 못 나온다. # fail
-    -> c2_rain_choice
-- 비가 그친다.
+    -> c2_rain_end
+
+=== c2_rain_end ===
+# scene: playground_night
+# pos: slide_under
+# pose: stand
+# npc: haeun floor_slide
+비가 그친다.
+# npc: haeun edge walk
 아이는 107동으로 뛰어가다가 한 번 돌아보고 손을 흔든다.
+# emote: wave haeun
+# emote: wave
+# npc: haeun off
 나는 한참 뒤에야 손을 내린다.
 -> c2_day
 
@@ -419,39 +473,70 @@ VAR saw_pills = false
 * [역으로 걷는다 # at: z_station]
 -
 { not has_card:
-    # scene: station_gate
-    교통카드가 없다. 발매기 앞에 선다.
-    화면의 글자가 읽히지 않는다. 한글인데 읽히지 않는다. 뒤에 줄이 생긴다.
-    ~ stare(15)
-    누가 혀를 찬다. 나한테 찬 건지는 모른다. 나한테 찬 거다.
-    보증금 오백 원. 일회용 카드가 나온다. 손이 젖어 있다.
+    -> c2_gate
 }
 -> c2_subway
+
+=== c2_gate ===
+# scene: station_gate
+# pos: in
+교통카드가 없다.
+* [발매기 앞에 선다 # at: machine]
+- 화면의 글자가 읽히지 않는다. 한글인데 읽히지 않는다.
+# npc: pb q1
+# npc: pe q2
+# npc: pf q3
+뒤에 줄이 생긴다.
+~ stare(15)
+누가 혀를 찬다. 나한테 찬 건지는 모른다. 나한테 찬 거다.
+보증금 오백 원. 일회용 카드가 나온다. 손이 젖어 있다.
+* [개찰구를 지난다 # at: z_gate]
+- -> c2_subway
 
 // ── 지하철 ──
 === c2_subway ===
 # scene: subway
+# pos: in
+# npc: pa seat_a
+# npc: pb seat_b
+# npc: pc seat_c
+# npc: pd seat_d
+# npc: pe seat_e
+# npc: pf seat_f
+# npc: pg seat_g
+# npc: ph seat_h
+# npc: pi seat_j
+# npc: pj stand_b
 # sfx: subway_rumble
 1호선. 토요일 낮. 서 있는 사람이 드문드문 있다.
-* [문 옆 구석에 선다]
+* [문 옆 구석에 선다 # at: z_corner]
     ~ stare(5)
     문과 좌석 사이의 좁은 틈에 등을 붙인다. 가방은 앞으로 돌려 안는다.
     벽이 하나라도 있으면 눈이 올 방향이 하나 준다.
-* [빈자리에 앉는다]
+    # npc: kid kid_c
+    # npc: mom mom_c
+* [빈자리에 앉는다 # at: z_seat]
+    # pose: sit
     ~ stare(20)
     앉았다. 다리가 먼저 원했다.
     맞은편에 일곱 명이 앉아 있다. 일곱 명에게는 눈이 열네 개 있다.
     전부 휴대폰을 보고 있다. 안다. 아는데도 열네 개가 느껴진다.
+    # npc: kid kid_s
+    # npc: mom mom_s
 - 세 정거장.
 옆에 선 아이가 내 가방을 본다.
 지퍼 끝으로 주황색 털이 삐져나와 있다.
+# emote: point kid
 아이: 엄마, 저 아저씨 가방에 고양이 있어. # say
 엄마: 쉿. # say
 아이 엄마가 나를 본다. 가방을 본다. 그러고는 아이 어깨를 잡아 반대편으로 당긴다.
+# npc: mom far2 walk
+# npc: kid far walk
 ~ stare(25)
 봤지. 저 눈. # voice
 애를 당기는 거 봤지. # voice
 * [털을 밀어 넣는다]
+    # emote: reach
     털을 지퍼 안으로 밀어 넣는다. 손이 떨려서 지퍼가 세 번 헛돈다.
 * [가방을 끌어안는다]
     가방을 끌어안는다. 턱으로 지퍼 끝을 누른다. 안에서 폼이 눌린다.
@@ -463,6 +548,8 @@ VAR saw_pills = false
 
 === c2_panic ===
 # scene: transfer_crowd
+# pos: arrive
+# crowd: on
 # sfx: crowd_loud
 ~ gaze = 100
 문이 열린다.
@@ -479,8 +566,16 @@ VAR saw_pills = false
     사격장 바닥의 흙냄새가 난다. 여기는 지하인데.
 }
 벽을 찾는다. 벽이 없다. 사람이 벽이다.
-몸이 먼저 움직인다. 인파가 미는 대로 밀려 내려간다.
+* [계단까지 간다 # game: crowd made]
+    계단 난간에 손이 닿았다. 손바닥이 미끄럽다. 난간을 잡은 채로 내려간다.
+* [떠밀린다 # game: crowd pushed]
+    몸이 먼저 움직인다. 인파가 미는 대로 밀려 내려간다.
+- # crowd: off
 # scene: platform_bench
+# pos: bench
+# pose: sit
+# npc: pc wait_a
+# npc: pg wait_b
 # sfx: ringing_ear
 벤치.
 무릎 사이에 머리를 넣는다. 의류대를 끌어안는다.
@@ -492,24 +587,37 @@ VAR saw_pills = false
 -> c2_board
 
 === c2_board ===
-+ [열차를 탄다]
++ [열차를 탄다 # at: move]
     ~ c2_board_n++
     { c2_board_n:
     - 1:
         # sfx: train_arrive
+        # train: arrive
+        # train: open
+        # pause: 1.5
         열차가 왔다. 문이 열렸다. 사람들이 탔다. 문이 닫혔다. # fail
+        # train: close
+        # train: leave
         나는 벤치에 있다. # fail
         -> c2_board
     - 2:
         # sfx: train_arrive
+        # train: arrive
         두 번째 열차.
+        # pose: stand
+        # go: line
+        # train: open
         일어섰다. 노란 선까지 갔다. 문 안에 얼굴들이 있었다. # fail
+        # train: close
+        # train: leave
+        # go: bench
+        # pose: sit
         돌아와 앉았다. # fail
         -> c2_phone
     - else:
         -> c2_boarded
     }
-+ [(잠김) 집으로 돌아간다]
++ [(잠김) 집으로 돌아간다 # at: wait]
     돌아가려면 반대편 승강장으로 건너가야 한다. 계단을 올라야 한다. 계단에는 사람이 있다. # fail
     돌아가는 것도 못 한다. # fail
     -> c2_board
@@ -541,15 +649,30 @@ VAR saw_pills = false
 
 === c2_boarded ===
 # sfx: train_arrive
+# train: arrive
 ~ gaze = 60
 ~ strength++
 세 번째 열차.
+# pose: stand
+# go: line
+# train: open
 탔다.
+# pose: gone
+# train: close
 문이 닫힌다. 문 유리에 군용 가방을 끌어안은 남자가 비친다.
+# train: leave
 그 남자는 열차 안에 있다.
 # scene: subway
+# pos: corner
+# face: left
+# npc: pa seat_a
+# npc: pc seat_c
+# npc: pe seat_e
+# npc: pg seat_g
+# npc: pi seat_i
 여덟 정거장. 숨을 센다. 넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다. 의무대에서 배운 것이다.
-이번 역은 홍대입구.
+* [숨을 센다 # game: breath calm]
+- 이번 역은 홍대입구.
 -> c2_partydoor
 
 // ── 파티룸 ──
@@ -850,9 +973,12 @@ VAR saw_pills = false
 
 === c2_pills ===
 # scene: partyroom_restroom
+# pos: in
+# npc: hyunwoo sink_hw
 # pause: 1
 해산하기 전에 세수를 하러 간다.
-세면대 앞에 현우가 있다. 셔츠 차림으로 돌아와 있다. 작은 비닐 봉지를 이로 뜯는다.
+* [세면대 # at: sink]
+- 세면대 앞에 현우가 있다. 셔츠 차림으로 돌아와 있다. 작은 비닐 봉지를 이로 뜯는다.
 알약 세 개. 물도 없이 털어 넣고, 수도꼭지에 입을 댄다.
 거울 속에서 눈이 마주친다.
 ~ saw_pills = true
@@ -866,9 +992,12 @@ VAR saw_pills = false
 
 === c2_pills_reply ===
 * [끄덕인다]
+    # emote: nod
     끄덕인다. 비타민이라고 했으니까 비타민이다.
 * [못 본 척 세수를 한다]
+    # pose: stoop
     물을 튼다. 얼굴을 숙인다. 물이 차다.
+    # pose: stand
     고개를 들었을 때 현우는 넥타이를 주머니에서 꺼내 펴고 있다.
 + [(잠김) "저도 먹었어요"라고 한다]
     그러면 왜 끊었냐고 물을 것이다. # fail
@@ -938,6 +1067,11 @@ VAR saw_pills = false
 
 === c2_home ===
 # scene: subway
+# pos: seat_me
+# pose: sit
+# npc: pb seat_b
+# npc: pd seat_d
+# npc: pf seat_f
 돌아가는 지하철에서는 숨이 막히지 않았다.
 나아져서가 아니다. 다 써서다. 막힐 숨이 남아 있지 않았다.
 가방을 안고 잤다. 내릴 역 두 정거장 전에 깼다.

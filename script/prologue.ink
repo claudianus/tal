@@ -429,8 +429,13 @@ TV 속에서 사람들이 웃는다.
 -> p_mirror
 
 === p_mirror ===
-# scene: mirror
+# scene: room_night
 옷장의 다른 쪽 문에는 거울이 붙어 있다. 사 년 동안 열지 않은 쪽이다.
+* [거울 문을 연다 # at: mirror]
+- # go: mirror_front
+# face: up
+# sfx: door_open_soft
+# scene: mirror
 연다.
 남자가 있다.
 머리가 눈을 덮었다. 목이 늘어난 티셔츠. 한여름인데 긴소매.
@@ -441,12 +446,19 @@ TV 속에서 사람들이 웃는다.
 엄마가 식당에서 열한 시간 서 있는 동안. # voice
 윤서가 알바 뛰는 동안. # voice
 저 꼴로. # voice
-* [헤드를 쓴다]
-- # suit: head_on
+# scene: room_night
+# face: left
+삼색이의 머리는 책상 위에 있다. 네 걸음.
+* [머리를 가지러 간다 # at: head]
+- # go: mirror_front
+# face: up
+# suit: head_on
+# scene: black
 # sfx: breath_inside
 어둡다.
 폼 냄새. 본드 냄새. 내 숨소리.
 눈구멍으로 거울을 본다.
+# scene: mirror
 # cut: mirror_cat
 고양이가 있다.
 주황, 검정, 흰색. 한쪽 귀가 처진 고양이가 고개를 기울인다.

@@ -10,6 +10,7 @@ import { World, type Bind } from './world.ts';
 import type { Dir } from './maps.ts';
 import type { Look } from './sprites.ts';
 import * as ui from './ui.ts';
+import { playGame, GAME_IDS } from './games.ts';
 
 const SAVE_KEY = 'tal.save.v2';
 const LOCK = '(잠김)';
@@ -26,6 +27,16 @@ export function savedChapter(): string | null {
 const atOf = (tags: string[] | null | undefined): string => {
   for (const t of tags || []) { const m = /^at:\s*(\S+)/.exec(t.trim()); if (m) return m[1]; }
   return '';
+};
+/** 선택지의 "# game: 이름 결과" */
+const gameOf = (tags: string[] | null | undefined): [string, string] | null => {
+  for (const t of tags || []) { const m = /^game:\s*(\S+)(?:\s+(\S+))?/.exec(t.trim()); if (m) return [m[1], m[2] || '']; }
+  return null;
+};
+/** 선택지의 "# timer: 초" (at: timeout 과 함께 쓴다) */
+const timerOf = (tags: string[] | null | undefined): number => {
+  for (const t of tags || []) { const m = /^timer:\s*([\d.]+)/.exec(t.trim()); if (m) return Number(m[1]); }
+  return 0;
 };
 
 export class Game {
@@ -60,9 +71,11 @@ export class Game {
     Object.assign(this.view.state, { spec, suit: p.suit, gaze: p.gaze ? vars.gaze : 0, eyes: p.eyes, cat: p.cat, monitor: p.monitor, droopy });
     w.flags.monitor = p.monitor; w.flags.eyes = p.eyes; w.flags.lampOff = p.lampOff; w.flags.headGone = p.suit || p.suitFull; w.flags.headDone = p.headDone; w.flags.mark = p.mark || ''; w.flags.box = p.box || ''; w.flags.tidy = !!p.tidy; w.haeunEyes = p.pov === 'yunjae' && !/^(프롤로그|1장)/.test(p.chapter); // 윤재가 본 사람이라서. 윤재가 없는 엔딩 C 에는 없다
     const look: Look = { kind: p.suitFull ? (p.suit ? 'cat' : 'cat_nohead') : p.suit ? 'yunjae_cathead' : 'yunjae', droopy, bare: p.bare, bag: p.carry === 'bag' && !p.suit && !p.suitFull, mark: p.mark || '' };
+    w.posture = p.posture || '';
     w.setLook(look);
     w.setPose(p.pose);
     w.swings = p.swings || {};
+    w.rain = !!spec.rain;
     w.fast = ui.isFast();
     ambient(spec.amb);
     setMuffle(p.suit);
@@ -119,6 +132,8 @@ export class Game {
           if (!ui.isFast() && spec.map !== prevMap) await ui.sleep(350);
         }
         break;
+      case 'train': await w.trainGo(d.val); break;
+      case 'crowd': w.crowdOn(d.val === 'on'); break;
       case 'pos': w.setPos(d.val); break;
       case 'go': if (quiet) w.setPos(d.val); else await w.go(d.val); break;
       case 'face': w.setFace(d.val as Dir); break;
@@ -197,6 +212,16 @@ export class Game {
     const ch = this.story.currentChoices;
     const texts = ch.map((c) => c.text);
     const w = this.world;
+    // 미니게임: 결과에 맞는 선택지를 고른다. 장면 경고로 넘기는 중이면 첫 선택지(정해진 결과).
+    const games = ch.map((c) => gameOf(c.tags));
+    const gi = games.findIndex((g) => g);
+    if (gi >= 0) {
+      const id = games[gi]![0];
+      const ghosts = this.pres.tail.filter((t) => t.kind === 'voice').map((t) => t.text);
+      const out = GAME_IDS.includes(id) ? await playGame(id, { ghosts: ghosts.length ? ghosts : undefined }) : await w.runGame(id);
+      const k = games.findIndex((g) => g && g[1] === out);
+      return k >= 0 ? k : gi;
+    }
     const binds: Bind[] = ch.map((c, i) => ({ at: atOf(c.tags), idx: i }));
     const walkable = w.active && this.pres.skin === 'none' && binds.every((b) => b.at && w.hasTarget(b.at));
     if (!walkable) return ui.choose(texts);
@@ -206,8 +231,13 @@ export class Game {
     if (sp.length) ui.hint(sp.map((b) => `${b.at === 'move' ? ui.DIR_KEY : 'Z'}  ${texts[b.idx].replace(LOCK, '').trim()}`).join('   ·   '));
     else if (binds.every((b) => w.isTouch(b.at)) && new Set(binds.map((b) => b.at)).size === binds.length) ui.hint(texts.join('   ·   ')); // 갈 곳
     else if (this.walks++ < 3) ui.hint(`${ui.DIR_KEY}로 걷는다   ·   Z 로 조사한다`);
+    // 시간 제한: 'timeout' 에 묶인 선택지는 시간이 다 되면 저절로 골라진다
+    const ti = binds.findIndex((b) => b.at === 'timeout');
+    const secs = ti >= 0 ? timerOf(ch[ti].tags) || 6 : 0;
+    const stopTimer = secs && !ui.isFast() ? ui.timer(secs, () => w.pickAt('timeout')) : () => {};
     for (;;) {
       const idx = await w.waitChoice(binds);
+      stopTimer();
       ui.hint('');
       if (idx.length === 1) { if (texts[idx[0]].startsWith(LOCK)) blip('lock'); return idx[0]; }
       const touch = w.isTouch(binds[idx[0]].at);

@@ -3,6 +3,14 @@ import { DELTA, MAPS, TILE, LEGEND, flood, inObj, pathTo, routeTo, tileAt, type 
 import { canvasOf, drawChar, drawMark, drawTile, type Look } from './sprites.ts';
 import { paintRoom, ROOM_OY } from './art/room.ts';
 import { paintPlace, type Prop } from './art/places.ts';
+import { ART } from './art/kit.ts';
+import type { Pix } from './art/pix.ts';
+import { sfx } from './audio.ts';
+
+/** 맵 위를 지나가는 사람 (환승 통로의 인파). 칸에 묶이지 않고 픽셀로 움직인다. */
+type Walker = { look: Look; x: number; y: number; vx: number; lane: number; walked: number; hitAt: number };
+/** 다른 그림 파일이 채워 넣는 그림: 승강장의 열차, 커튼 밑의 발 */
+const TRAIN_STOP = 16; // 이 자리에 서면 열차 둘째 문(x 120+16)이 승강장 'door' 칸(8,4) 가운데에 온다
 
 type Actor = {
   id: string; look: Look; x: number; y: number; px: number; py: number; dir: Dir;
@@ -11,7 +19,7 @@ type Actor = {
 };
 export type Bind = { at: string; idx: number };
 
-const SPECIAL = new Set(['move', 'wait']);
+const SPECIAL = new Set(['move', 'wait', 'timeout']);
 const SEAT = /^(swing|seat)/; // 이 이름의 자리에 놓인 사람은 앉는다
 const poseAt = (where: string): string => (/^floor/.test(where) ? 'floor' : SEAT.test(where) ? 'sit' : 'stand'); // floor… 자리에서는 바닥에 주저앉는다
 const HAEUN_EYES: Look = { kind: 'haeun', eyes: true };
@@ -22,6 +30,10 @@ const NPC_LOOK: Record<string, Look> = {
   police: { kind: 'police' }, haeun: { kind: 'haeun' }, father: { kind: 'father' }, guard: { kind: 'guard' }, catreal: { kind: 'catreal' },
   hyunwoo: { kind: 'hyunwoo' }, moka: { kind: 'moka' }, gombyo: { kind: 'gombyo' }, silbap: { kind: 'silbap' },
   fox: { kind: 'fox' }, rabbit: { kind: 'rabbit' }, dog: { kind: 'dog' }, bear: { kind: 'bear' }, hyunwoo_fox: { kind: 'fox_nohead' }, hyunwoo_case: { kind: 'hyunwoo', case: true }, mother: { kind: 'mother' },
+  clerk: { kind: 'clerk' }, grandma: { kind: 'grandma' }, nabi: { kind: 'nabi' }, kid: { kind: 'kid' }, yunseo: { kind: 'yunseo' },
+  mom: { kind: 'person', v: 1 }, neighbor: { kind: 'person', v: 2 }, mourner: { kind: 'person', v: 3 }, police2: { kind: 'police' },
+  pa: { kind: 'person', v: 0 }, pb: { kind: 'person', v: 1 }, pc: { kind: 'person', v: 2 }, pd: { kind: 'person', v: 3 }, pe: { kind: 'person', v: 4 },
+  pf: { kind: 'person', v: 5 }, pg: { kind: 'person', v: 6 }, ph: { kind: 'person', v: 7 }, pi: { kind: 'person', v: 8 }, pj: { kind: 'person', v: 9 },
 };
 // 분위기 → [어둠의 세기, 낮인가, 커튼 틈의 색]
 const MOOD: Record<string, [number, boolean, string]> = {
@@ -31,6 +43,12 @@ const MOOD: Record<string, [number, boolean, string]> = {
   party: [0.5, false, '#2e3e58'], // 파티룸: 꼬마전구와 백열등이 군데군데 밝힌다
   evening: [0.66, false, '#3a3858'], // 비 갠 저녁 거리: 간판 불빛이 밝힌다
   glass: [0.8, false, '#2e3e58'],    // 2장 끝의 복도. 밤과 같고, 현관 앞에 깨진 병이 있다
+  rainnight: [0.84, false, '#2e3e58'], // 소나기 내리는 밤의 놀이터
+  color: [0.0, true, '#aab2ac'],     // 할머니 집: 여름 한낮, 색이 있다
+  white: [0.03, true, '#e2e4d6'],    // 응급실 천장
+  few: [0.8, false, '#2e3e58'],      // 엔딩 C 의 장례식장 (밤, 화환이 둘)
+  tv: [0.9, false, '#2e3e58'],       // 4장의 기억: 불 꺼진 거실, TV 빛만
+  openday: [0.4, true, '#aab2ac'],   // 3장 다음 날 아침: 부서진 문이 한 뼘 열려 있다
 };
 
 function actor(id: string, look: Look, x: number, y: number, dir: Dir): Actor {
@@ -50,6 +68,9 @@ export class World {
   swings: Record<string, string> = {}; // 그네 자리 → still / gentle / high
   flags = { monitor: false, eyes: false, lampOff: false, headGone: false, headDone: true, mark: '' as '' | 'torn' | 'sewn', box: '' as '' | 'shut' | 'open', tidy: false };
   fast = false; autopilot = false;
+  rain = false; // 바깥 맵에 비가 내린다
+  train = { state: '' as '' | 'arrive' | 'stop' | 'open' | 'leave' | 'gone', x: 0, v: 0, done: null as (() => void) | null };
+  private crowd: { walkers: Walker[]; meter: number; t: number; spawn: number; game: boolean; end: (o: string) => void } | null = null;
   onMoved: () => void = () => {};
   private held: Dir[] = [];
   private binds: Bind[] | null = null;
@@ -93,10 +114,10 @@ export class World {
     this.map = m; this.mapId = mapId; this.mood = mood;
     if (zoomed) this.resize();
     this.canvas.style.display = 'block';
-    if (!same) { this.npcs.clear(); this.place(this.player, m.spawn); this.player.pose = 'stand'; this.player.path = []; }
+    if (!same) { this.npcs.clear(); this.place(this.player, m.spawn); this.player.pose = 'stand'; this.player.path = []; this.crowd = null; this.train.state = ''; }
     this.lagX = this.player.px; this.lagY = this.player.py;
   }
-  hide(): void { this.map = null; this.mapId = ''; this.canvas.style.display = 'none'; this.cancelWalk(); }
+  hide(): void { this.map = null; this.mapId = ''; this.canvas.style.display = 'none'; this.cancelWalk(); this.crowd = null; }
 
   private point(name: string): [number, number, Dir] {
     const p = this.map?.points[name];
@@ -111,7 +132,9 @@ export class World {
   setPose(p: string): void { this.player.pose = p; }
   snap(): void { this.lagX = this.player.px; this.lagY = this.player.py; } // 카메라가 따라오지 않고 바로 그 자리를 비춘다
   setFace(d: Dir): void { this.player.dir = d; }
-  setLook(l: Look): void { this.player.look = l; this.player.speed = l.kind === 'cat' || l.kind === 'cat_nohead' ? 54 : 66; }
+  /** 3장 뒤 윤재의 자세 (arm / back / leg). 걸음이 느려지고 몸이 기운다. */
+  posture = '';
+  setLook(l: Look): void { this.player.look = l; this.player.speed = (l.kind === 'cat' || l.kind === 'cat_nohead' ? 54 : 66) * ({ leg: 0.5, back: 0.65, arm: 0.85 }[this.posture] || 1); }
   emote(name: string, who?: string): void { const a = who ? this.npcs.get(who) : this.player; if (a) { a.emote = name; a.emoteUntil = this.t + 1.8; } }
   shake(ms = 500): void { this.shakeUntil = performance.now() + ms; }
 
@@ -160,6 +183,84 @@ export class World {
     return Promise.resolve();
   }
 
+  // ── 맵 위의 게임 ──
+  /** 환승 통로: 인파를 거슬러 계단까지 간다. 부딪칠 때마다 밀리고 숨이 찬다. 숨이 다 차면 인파에 떠밀린다. */
+  runGame(id: string): Promise<string> {
+    if (id !== 'crowd' || !this.map) return Promise.resolve('');
+    if (this.fast) return Promise.resolve('made');
+    return new Promise((res) => {
+      const end = (o: string): void => { const cr = this.crowd; if (!cr || !cr.game) return; cr.game = false; cr.meter = 0; this.cancelWalk(); res(o); };
+      if (!this.crowd) this.crowdOn(true);
+      Object.assign(this.crowd!, { game: true, meter: 0.25, t: 0, end });
+      void this.waitChoice([{ at: 'z_down', idx: 0 }]).then(() => end('made'));
+    });
+  }
+  /** 인파만 지나가게 한다 (게임 없이). off 면 치운다. */
+  crowdOn(on: boolean): void {
+    if (!on || !this.map) { this.crowd = null; return; }
+    if (this.crowd) return;
+    this.crowd = { walkers: [], meter: 0, t: 0, spawn: 0, game: false, end: () => {} };
+    for (let i = 0; i < 10; i++) this.spawnWalker(true);
+  }
+  private spawnWalker(anywhere = false): void {
+    const cr = this.crowd, m = this.map;
+    if (!cr || !m) return;
+    const mw = m.grid[0].length * TILE, fromLeft = Math.random() < 0.28;
+    const lane = 2 + Math.floor(Math.random() * 3);
+    const x = anywhere ? 8 * TILE + Math.random() * (mw - 9 * TILE) : fromLeft ? 7 * TILE : mw + 8;
+    cr.walkers.push({ look: { kind: 'person', v: Math.floor(Math.random() * 7) }, x, y: lane * TILE, vx: (fromLeft ? 1 : -1) * (52 + Math.random() * 34), lane, walked: Math.random() * 20, hitAt: -9 });
+  }
+  private crowdTick(dt: number): void {
+    const cr = this.crowd, m = this.map;
+    if (!cr || !m) return;
+    cr.t += dt; cr.spawn -= dt;
+    if (cr.spawn <= 0) { this.spawnWalker(); cr.spawn = 0.22 + Math.random() * 0.3; }
+    const p = this.player, mw = m.grid[0].length * TILE;
+    const pillar = (x: number): boolean => [6, 9, 13, 17, 21].some((k) => Math.abs(x - k * TILE) < 22);
+    for (const w of cr.walkers) {
+      w.x += w.vx * dt; w.walked += Math.abs(w.vx) * dt;
+      const ty = w.lane !== 3 && pillar(w.x) ? 3 * TILE : w.lane * TILE;
+      w.y += Math.sign(ty - w.y) * Math.min(Math.abs(ty - w.y), 46 * dt);
+      if (Math.abs(w.x - p.px) < 11 && Math.abs(w.y - p.py) < 9 && cr.t - w.hitAt > 0.8) { // 어깨가 부딪친다
+        w.hitAt = cr.t;
+        const dx = Math.sign(w.vx);
+        if (!this.solid(p.x + dx, p.y)) { p.x += dx; p.path = []; }
+        if (cr.game) { cr.meter += 0.085; sfx('bump'); this.shake(160); }
+      }
+    }
+    cr.walkers = cr.walkers.filter((w) => w.x > 6 * TILE && w.x < mw + 20);
+    if (!cr.game) return;
+    cr.meter = Math.max(0, cr.meter + dt * (0.012 - (p.x >= 22 ? 0.03 : 0)));
+    if (Math.floor(cr.t * (1 + cr.meter * 2)) !== Math.floor((cr.t - dt) * (1 + cr.meter * 2))) sfx(cr.meter > 0.6 ? 'heartbeat' : 'heartbeat_soft');
+    if (cr.meter >= 1 || cr.t > 45) cr.end('pushed');
+  }
+  /** 승강장의 열차: arrive(들어와 선다) open(문이 열린다) close leave(떠난다). 끝나면 돌아온다. */
+  trainGo(how: string): Promise<void> {
+    const tr = this.train, m = this.map;
+    if (!m || this.mapId !== 'platform') return Promise.resolve();
+    const mw = m.grid[0].length * TILE;
+    if (how === 'open') { tr.state = 'open'; return Promise.resolve(); }
+    if (how === 'close') { tr.state = 'stop'; return Promise.resolve(); }
+    if (how === 'gone') { tr.state = ''; return Promise.resolve(); }
+    if (this.fast) { tr.state = how === 'arrive' ? 'stop' : ''; tr.x = TRAIN_STOP; return Promise.resolve(); }
+    return new Promise((res) => {
+      if (how === 'arrive') { tr.state = 'arrive'; tr.x = mw + 40; tr.v = -260; }
+      else { tr.state = 'leave'; tr.v = 0; }
+      tr.done = res;
+    });
+  }
+  private trainTick(dt: number): void {
+    const tr = this.train;
+    if (tr.state === 'arrive') {
+      tr.v = -Math.max(18, Math.min(260, Math.sqrt(Math.max(0, tr.x - TRAIN_STOP) * 2 * 160)));
+      tr.x += tr.v * dt;
+      if (tr.x <= TRAIN_STOP) { tr.x = TRAIN_STOP; tr.state = 'stop'; const f = tr.done; tr.done = null; f?.(); }
+    } else if (tr.state === 'leave') {
+      tr.v -= 110 * dt; tr.x += tr.v * dt;
+      if (tr.x < -2 * (ART.train?.w || 340) - 20) { tr.state = ''; const f = tr.done; tr.done = null; f?.(); }
+    }
+  }
+
   // ── 걷기 ──
   private solid(x: number, y: number): boolean {
     if (!this.map || tileAt(this.map, x, y)[1]) return true;
@@ -178,6 +279,8 @@ export class World {
     });
   }
   private cancelWalk(): void { this.binds = null; this.resolveWalk = null; }
+  /** 밖에서 선택을 끝낸다 (시간 제한) */
+  pickAt(at: string): boolean { return this.resolve(at); }
   private resolve(at: string): boolean {
     if (!this.binds || !this.resolveWalk) return false;
     const idx = this.binds.filter((b) => b.at === at).map((b) => b.idx);
@@ -194,7 +297,8 @@ export class World {
   }
   private auto(): void { // 검사용: 묶인 선택지 중 하나를 골라 걸어가서 고른다
     if (!this.binds || !this.map) return;
-    const ats = [...new Set(this.binds.map((b) => b.at))];
+    const ats = [...new Set(this.binds.map((b) => b.at))].filter((a) => a !== 'timeout');
+    if (!ats.length) return;
     const at = ats[Math.floor(Math.random() * ats.length)];
     if (SPECIAL.has(at)) { this.resolve(at); return; }
     this.walkTo(this.obj(at)!);
@@ -249,6 +353,7 @@ export class World {
     const dt = Math.min(1, (now - this.last) / 1000);
     this.last = now; this.t += dt;
     if (!this.map) return;
+    this.crowdTick(dt); this.trainTick(dt);
     const all = [this.player, ...this.npcs.values()];
     for (const a of all) {
       let left = a.speed * dt;
@@ -331,7 +436,7 @@ export class World {
       if ((mood === 'night' && !this.flags.lampOff) || mood === 'open') out.push({ x: 88, y: 52, r: 118, a: 0.9 * flick, col: 'rgba(190,205,200,A)' });
       if (this.flags.monitor && mood !== 'black') out.push({ x: 103, y: 8, r: 50, a: 0.8, col: 'rgba(110,145,210,A)' });
       if (mood === 'doorshadow' || mood === 'dark' || mood === 'black') out.push({ x: 160, y: 56, r: 11, a: 0.32, col: 'rgba(214,190,140,A)' });
-      if (mood === 'open') out.push({ x: 166, y: 56, r: 46, a: 0.85, col: 'rgba(214,190,140,A)' });
+      if (mood === 'open' || mood === 'openday') out.push({ x: 166, y: 56, r: 46, a: mood === 'open' ? 0.85 : 0.5, col: 'rgba(214,190,140,A)' });
       out.push({ x: 32, y: 2, r: 16, a: 0.4 });                                        // 커튼 틈
       if (!this.flags.headGone && mood !== 'black') out.push({ x: 76, y: 2, r: 15, a: 0.55 }); // 삼색이의 머리는 어둠 속에서도 조금 보인다
     }
@@ -360,10 +465,10 @@ export class World {
     const [darkA, day, slit] = MOOD[this.mood] || MOOD.night;
     c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
     let props: Prop[] = [];
-    const k = { t, monitor: this.flags.monitor, day, slit, x: 0, y: 0, open: this.mood === 'open', headGone: this.flags.headGone };
+    const k = { t, monitor: this.flags.monitor, day, slit, x: 0, y: 0, open: this.mood === 'open' || this.mood === 'openday', headGone: this.flags.headGone };
     if (this.mapId === 'room') {
       const lie = this.player.pose === 'lie';
-      const room = paintRoom({ monitor: this.flags.monitor, headGone: this.flags.headGone, headDone: this.flags.headDone, open: this.mood === 'open', slit, day, lie, mark: this.flags.mark, box: this.flags.box, tidy: this.flags.tidy });
+      const room = paintRoom({ monitor: this.flags.monitor, headGone: this.flags.headGone, headDone: this.flags.headDone, open: this.mood === 'open' || this.mood === 'openday', slit, day, lie, mark: this.flags.mark, box: this.flags.box, tidy: this.flags.tidy });
       c.drawImage(canvasOf(room), -cx, -cy - ROOM_OY);
       if (this.mood === 'doorshadow' || this.mood === 'dark' || this.mood === 'black') { // 문틈 아래로 거실 불빛이 샌다
         c.fillStyle = '#d6be8c'; c.fillRect(159 - cx, 49 - cy, 1, 14);
@@ -406,10 +511,30 @@ export class World {
         }
       } });
     }
-    for (const a of [this.player, ...this.npcs.values()]) if (a.pose !== 'gone') drawn.push({ foot: a.py + 13, draw: () => {
+    if (this.crowd) for (const w of this.crowd.walkers) drawn.push({ foot: w.y + 13, draw: () => {
+      drawChar(c, w.look, Math.round(w.x - cx), Math.round(w.y - cy - 6), w.vx < 0 ? 'left' : 'right', Math.floor(w.walked / 6) % 4, 'stand', '', t, false);
+    } });
+    if (this.mapId === 'platform' && this.train.state && ART.train) { // 열차는 선로 위, 사람 앞을 지난다
+      const img = this.train.state === 'open' && ART.trainOpen ? ART.trainOpen : ART.train;
+      const ty = 7 * TILE - img.h - 2;
+      drawn.push({ foot: 7 * TILE, draw: () => { for (let k = -1; k < 2; k++) c.drawImage(canvasOf(img), Math.round(this.train.x + k * img.w - cx), ty - cy); } });
+    }
+    const er = this.mapId === 'er'; // 응급실 천장: 나는 보이지 않고, 눈길만 있다
+    for (const a of [this.player, ...this.npcs.values()]) if (a.pose !== 'gone' && !(er && a === this.player)) drawn.push({ foot: a.py + 13, draw: () => {
+      if (er && a.id.startsWith('feet')) { const f = ART.feet?.[a.id.includes('white') ? 'sneakers' : a.id.includes('slip') ? 'slippers' : 'shoes']; if (f) c.drawImage(canvasOf(f), Math.round(a.px + 2 - cx), Math.round(116 - cy)); return; }
       const moving = a.px !== a.x * TILE || a.py !== a.y * TILE;
       const step = moving ? Math.floor(a.walked / 6) % 4 : 0;
-      drawChar(c, a.look.kind === 'haeun' && this.haeunEyes ? HAEUN_EYES : a.look, Math.round(a.px - cx), Math.round(a.py - cy - 6 + (ride.get(a) || 0)), a.dir, step, a.pose, a.emote, t, !moving);
+      const ax = Math.round(a.px - cx), ay = Math.round(a.py - cy - 6 + (ride.get(a) || 0));
+      const pst = a === this.player && a.pose === 'stand' ? this.posture : '';
+      if (pst) { // 3장 뒤의 몸: 허리는 굽고, 다리는 절고, 팔은 몸통에 붙인다
+        c.save();
+        const lean = a.dir === 'left' ? 1 : a.dir === 'right' ? -1 : 0;
+        if (pst === 'back') { c.translate(ax + 8, ay + 19); c.transform(1, 0, -0.16 * (lean || 0.5), 1, 0, 0); c.translate(-(ax + 8), -(ay + 19) + 2); }
+        else if (pst === 'leg') { if (step === 1 || step === 3) c.translate(lean, 2); }
+        else if (pst === 'arm') { c.translate(ax + 8, ay + 19); c.transform(1, 0, 0.06, 1, 0, 0); c.translate(-(ax + 8), -(ay + 19)); }
+        drawChar(c, a.look, ax, ay, a.dir, pst === 'leg' && moving ? (step === 3 ? 1 : step) : step, a.pose, a.emote, t, !moving);
+        c.restore();
+      } else drawChar(c, a.look.kind === 'haeun' && this.haeunEyes ? HAEUN_EYES : a.look, ax, ay, a.dir, step, a.pose, a.emote, t, !moving);
     } });
     drawn.sort((a, b) => a.foot - b.foot).forEach((d) => d.draw());
     // 어둠을 덮고, 빛이 닿는 자리만 걷어 낸다
@@ -431,6 +556,30 @@ export class World {
       c.fillStyle = g; c.fillRect(l.x - cx - l.r, l.y - cy - l.r, l.r * 2, l.r * 2);
     }
     c.globalCompositeOperation = 'source-over';
+    // 비: 바깥 맵에서. 굵은 줄기와 바닥에 튀는 물방울.
+    if (this.rain && m.outdoor) {
+      c.fillStyle = 'rgba(170,186,206,0.42)';
+      for (let i = 0; i < 160; i++) {
+        const x = (i * 97.3 + t * 30) % (W + 20) - 10, y = (i * 61.7 + t * 260 * (0.8 + (i % 5) * 0.08)) % (H + 20) - 10;
+        c.fillRect(Math.round(x), Math.round(y), 1, 5 + (i % 3));
+      }
+      c.fillStyle = 'rgba(200,214,230,0.5)';
+      for (let i = 0; i < 26; i++) { const k = Math.floor(t * 9 + i * 7.1); const x = (k * 131.7 + i * 53) % W, y = (k * 71.3 + i * 37) % H; c.fillRect(Math.round(x) - 1, Math.round(y), 3, 1); }
+    }
+    // 눈길: 응급실 천장을 훑는 시선
+    if (this.mapId === 'er') {
+      const ex = this.player.px + 8 - cx, ey = this.player.py + 8 - cy;
+      c.fillStyle = 'rgba(40,60,60,0.35)';
+      for (let a = 0; a < 24; a++) { const th = (a / 24) * Math.PI * 2; if (a % 2) continue; c.fillRect(Math.round(ex + Math.cos(th) * 9), Math.round(ey + Math.sin(th) * 9), 1, 1); }
+      c.fillRect(Math.round(ex), Math.round(ey), 1, 1);
+    }
+    // 숨: 인파 속에서 차오른다
+    if (this.crowd?.game) {
+      const k = this.crowd.meter, pulse = Math.sin(t * (6 + k * 10)) > 0 ? 1 : 0;
+      c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(8, 8, 62, 6);
+      c.fillStyle = k > 0.7 ? `rgba(230,110,100,${0.8 + pulse * 0.2})` : 'rgba(220,200,180,0.85)'; c.fillRect(9, 9, Math.round(60 * Math.min(1, k)), 4);
+      if (k > 0.5) { const g = c.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * (0.9 - k * 0.35)); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${(k - 0.5) * 1.6})`); c.fillStyle = g; c.fillRect(0, 0, W, H); }
+    }
     // 조사할 수 있는 물건 표시 (어둠 위에 그린다)
     if (this.binds) for (const o of m.objs) {
       if (!this.binds.some((b) => b.at === o.id)) continue;

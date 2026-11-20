@@ -62,7 +62,8 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 
 === ep_a_swing ===
 * [빈 그네에 앉는다 # at: swing1]
-- # pose: sit
+- # pos: swing1
+# pose: sit
 쇠사슬이 차갑다. 털 장갑을 끼지 않은 손으로 잡는 건 처음이다.
 아이가 이쪽을 본다. 한참 본다.
 나는 앞을 본다. 먼저 말하지 않는다. 그건 처음부터 그랬다. 시작은 언제나 저쪽이었다.
@@ -114,7 +115,8 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 그런지는 모른다. 그러길 바란다.
 니가 신고하면 누가 믿어. # voice
 경찰이 너부터 볼걸. 영상 속 그 변태. # voice
-# ui: call_open
+* [번호를 누른다 # game: dial call]
+- # ui: call_open
 112: 네, 112입니다. # call
 나: …아이가 있어요. # call
 112: 네. 천천히 말씀하세요. 지금 어디세요? # call
@@ -364,7 +366,8 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 
 === ep_b_swing ===
 * [그네에 앉는다 # at: swing1]
-- # pose: sit
+- # pos: swing1
+# pose: sit
 # sfx: swing_creak
 발로 모래를 민다. 그네가 조금 간다.
 조용하다.
@@ -426,24 +429,50 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 
 // 할머니의 장례식장과 같은 구도. 이번에는 아버지가 안에 있다.
 === ep_c_father ===
-# scene: funeral_front
+# scene: funeral_front_c
+# pos: back
+# pose: gone
+# npc: father father_door
+# npc: mourner in
 # time: 금요일 19:40
 장례식장 입구.
 안내판에 이름이 있다. 故 남윤재(26).
 화환이 둘이다. 하나는 어머니의 회사에서 왔다. 하나는 리본에 사람 이름이 없다. '털날림 주의보 일동'.
 영정 사진은 증명사진이다. 지갑에 들어 있던 것.
 아버지가 입구에 서 있다. 검은 양복이 몸에 맞지 않는다.
+# npc: mourner father_out walk
+# emote: nod mourner
 조문객이 고개를 숙인다.
+# emote: nod father
 아버지: 사고였습니다. # say
 조문객: 아이고… # say
 아버지: 사고였습니다. # say
 조문객은 묻지 않았다.
+# npc: mourner door walk
+# npc: mourner off
 # pause: 2
+# scene: partyroom_restroom
+# pos: door
+# pose: gone
 화장실.
-아버지가 칸 안에 있다. 물을 내린다. 한 번 더 내린다.
+아버지가 칸 안에 있다.
+# sfx: water_run
+물을 내린다.
+# sfx: water_run
+한 번 더 내린다.
 물소리 사이로 다른 소리가 난다.
 # pause: 3
+# sfx: door_open_soft
+# npc: father stall_front
+# npc: father sink_mid walk
+# sfx: water_run
 아버지가 나온다. 세면대에서 얼굴을 씻는다. 거울은 보지 않는다.
+# npc: father door walk
+# npc: father off
+# scene: funeral_front_c
+# pos: back
+# pose: gone
+# npc: father father_door
 입구로 돌아간다.
 아버지: 와 주셔서 감사합니다. 사고였습니다. # say
 -> ep_c_mother
@@ -494,6 +523,12 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 
 === ep_c_hyunwoo ===
 # scene: subway
+# pos: far2
+# pose: gone
+# npc: hyunwoo strap
+# npc: pa seat_a
+# npc: pc seat_e
+# npc: pe stand_b
 # time: 월요일 08:14
 출근길 지하철. 현우가 손잡이를 잡고 서 있다. 정장. 넥타이.
 휴대폰에 서버가 떠 있다.
@@ -510,11 +545,14 @@ CONST A_YUNSEO = true   // 엔딩 A 암전 직전에 윤서의 메시지가 도�
 # ui: messenger_close
 # scene: street_day
 # pose: gone
+# npc: hyunwoo hw_a
 # time: 월요일 08:51
 회사 앞.
 현우가 휴대폰을 끈다. 까만 화면에 정장 차림이 비친다.
 넥타이를 고친다. 아침 회의가 있다.
+# npc: hyunwoo hw_b walk
 들어간다.
+# npc: hyunwoo off
 -> ep_c_gom
 
 === ep_c_gom ===

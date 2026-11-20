@@ -136,6 +136,8 @@ const ICONS: Record<string, [string[], Record<string, string>]> = {
   wave: [['k.k.k', 'k.k.k', 'kkkkk', 'kPPPk', '.kkk.'], { k: '#3a2c3a', P: '#ffb0bf' }],
   curl: [['.....', '.....', 'k.k.k', '.....'], { k: '#3a2c3a' }],
   nod: [['..k..', '..k..', '..k..', '.....', '..k..'], { k: '#3a2c3a' }],
+  shake: [['k...k', '.k.k.', '..k..', '.k.k.', 'k...k'], { k: '#3a2c3a' }],
+  laugh: [['k.k.k', '.....', 'kkkkk', '.kkk.'], { k: '#3a2c3a' }],
 };
 
 /** (x,y) 는 16×20 상자의 왼쪽 위 (타일 위쪽보다 6px 높다). 발바닥은 y+19 에 닿는다. step 0..3 은 걷는 동작. */
@@ -148,16 +150,16 @@ export function drawChar(c: C, look: Look, x: number, y: number, dir: Dir, step:
   }
   const live = emote && emote !== 'none' ? emote : '';
   const cat = look.kind === 'cat' || look.kind === 'cat_nohead' || look.kind === 'yunjae_cathead' || FUR_KINDS.has(look.kind);
-  const ph = live ? (Math.sin(t * (live === 'wave' ? 10 : live === 'nod' ? 12 : 5)) > 0 ? 1 : 0) : 0;
+  const ph = live ? (Math.sin(t * (live === 'wave' || live === 'laugh' ? 10 : live === 'nod' || live === 'shake' ? 12 : 5)) > 0 ? 1 : 0) : 0;
   // 꼬리는 4초 남짓에 한 번 천천히 오갔다가 쉰다. 숨은 3초에 한 번.
   const calm = idle && cat && !live && pose !== 'curl';
   const tp = (t * 0.9) % 4, tail = calm ? (tp < 1 ? 0 : tp < 1.6 ? 1 : tp < 2.6 ? 0 : tp < 3.2 ? -1 : 0) : 0;
   const br = calm && Math.sin(t * 2.1) > 0.35 ? 1 : 0;
-  const f = charFrame(look, live && cat ? 'down' : dir, step, pose, cat ? live : '', cat ? ph : 0, { tail, br });
+  const f = charFrame(look, live && cat && !NOFACE.has(live) ? 'down' : dir, step, pose, live, ph, { tail, br });
   if (look.kind !== 'catreal') { c.fillStyle = 'rgba(8,6,12,0.34)'; c.fillRect(x + 1, y + 19, 14, 2); c.fillRect(x + 3, y + 18, 10, 4); }
   const dx = Math.round(x + 8 - CX), dy = Math.round(y + 19 - FOOT + (pose === 'sit' ? -3 : 0));
   c.drawImage(canvasOf(f), dx, dy);
-  if (live) {
+  if (live && ICONS[live]) {
     const by = dy + topOf(f) - 13 + (Math.sin(t * 5) > 0 ? 0 : 1);
     const bx = dx + CX + 4;
     c.drawImage(canvasOf(BALLOON), bx, by);
@@ -170,6 +172,7 @@ export function drawChar(c: C, look: Look, x: number, y: number, dir: Dir, step:
   }
 }
 const iconCache = new Map<string, Pix>();
+const NOFACE = new Set(['shake', 'nod', 'laugh']); // 이 몸짓은 보던 쪽을 그대로 본다
 const FUR_KINDS = new Set(['fox', 'rabbit', 'dog', 'bear', 'fox_nohead']);
 
 /** 조사할 수 있는 물건 위에 뜨는 작은 표시 */

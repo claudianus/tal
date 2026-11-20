@@ -1,5 +1,5 @@
 // 대화창, 선택창, 휴대폰·모니터 화면, 화면 구석. DOM 으로 그린다.
-import { blip } from './audio.ts';
+import { blip, sfx } from './audio.ts';
 import { drawFrame } from './scene.ts';
 import type { Dir } from './maps.ts';
 import type { Pres } from './pres.ts';
@@ -55,6 +55,10 @@ const KEY_DIR: Record<string, Dir> = {
   w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right',
 };
 export type Hooks = { onMenu: () => void; onDir: (d: Dir, down: boolean, repeat: boolean) => void; onAct: () => void };
+/** 미니게임이 돌고 있으면 방향키와 Z 를 전부 가져간다 (누를 때와 뗄 때 모두). */
+export type GameKey = Dir | 'z';
+let gameKeys: ((k: GameKey, down: boolean, repeat: boolean) => void) | null = null;
+export function setGameKeys(f: typeof gameKeys): void { gameKeys = f; }
 
 export function bindInput(h: Hooks): void {
   el.stage.addEventListener('click', (e) => {
@@ -69,6 +73,7 @@ export function bindInput(h: Hooks): void {
     const dir = KEY_DIR[e.key];
     const ok = e.key === ' ' || e.key === 'Enter' || e.key === 'z' || e.key === 'Z';
     if (dir || ok) e.preventDefault();
+    if (gameKeys && !menu) { if (dir) gameKeys(dir, true, e.repeat); else if (ok) gameKeys('z', true, e.repeat); return; }
     if (menu) {
       if (dir === 'up') setCursor(menu.cur - 1);
       else if (dir === 'down') setCursor(menu.cur + 1);
@@ -83,15 +88,18 @@ export function bindInput(h: Hooks): void {
   window.addEventListener('keyup', (e) => {
     if (e.key === 'Control') fast = false;
     const dir = KEY_DIR[e.key];
+    if (gameKeys) { if (dir) gameKeys(dir, false, false); else if (e.key === ' ' || e.key === 'Enter' || e.key === 'z' || e.key === 'Z') gameKeys('z', false, false); }
     if (dir) h.onDir(dir, false, false);
   });
   // 터치 화면: 방향 패드와 Z. 누르고 있는 동안 걷는다.
   document.querySelectorAll<HTMLButtonElement>('#pad [data-dir]').forEach((b) => {
     const d = b.dataset.dir as Dir;
-    const up = (e: Event): void => { e.preventDefault(); b.classList.remove('on'); h.onDir(d, false, false); };
+    const up = (e: Event): void => { e.preventDefault(); b.classList.remove('on'); if (gameKeys) gameKeys(d, false, false); h.onDir(d, false, false); };
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault(); e.stopPropagation();
-      if (blocked || typing || waiter) return;
+      if (blocked) return;
+      if (gameKeys && !menu) { b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch { /* 합성 이벤트 */ } gameKeys(d, true, false); return; }
+      if (typing || waiter) return;
       if (menu) { if (d === 'up') setCursor(menu.cur - 1); else if (d === 'down') setCursor(menu.cur + 1); return; }
       try { b.setPointerCapture(e.pointerId); } catch { /* 합성 이벤트 */ }
       b.classList.add('on'); h.onDir(d, true, false);
@@ -100,9 +108,11 @@ export function bindInput(h: Hooks): void {
     b.addEventListener('click', (e) => e.stopPropagation());
   });
   const z = document.getElementById('pad-z');
+  z?.addEventListener('pointerup', (e) => { e.preventDefault(); if (gameKeys) gameKeys('z', false, false); });
   z?.addEventListener('pointerdown', (e) => {
     e.preventDefault(); e.stopPropagation();
     if (blocked) return;
+    if (gameKeys && !menu) { gameKeys('z', true, false); return; }
     if (menu) { menu.pick(menu.cur); return; }
     if (!advance()) h.onAct();
   });
@@ -454,4 +464,27 @@ export function render(p: Pres, vars: { energy: number; heat: number; gaze: numb
   (el.gGaze.querySelector('u') as HTMLElement).style.width = `${Math.min(100, vars.gaze)}%`;
   el.stage.style.setProperty('--gaze', p.gaze && !p.suit ? String(Math.min(1, vars.gaze / 100)) : '0');
   el.stage.style.setProperty('--heat', p.heat ? String(Math.min(1, Math.max(0, (vars.heat - 40) / 60))) : '0');
+}
+
+// ── 시간 제한 (선택지가 저절로 골라지기까지) ──
+let timerEl: HTMLElement | null = null;
+/** secs 초 동안 줄이 줄어들고 심장 소리가 빨라진다. 다 되면 onEnd. 돌려주는 함수로 멈춘다. */
+export function timer(secs: number, onEnd: () => void): () => void {
+  if (!timerEl) { timerEl = document.createElement('div'); timerEl.id = 'timer'; timerEl.innerHTML = '<u></u>'; el.stage.appendChild(timerEl); }
+  const bar = timerEl.firstElementChild as HTMLElement;
+  const t0 = performance.now();
+  let beat = 0, last = t0, stopped = false;
+  timerEl.classList.add('on');
+  const tick = (now: number): void => {
+    if (stopped) return;
+    const f = Math.min(1, (now - t0) / (secs * 1000));
+    bar.style.transform = `scaleX(${1 - f})`;
+    beat += ((now - last) / 1000) * (1.6 + f * 2.4); last = now;
+    if (beat >= 1) { beat -= 1; sfx(f > 0.6 ? 'heartbeat' : 'heartbeat_soft'); }
+    if (f >= 1) { stop(); onEnd(); return; }
+    requestAnimationFrame(tick);
+  };
+  const stop = (): void => { stopped = true; timerEl?.classList.remove('on'); };
+  requestAnimationFrame(tick);
+  return stop;
 }

@@ -7,7 +7,9 @@ import { Pix, mix, rnd, sprite, type Pal } from './pix.ts';
 export type Dir = 'up' | 'down' | 'left' | 'right';
 export type Look = {
   kind: 'yunjae' | 'cat' | 'cat_nohead' | 'yunjae_cathead' | 'haeun' | 'father' | 'guard' | 'catreal' | 'person' | 'police'
-    | 'hyunwoo' | 'moka' | 'gombyo' | 'silbap' | Species | 'fox_nohead' | 'mother';
+    | 'hyunwoo' | 'moka' | 'gombyo' | 'silbap' | Species | 'fox_nohead' | 'mother'
+    | 'grandma' | 'nabi' | 'kid' | 'yunseo' | 'clerk';
+  v?: number; // 지나가는 사람(person)의 차림 번호: 같은 사람이 여럿 서 있지 않게
   droopy?: boolean; eyes?: boolean;
   bare?: boolean; // 엔딩 A: 맨얼굴의 윤재에게 처음으로 눈과 입이 생긴다
   bag?: boolean; // 윤재가 등에 멘 국방색 의류대. 안에 삼색이가 들었다.
@@ -314,11 +316,15 @@ function suitOps(dir: Dir, step: number, sit: boolean, emote: string, ph: number
           p.set(x - 1, y + 1, P[1]); p.set(x, y + 1, P[1]); p.set(x + 1, y + 1, P[2]); p.set(x, y + 2, P[2]); p.set(x - 1, y + 1, P[0]);
           p.set(x - 2, y - 1, P[1]); p.set(x, y - 2, P[1]); p.set(x + 2, y - 1, P[1]);
         });
+      } else if (!back && REACH.has(emote) && s > 0) {  // 앞으로 내민다: 젤리가 이쪽을 본다
+        o.arms.push([new Part(armCol).path([CX + 6.2, 26.8 + uy, CX + 7.4, 31.4 + uy], 2.3, 2.1), R]);
+        o.arms.push([new Part('W').ell(CX + 7, 33 + uy, 3.3, 3), R]);
+        o.arms.push((p) => { const x = Math.floor(CX + 7), y = Math.floor(33 + uy), P = R.P; p.set(x - 1, y + 1, P[1]); p.set(x, y + 1, P[1]); p.set(x + 1, y + 1, P[2]); p.set(x - 2, y - 1, P[1]); p.set(x, y - 2, P[1]); p.set(x + 2, y - 1, P[1]); });
       } else if (!back && emote === 'hold') {            // 벗은 머리를 배 앞에 안는다: 두 손이 머리 양옆을 받친다
         o.arms.push([new Part(armCol).path([CX + s * 6.2, 26.8 + uy, CX + s * 8.8, 35 + uy], 2.2, 1.9), R]);
         o.arms.push([new Part('W').ell(CX + s * 8.2, 38.2 + uy, 2.9, 2.6), R]);
-      } else if (!back && (emote === 'heart' || emote === 'curl')) { // 두 손을 가슴 앞에 모은다
-        const ty = emote === 'curl' ? 34 : 31;
+      } else if (!back && (emote === 'heart' || emote === 'curl' || emote === 'eat' || emote === 'cover_mouth')) { // 두 손을 가슴 앞에 모은다 (먹는 시늉, 입 가리기는 더 높이)
+        const ty = emote === 'curl' ? 34 : emote === 'eat' || emote === 'cover_mouth' ? 27.5 : 31;
         o.arms.push([new Part(armCol).path([CX + s * 6.2, 26.8 + uy, CX + s * 3, ty + uy], 2.2, 1.9), R]);
         o.arms.push([new Part('W').ell(CX + s * 2.2, ty + 0.6 + uy, 2.9, 2.6), R]);
       } else {
@@ -562,11 +568,15 @@ type HSpec = {
 };
 /** sit: 의자에 앉는다 (몸이 4px 내려간다). 'floor': 바닥에 주저앉는다 — 엉덩이가 바닥에 닿고 다리가 앞으로 나온다. */
 const FLOOR_D = 9;
+// 사람의 몸짓 (charFrame 이 그릴 때만 잠깐 정한다): 끄덕, 젓기, 웃음, 내밀기, 입 가리기
+let hEm = '', hPh = 0;
+const REACH = new Set(['give', 'reach', 'point']);
 /** wave: 오른손을 머리 옆으로 들어 흔든다 (앞모습만). 값은 손의 좌우 흔들림. */
 function humanOps(h: HSpec, dir: Dir, step: number, sitArg: boolean | 'floor', withHead: boolean, wave: number | false = false): { ops: Op[]; top: number } {
   const floor = sitArg === 'floor', sit = !!sitArg;
-  const bob = step === 1 || step === 3 ? 1 : 0;
+  const bob = (step === 1 || step === 3 ? 1 : 0) + (hEm === 'laugh' && hPh ? 1 : 0);
   const uy = bob + (floor ? FLOOR_D : sit ? 4 : 0);
+  const hdx = hEm === 'shake' ? (hPh ? 1 : -1) : 0, hdy = hEm === 'nod' && hPh ? 1 : 0;
   const lt = h.hip + (floor ? FLOOR_D : sit ? 4 : bob);
   const R = h.R, ops: Op[] = [];
   const [hcy, hrx, hry] = h.head;
@@ -588,12 +598,16 @@ function humanOps(h: HSpec, dir: Dir, step: number, sitArg: boolean | 'floor', w
     for (const s of [-1, 1]) {
       const a = step === 1 ? s : step === 3 ? -s : 0;
       const up = wave !== false && s > 0 && dir === 'down';
-      const ax = up ? h.tw + 2.6 + (wave as number) : floor ? h.tw + 2.2 : h.tw + 1;
-      const ay = up ? hcy - hry * 0.3 + uy : floor ? Math.min(h.hem - 1.2 + uy, 52.2) : h.hem - 1.2 + uy + a * 0.6; // 주저앉으면 손이 바닥을 짚는다
+      const fwd = REACH.has(hEm) && s > 0 && dir === 'down'; // 앞으로 내민 손: 몸 앞, 가슴 높이
+      const mouth = hEm === 'cover_mouth' && s > 0 && dir === 'down';
+      const ax = up ? h.tw + 2.6 + (wave as number) : fwd ? h.tw - 0.4 : mouth ? 1.4 : floor ? h.tw + 2.2 : h.tw + 1;
+      const ay = up ? hcy - hry * 0.3 + uy : fwd ? h.sh + 6 + uy : mouth ? h.sh + 1 + uy : floor ? Math.min(h.hem - 1.2 + uy, 52.2) : h.hem - 1.2 + uy + a * 0.6; // 주저앉으면 손이 바닥을 짚는다
       ops.push([new Part((_X, Y) => arm(Y)).path([CX + s * (h.tw + 0.4), h.sh + 1.2 + uy, CX + s * ax, ay - 1.2], h.armR, h.armR * 0.85).set({ fur: false }), R]);
       ops.push([new Part('S').ell(CX + s * ax, ay, h.armR * 0.75, h.armR * 0.7).set({ fur: false }), R]);
     }
-    if (withHead) { ops.push([new Part((X, Y) => h.hair(X, Y, dir, CX, hcy + uy)).ell(CX, hcy + uy, hrx, hry).set({ fur: false }), R]); if (dir === 'down') ops.push(fringeShade(R, hcy + uy, hry)); }
+    if (withHead) { ops.push([new Part((X, Y) => h.hair(X, Y, dir, CX + hdx, hcy + uy + hdy)).ell(CX + hdx, hcy + uy + hdy, hrx, hry).set({ fur: false }), R]); if (dir === 'down') ops.push(fringeShade(R, hcy + uy + hdy, hry)); }
+    if (hEm === 'cover_mouth' && dir === 'down' && withHead) ops.push([new Part('S').ell(CX + 0.6, hcy + hry * 0.62 + uy, h.armR * 0.95, h.armR * 0.8).set({ fur: false }), R]); // 손이 입을 가린다
+    if (REACH.has(hEm) && dir === 'down') ops.push([new Part('S').ell(CX + h.tw - 0.4, h.sh + 6 + uy, h.armR * 0.95, h.armR * 0.85).set({ fur: false }), R]); // 내민 손은 몸 앞에 온다
   } else {
     const f = sit ? 0 : step === 1 ? 2.4 : step === 3 ? -2.4 : 0, a = -f * 0.5;
     // 주저앉으면 무릎이 조금 서고 다리가 앞으로 뻗는다. 발끝이 선다.
@@ -614,7 +628,8 @@ function humanOps(h: HSpec, dir: Dir, step: number, sitArg: boolean | 'floor', w
     const hx = floor ? CX + 4.2 : CX + 0.4 + a, hy = floor ? lt - 2.8 : h.hem - 1.2 + uy; // 주저앉으면 손이 무릎에 얹힌다
     ops.push([new Part((_X, Y) => arm(Y)).path([CX + 0.2, h.sh + 1.2 + uy, hx, hy - 1.2], h.armR, h.armR * 0.85).set({ fur: false }), R]);
     ops.push([new Part('S').ell(hx, hy, h.armR * 0.75, h.armR * 0.7).set({ fur: false }), R]);
-    if (withHead) { ops.push([new Part((X, Y) => h.hair(X, Y, dir, CX, hcy + uy)).ell(CX - 0.3, hcy + uy, hrx - 0.3, hry).set({ fur: false }), R]); ops.push(fringeShade(R, hcy + uy, hry)); }
+    if (withHead) { ops.push([new Part((X, Y) => h.hair(X, Y, dir, CX + hdx * 0.5, hcy + uy + hdy)).ell(CX - 0.3 + hdx * 0.5, hcy + uy + hdy, hrx - 0.3, hry).set({ fur: false }), R]); ops.push(fringeShade(R, hcy + uy + hdy, hry)); }
+    if (REACH.has(hEm) || hEm === 'cover_mouth') ops.push([new Part('S').ell(hEm === 'cover_mouth' ? CX + hrx - 0.4 : CX + h.tw + 2.6, hEm === 'cover_mouth' ? hcy + hry * 0.6 + uy : h.sh + 4 + uy, h.armR * 0.85, h.armR * 0.75).set({ fur: false }), R]);
   }
   return { ops, top: Math.floor(hcy + uy - hry) };
 }
@@ -898,6 +913,38 @@ function extraOps(kind: string, d: Dir, step: number, sit: boolean): { mid: Op[]
   return { mid, top };
 }
 const PS: HSpec = { ...YJ, R: DIM_R, collar: false, hair: (X, Y, dir, c, cy) => (dir === 'up' || Y < cy || (dir !== 'down' && X < c + 1) ? 'H' : 'S') };
+// 지나가는 사람들: 얼굴은 없고, 머리색·피부·옷만 다르다. 지하철과 환승 통로를 채운다.
+const ramp1 = (a: string): Ramp => [mix(a, '#ffffff', 0.2), a, mix(a, '#000000', 0.22), mix(a, '#000000', 0.42)];
+const CROWD: { h: string; s: string; t: string; l: string; f: string; perm?: boolean; long?: boolean }[] = [
+  { h: '#26252c', s: '#c8a08a', t: '#3a4660', l: '#2c2e36', f: '#1e1e24' },
+  { h: '#4a3a32', s: '#e0bca0', t: '#c8b89a', l: '#4a4e5a', f: '#e8e4dc', long: true },
+  { h: '#8a8884', s: '#c09a84', t: '#6a5a4e', l: '#3a3a40', f: '#2a2620', perm: true },
+  { h: '#1e1d22', s: '#d6b096', t: '#e4e2dc', l: '#2a3a5a', f: '#d8d4cc' },
+  { h: '#3a2e2a', s: '#b88e78', t: '#5a6a4a', l: '#2e2e34', f: '#26241e', long: true },
+  { h: '#2a2930', s: '#d8b8a0', t: '#7a3a44', l: '#3a3c48', f: '#1e1c22' },
+  { h: '#5a4a3e', s: '#caa48c', t: '#8a8e96', l: '#24262e', f: '#3a3632', perm: true },
+];
+const crowdSpec = (v: number): HSpec => {
+  const c = CROWD[((v % CROWD.length) + CROWD.length) % CROWD.length];
+  const R: Ramps = { H: ramp1(c.h), A: ramp1(mix(c.h, '#ffffff', 0.4)), S: ramp1(c.s), T: ramp1(c.t), L: ramp1(c.l), F: ramp1(c.f) };
+  if (c.perm) return { ...MO, R };
+  if (c.long) return { ...YJ, R, collar: false, hair: (X, Y, dir, cx, cy) => (Y < cy + (dir === 'up' ? 7 : 0.2) || (dir !== 'up' && Math.abs(X - cx) > 2.6 && Y < cy + 7) ? 'H' : 'S') };
+  return { ...PS, R };
+};
+// 할머니: 작고 허리가 조금 굽었다. 흰머리를 뒤로 쪽졌다. 꽃무늬 블라우스, 몸빼 바지. (4장, 색이 있는 장면)
+const GM_R: Ramps = { H: ramp1('#a8a39c'), A: ramp1('#d4d0ca'), S: ramp1('#d0a284'), T: ramp1('#b07ab8'), L: ramp1('#3a4a6a'), F: ramp1('#6a5a4a') };
+const GM: HSpec = {
+  ...MO, R: GM_R, head: [25.2, 5, 5], sh: 31.6, hem: 43.6, hip: 43.2, tw: 4.4,
+  sleeve: (y) => (y > 10.4 ? 'S' : 'T'),
+  hair: (X, Y, dir, c, cy) => { if (dir === 'up') return Y > cy + 4 ? 'S' : 'H'; if (Y < cy - 0.2) return 'H'; return dir !== 'down' && X < c - 1.6 && Y < cy + 3 ? 'H' : 'S'; },
+};
+// 아이 (지하철에서 가방을 본 아이): 하은보다 조금 작고 노란 우비
+const KD: HSpec = { ...HA, R: { ...HA_R, T: ramp1('#e8c84a'), L: ramp1('#4a6a9a'), F: ramp1('#e8e4dc'), H: ramp1('#2a2430') } };
+// 윤서 (열일곱, 4장의 식탁): 긴 생머리, 교복 블라우스
+const YS_R: Ramps = { H: ramp1('#1e1c22'), A: ramp1('#2e2c34'), S: ramp1('#e6c2a6'), T: ramp1('#e8e6e2'), L: ramp1('#3a3e58'), F: ramp1('#e4e2dc') };
+const YS: HSpec = { ...MO, R: YS_R, head: [22.4, 5, 5.1], tw: 4.3, hair: (X, Y, dir, c, cy) => (Y < cy + (dir === 'up' ? 9 : 0.1) || (dir !== 'up' && Math.abs(X - c) > 2.5 && Y < cy + 9) ? 'H' : 'S') };
+// 편의점 알바: 초록 조끼
+const CK: HSpec = { ...PS, R: { ...DIM_R, H: ramp1('#2a2830'), S: ramp1('#c8a48c'), T: ramp1('#3a7a5a'), L: ramp1('#2a2c34') } };
 
 // ── 진짜 고양이 ──
 const RC: Pal = { o: '#0e0d12', k: '#2b2a33', K: '#3f3e4a', Y: '#d9e06a', E: '#14121a', n: '#d98a96', W: '#cfcac4' };
@@ -912,7 +959,7 @@ const cache = new Map<string, Pix>();
 export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', emote = '', ph = 0, idle: Idle = {}): Pix {
   const tl = Math.max(-1, Math.min(1, Math.round(idle.tail || 0))), br = idle.br ? 1 : 0;
   idle = { tail: tl, br };
-  const key = `${look.kind}/${look.mark || ''}/${look.droopy ? 1 : 0}${look.eyes ? 1 : 0}${look.bare ? 1 : 0}${look.bag ? 1 : 0}${look.case ? 1 : 0}/${dir}/${step}/${pose}/${emote}/${ph}/${tl}${br}`;
+  const key = `${look.kind}${look.v ?? ''}/${look.mark || ''}/${look.droopy ? 1 : 0}${look.eyes ? 1 : 0}${look.bare ? 1 : 0}${look.bag ? 1 : 0}${look.case ? 1 : 0}/${dir}/${step}/${pose}/${emote}/${ph}/${tl}${br}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const left = dir === 'left';
@@ -924,7 +971,8 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
   const ops: Op[] = [];
   const droopy = !!look.droopy;
   curMark = look.mark || '';
-  const hdx = emote === 'tilt' ? 1 : 0, hdy = (emote === 'nod' || emote === 'tilt') && ph ? 1 : 0;
+  const hdx = emote === 'tilt' ? 1 : emote === 'shake' ? (ph ? 1 : -1) : 0, hdy = (emote === 'nod' || emote === 'tilt') && ph ? 1 : 0;
+  hEm = emote; hPh = ph;
   if (pose === 'lie') { // 이불 밖으로 머리만 나온다
     if (look.kind === 'yunjae' || look.kind === 'person') ops.push(...humanOps(YJ, 'down', 0, false, true).ops.slice(-1));
     else ops.push(...catHeadOps('down', CX, 0, droopy, false, false));
@@ -999,7 +1047,25 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
       break;
     }
     case 'mother': ops.push(...humanOps(MO, d, step, hs, true).ops); break;
-    case 'person': ops.push(...humanOps(PS, d, step, hs, true).ops); break;
+    case 'person': ops.push(...humanOps(look.v === undefined ? PS : crowdSpec(look.v), d, step, hs, true).ops); break;
+    case 'grandma': ops.push(...humanOps(GM, d, step, hs, true, emote === 'wave' ? (ph ? 0.8 : -0.4) : false).ops); break;
+    case 'kid': ops.push(...humanOps(KD, d, step, hs, true, emote === 'wave' ? (ph ? 0.8 : -0.4) : false).ops); break;
+    case 'yunseo': ops.push(...humanOps(YS, d, step, hs, true).ops); break;
+    case 'clerk': ops.push(...humanOps(CK, d, step, hs, true).ops); break;
+    case 'nabi': // 할머니의 고양이. 삼색이와 같은 주황·검정·흰색.
+      ops.push((q) => {
+        const pal: Pal = { ...RC, k: '#f2ece2', K: '#e8843a', E: '#2a2018', Y: '#c8b84a', W: '#ffffff', o: '#2a1e18' };
+        const s0 = step === 0 || step === 2;
+        if (s0) q.blit(sprite(RC_SIT, pal), CX - 6, 44); else { q.blit(sprite(RC_WALK, pal), CX - 8, 46); q.blit(sprite(RC_LEGS[step % 2], pal), CX - 8, 53); }
+        // 얼룩: 주황과 검정 조각
+        for (let y = 40; y < FH; y++) for (let x = 0; x < FW; x++) {
+          if (!q.alpha(x, y)) continue;
+          const i = (y * FW + x) * 4; if (q.d[i] < 0x80) continue; // 테두리·눈은 그대로
+          const n = Math.sin(x * 0.9 + y * 0.5) + Math.cos(x * 0.4 - y * 1.1);
+          if (n > 1.1) q.set(x, y, '#e8843a'); else if (n < -1.2) q.set(x, y, '#2a2428');
+        }
+      });
+      break;
     case 'father': {
       const h = humanOps(FA, d, step, hs, true);
       ops.push(...h.ops);
@@ -1018,6 +1084,7 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
   }
   // 왼쪽을 보면 통째로 뒤집는다.
   run(ops, p);
+  hEm = ''; hPh = 0;
   let out = left ? (() => { const q = new Pix(FW, FH); q.blit(p, 0, 0, true); return q; })() : p;
   if (pose === 'stoop') out = stoopOf(out, dir);
   cache.set(key, out);

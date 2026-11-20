@@ -24,7 +24,7 @@ for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.ink'))) {
       const val = c < 0 ? '' : tag.slice(c + 1).trim();
       const where = `${f}:${i + 1}  # ${tag}`;
       if (T.LINE_KINDS.includes(name)) continue;
-      if (name === 'at') { if (!(val === 'move' || val === 'wait' || allObjs.has(val))) bad.push(where + '  (맵에 없는 물건)'); continue; }
+      if (name === 'at') { if (!(val === 'move' || val === 'wait' || val === 'timeout' || allObjs.has(val))) bad.push(where + '  (맵에 없는 물건)'); continue; }
       if (!T.DIRECTIVES.includes(name)) { bad.push(where + '  (모르는 태그)'); continue; }
       const ok =
         name === 'scene' ? val in T.SCENES :
@@ -45,6 +45,10 @@ for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.ink'))) {
         name === 'warn' ? val === 'end' || val in T.WARNS :
         name === 'face' ? T.FACES.includes(val) :
         name === 'pause' ? !Number.isNaN(Number(val)) :
+        name === 'timer' ? !Number.isNaN(Number(val)) :
+        name === 'crowd' ? ['on', 'off'].includes(val) :
+        name === 'train' ? ['arrive', 'open', 'close', 'leave', 'gone'].includes(val) :
+        name === 'game' ? T.GAMES.includes(val.split(/\s+/)[0]) :
         name === 'views' ? /^[\d,]+$/.test(val) :
         true;
       if (!ok) bad.push(where + '  (표에 없는 값)');

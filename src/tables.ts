@@ -2,7 +2,7 @@
 // 지금은 자리 표시용이다. 장면은 '가족'별로 묶어서 빛과 실루엣만 그린다.
 
 // map 이 있으면 걸어 다니는 맵으로, 없으면 그림 한 장으로 보여 준다. lit 은 맵의 조명 분위기.
-export type SceneSpec = { f: string; mood: string; amb: string; map?: string; lit?: string };
+export type SceneSpec = { f: string; mood: string; amb: string; map?: string; lit?: string; rain?: boolean };
 
 export const SCENES: Record<string, SceneSpec> = {
   black: { f: 'black', mood: 'night', amb: 'room' },
@@ -16,7 +16,7 @@ export const SCENES: Record<string, SceneSpec> = {
   room_door_open: { f: 'room', mood: 'open', amb: 'room', map: 'room', lit: 'open' },
   door_shadow: { f: 'door', mood: 'night', amb: 'room', map: 'room', lit: 'doorshadow' },
   mirror: { f: 'mirror', mood: 'night', amb: 'room' },
-  mirror_morning: { f: 'mirror', mood: 'day', amb: 'room' },
+  mirror_morning: { f: 'room', mood: 'day', amb: 'room', map: 'room', lit: 'openday' }, // 3장 다음 날: 거울 앞을 지나간다. 문은 닫히지 않는다
   corridor_night: { f: 'corridor', mood: 'night', amb: 'night', map: 'corridor', lit: 'night' },
   corridor_night_glass: { f: 'corridor', mood: 'night', amb: 'night', map: 'corridor', lit: 'glass' }, // 2장 끝: 현관 앞에 깨진 병
   corridor_day: { f: 'corridor', mood: 'day', amb: 'day', map: 'corridor', lit: 'day' },
@@ -24,11 +24,11 @@ export const SCENES: Record<string, SceneSpec> = {
   playground_night: { f: 'playground', mood: 'night', amb: 'night', map: 'playground', lit: 'night' },
   complex_night: { f: 'complex', mood: 'night', amb: 'night', map: 'complex', lit: 'night' },
   recycle_back: { f: 'recycle', mood: 'night', amb: 'night', map: 'recycle', lit: 'night' },
-  under_slide: { f: 'slide', mood: 'rain', amb: 'rain_out' },
-  subway: { f: 'subway', mood: 'day', amb: 'subway' },
-  transfer_crowd: { f: 'crowd', mood: 'day', amb: 'crowd' },
-  station_gate: { f: 'gate', mood: 'day', amb: 'crowd' },
-  platform_bench: { f: 'platform', mood: 'day', amb: 'subway' },
+  under_slide: { f: 'slide', mood: 'rain', amb: 'rain_out', map: 'playground', lit: 'rainnight', rain: true },
+  subway: { f: 'subway', mood: 'day', amb: 'subway', map: 'subway', lit: 'bright' },
+  transfer_crowd: { f: 'crowd', mood: 'day', amb: 'crowd', map: 'concourse', lit: 'bright' },
+  station_gate: { f: 'gate', mood: 'day', amb: 'crowd', map: 'concourse', lit: 'bright' },
+  platform_bench: { f: 'platform', mood: 'day', amb: 'subway', map: 'platform', lit: 'bright' },
   street_day: { f: 'street', mood: 'day', amb: 'day', map: 'road', lit: 'bright' },
   street_evening_wet: { f: 'street', mood: 'dusk', amb: 'rain_out', map: 'street', lit: 'evening' },
   partyroom: { f: 'party', mood: 'warm', amb: 'party', map: 'party', lit: 'party' },
@@ -36,21 +36,22 @@ export const SCENES: Record<string, SceneSpec> = {
   partyroom_door: { f: 'party', mood: 'door', amb: 'still', map: 'party', lit: 'party' },
   partyroom_lounge: { f: 'party', mood: 'warm', amb: 'party', map: 'party', lit: 'party' },
   partyroom_changing: { f: 'party', mood: 'dim', amb: 'still', map: 'party', lit: 'party' },
-  partyroom_restroom: { f: 'mirror', mood: 'bright', amb: 'still' },
+  partyroom_restroom: { f: 'mirror', mood: 'bright', amb: 'still', map: 'restroom', lit: 'bright' },
   livingroom_day: { f: 'living', mood: 'day', amb: 'room', map: 'living', lit: 'day' },
   livingroom_dark: { f: 'living', mood: 'dark', amb: 'room', map: 'living', lit: 'dark' },
   livingroom_morning_rain: { f: 'living', mood: 'rain', amb: 'rain_in', map: 'living', lit: 'rain' },
-  convenience_store: { f: 'store', mood: 'bright', amb: 'store' },
+  convenience_store: { f: 'store', mood: 'bright', amb: 'store', map: 'store', lit: 'bright' },
   campus_cafeteria: { f: 'campus', mood: 'bright', amb: 'crowd' },
   campus_bench: { f: 'campus', mood: 'day', amb: 'day' },
   dorm_night: { f: 'dorm', mood: 'dark', amb: 'still' },
   dorm_stairwell: { f: 'stairs', mood: 'day', amb: 'still' },
   // 4장
   room_dark_rain: { f: 'room', mood: 'dark', amb: 'rain_in', map: 'room', lit: 'dark' },
-  grandma_house: { f: 'grandma', mood: 'color', amb: 'day' },   // 이 게임에서 유일하게 색이 있는 장면
-  funeral_front: { f: 'funeral', mood: 'night', amb: 'still' },
-  er_ceiling: { f: 'er', mood: 'white', amb: 'still' },
-  dinner_past: { f: 'living', mood: 'dim', amb: 'room' },
+  grandma_house: { f: 'grandma', mood: 'color', amb: 'day', map: 'grandma', lit: 'color' },   // 이 게임에서 유일하게 색이 있는 장면
+  funeral_front: { f: 'funeral', mood: 'night', amb: 'still', map: 'funeral', lit: 'night' },
+  funeral_front_c: { f: 'funeral', mood: 'night', amb: 'still', map: 'funeral', lit: 'few' }, // 엔딩 C: 화환이 둘
+  er_ceiling: { f: 'er', mood: 'white', amb: 'still', map: 'er', lit: 'white' },
+  dinner_past: { f: 'living', mood: 'dim', amb: 'room', map: 'living', lit: 'tv' },
 };
 
 // 효과음: 합성 방식(k)과 인자.
@@ -74,6 +75,17 @@ export const SFX: Record<string, SfxSpec> = {
   door_slam_far: { k: 'thud', f: 60, dur: 0.6, noise: 0.2, vol: 0.3 },
   door_open: { k: 'creak', dur: 0.7, vol: 0.12, f: 180 },
   door_open_soft: { k: 'creak', dur: 0.5, vol: 0.06, f: 150 },
+  water_run: { k: 'wash', dur: 3, lp: 3200, hp: 700, vol: 0.14, attack: 0.15 },
+  tv_laugh: { k: 'wash', dur: 2.2, lp: 1400, hp: 280, vol: 0.12, attack: 0.3 },
+  heartbeat: { k: 'thud', f: 46, dur: 0.16, noise: 0.04, vol: 0.55 },
+  heartbeat_soft: { k: 'thud', f: 44, dur: 0.14, noise: 0.02, vol: 0.28 },
+  coin: { k: 'click', n: 1, vol: 0.16, bright: 1 },
+  slip: { k: 'creak', dur: 0.25, vol: 0.05, f: 300 },
+  stitch: { k: 'click', n: 1, vol: 0.08, bright: 0 },
+  notify: { k: 'seq', wave: 'sine', notes: [1760, 2349], dur: 0.06, gap: 0.07, vol: 0.06 },
+  bump: { k: 'thud', f: 120, dur: 0.12, noise: 0.5, vol: 0.35 },
+  tap: { k: 'click', n: 1, vol: 0.05, bright: 1 },
+  bang: { k: 'thud', f: 60, dur: 0.35, noise: 0.6, vol: 0.55 }, // 옷장 밖에서 문이 울린다 (멀고 두껍다)
   swing_creak: { k: 'creak', dur: 1.4, vol: 0.1, f: 520, swing: 1 },
   footsteps_near: { k: 'steps', n: 5, gap: 0.55, jitter: 0.05, from: 0.25, to: 0.6 },
   footsteps_away: { k: 'steps', n: 6, gap: 0.55, jitter: 0.05, from: 0.5, to: 0.05 },
@@ -142,6 +154,7 @@ export const UI_TAGS = [
 
 export const EMOTES: Record<string, string> = {
   wave: '손을 흔든다', heart: '하트', tilt: '갸웃', curl: '웅크린다', nod: '끄덕',
+  shake: '고개를 젓는다', laugh: '웃는다', give: '내민다', reach: '손을 뻗는다', point: '가리킨다', eat: '먹는 시늉', cover_mouth: '입을 가린다',
 };
 
 export const SUIT = ['on', 'off', 'body', 'head_on', 'head_off'];
@@ -161,6 +174,10 @@ export const DIRECTIVES = [
   'pos',   // pos: 자리 이름      윤재를 그 자리에 놓는다
   'go',    // go: 자리 이름       윤재가 그 자리까지 걸어간다
   'npc',   // npc: 누구 자리 [walk]   다른 사람을 놓거나(off 면 치운다) 걷게 한다
+  'crowd', // crowd: on / off   환승 통로의 인파가 지나간다
+  'train', // train: arrive / open / close / leave   승강장 열차 (끝날 때까지 기다린다)
+  'game',  // 선택지에만: game: 이름 결과   미니게임의 결과가 그 선택지를 고른다
+  'timer', // 선택지에만: timer: 초   at: timeout 선택지가 시간이 다 되면 골라진다
   'swing', // swing: swing1 high   그네 (놀이터). 앉은 사람과 함께 흔들린다. still 이면 멈춘다
   'pose',  // pose: stand / lie / sit / curl
   'face',  // face: up / down / left / right
@@ -195,3 +212,6 @@ export const WARNS: Record<string, { line: string; skip?: string[] }> = {
   crisis: { line: '이제부터 자살 사고가 이어지는 밤입니다. 이 장면은 넘길 수 없습니다. 방법은 나오지 않습니다. 왼쪽 위 메뉴(≡)에서 언제든 쉬어 갈 수 있습니다.' },
   ending_c: { line: '이 결말에서 윤재는 죽습니다. 죽는 장면은 나오지 않습니다. 끝나고 나면 도움 창구 안내가 나옵니다.' },
 };
+
+// 미니게임 이름 (games.ts 의 판, world.ts 의 맵 위 게임)
+export const GAMES = ['breath', 'bill', 'coins', 'stitch', 'still', 'flood', 'crowd', 'type', 'closet', 'dial'];
