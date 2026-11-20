@@ -4,7 +4,7 @@
 import { sfx } from './audio.ts';
 import * as ui from './ui.ts';
 import type { GameKey } from './ui.ts';
-import { mirrorScene, videoPlayground, videoFace } from './art/cuts.ts';
+import { mirrorScene, videoPlayground, videoFace, groupPhoto } from './art/cuts.ts';
 import { canvasOf } from './sprites.ts';
 
 const W = 256, H = 144;
@@ -1146,7 +1146,12 @@ function swing(together: boolean): Play {
       const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#05070d'); g.addColorStop(0.7, '#0d1220'); g.addColorStop(1, '#161a22');
       c.fillStyle = g; c.fillRect(0, 0, W, H);
       for (const [x, y, k] of stars) if ((Math.floor(t * 0.7 + x) % 7) !== 0) px(c, x, y, 1, 1, k === 1 ? '#3a4258' : '#5a6480');
-      for (let b = 0; b < 5; b++) { const bx = 6 + b * 52, bh = 54 + (b % 2) * 14; px(c, bx, H - 30 - bh, 40, bh, '#0b0e16'); for (let wy = 0; wy < bh - 8; wy += 7) for (let wx = 3; wx < 37; wx += 6) if (((wx * 7 + wy * 13 + b * 5) % 11) === 0) px(c, bx + wx, H - 30 - bh + 4 + wy, 3, 3, '#d8a65a'); }
+      for (let b = 0; b < 5; b++) { // 단지 동들: 실루엣과 몇 개 남은 불 켜진 창
+        const bx = 4 + b * 52, bh = 62 + (b % 2) * 16, by = H - 30 - bh;
+        c.fillStyle = '#10141f'; c.fillRect(bx, by, 44, bh); c.fillStyle = '#151a28'; c.fillRect(bx, by, 44, 1); c.fillStyle = '#0c0f18'; c.fillRect(bx + 40, by, 4, bh);
+        for (let wy = 0; wy < bh - 10; wy += 6) for (let wx = 3; wx < 38; wx += 5) { const on = ((wx * 7 + wy * 13 + b * 5) % 23) === 0; c.fillStyle = on ? '#c89a52' : '#161b29'; c.fillRect(bx + wx, by + 5 + wy, 2, 2); }
+        c.fillStyle = '#2a3040'; c.font = '600 5px sans-serif'; c.fillText(String(105 + b), bx + 16, by + 8);
+      }
       // 가로등
       const lg = c.createRadialGradient(214, 30, 2, 214, 30, 70); lg.addColorStop(0, 'rgba(255,214,140,0.5)'); lg.addColorStop(1, 'rgba(255,214,140,0)');
       c.fillStyle = lg; c.fillRect(140, 0, 116, 110); px(c, 213, 30, 2, H - 60, '#2a2a30'); px(c, 208, 28, 12, 3, '#e8d2a0');
@@ -1199,77 +1204,52 @@ function swing(together: boolean): Play {
 
 // ═══════════ 단체 사진 (2장: 타이머 십 초) ═══════════
 // Z 를 누르고 있으면 하트를 만든 채로 버틴다. 곰이 끌어안을수록 덥고 팔이 떨린다. 셔터 전에 놓으면 나만 흔들린다.
-function photo(): Play {
-  let tt = 0, heat = 0.35, shake = 0, held = 0, end = -1, out = '', shot = -1, said = 0, letGo = 0;
+function photo(opt: GameOpt): Play {
+  let tt = 0, heat = 0.35, shake = 0, held = 0, end = -1, out = '', said = 0;
   const T = 10.5;
-  // 한 칸짜리 반 픽셀 붓
-  const fill = (c: Ctx, x: number, y: number, w: number, h: number, col: string): void => { c.fillStyle = col; c.fillRect(x, y, w, h); };
+  const pic = canvasOf(groupPhoto(!!opt.droopy)); // 3장에 퍼지는 바로 그 사진
+  const IX = 8, IY = 4, CX = 124, CY = 40; // 사진 속 삼색이 자리 (cuts.ts groupPhoto)
   return {
     scale: 2,
     peek: () => ({ shake, tt }),
-    hint: 'Z 를 누르고 있는다 · 하트를 만든 채로 셔터까지',
+    hint: 'Z 를 누르고 있는다 · 셔터까지 그대로 버틴다',
     step(dt, _t, k) {
       tt += dt;
       if (end >= 0) { end += dt; return end > 2.2 ? out : null; }
       const hug = tt > 2.2 ? 1 : 0; // 곰이 뒤에서 끌어안는다
       heat = Math.min(1, heat + dt * (0.03 + hug * 0.05));
-      if (k.z) { held += dt; shake = Math.min(1, shake + dt * (0.05 + heat * 0.12)); } else { if (held > 0.3) letGo++; held = 0; shake = Math.max(0, shake - dt * 0.6); }
+      if (k.z) { held += dt; shake = Math.min(1, shake + dt * (0.05 + heat * 0.12)); } else { held = 0; shake = Math.max(0, shake - dt * 0.6); }
       if (tt > 4 && said === 0) { said = 1; ui.hint('곰이 끌어안는다 · 덥다'); }
       if (shake > 0.62 && said < 3) { said = 3; ui.hint('팔이 떨린다 · 잠깐 풀었다가 다시 만든다'); }
       if (tt > 7.4 && said !== 4 && said !== 0) { said = 4; ui.hint('삼. 이. 일.'); }
-      if (tt > T) { shot = 0; end = 0; out = k.z && shake < 0.85 ? 'clear' : 'blur'; ui.hint(''); sfx('camera_shutter'); }
+      if (tt > T) { end = 0; out = k.z && shake < 0.85 ? 'clear' : 'blur'; ui.hint(''); sfx('camera_shutter'); }
       return null;
     },
     draw(c, t) {
-      const holding = held > 0;
-      // 파티룸: 따뜻한 벽, 풍선, 가랜드
-      fill(c, 0, 0, W, H, '#3a2a26'); fill(c, 0, 96, W, 48, '#4a3a30');
-      for (let i = 0; i < 9; i++) { const x = 14 + i * 28; fill(c, x, 10 + (i % 2) * 3, 0.5, 6, '#c8b8a0'); c.fillStyle = ['#e85a5a', '#f2c84a', '#5ab0e8', '#e88ac8'][i % 4]; c.beginPath(); c.moveTo(x - 4, 16 + (i % 2) * 3); c.lineTo(x + 4, 16 + (i % 2) * 3); c.lineTo(x, 22 + (i % 2) * 3); c.fill(); }
-      fill(c, 0, 14, W, 0.5, '#c8b8a0');
-      const sh = (shake > 0.4 ? (Math.random() - 0.5) * shake * 3 : 0);
-      const suit = (x: number, y: number, body: string, dark: string, earL: [number, number, number, number], kind: string): void => {
-        fill(c, x - 9, y, 18, 26, body); fill(c, x - 9, y, 3, 26, dark); // 몸
-        fill(c, x - 10, y - 18, 20, 17, body); fill(c, x - 10, y - 18, 3, 17, dark); // 머리
-        fill(c, x - 10 + earL[0], y - 18 - earL[1], earL[2], earL[3], body); fill(c, x + 10 - earL[0] - earL[2], y - 18 - earL[1], earL[2], earL[3], body);
-        fill(c, x - 6, y - 12, 3, 3, '#141414'); fill(c, x + 3, y - 12, 3, 3, '#141414'); fill(c, x - 5, y - 12, 1, 1, '#fff'); fill(c, x + 4, y - 12, 1, 1, '#fff');
-        fill(c, x - 2, y - 7, 4, 2, kind === 'bear' ? '#2a1a14' : '#3a2a2a');
-        if (kind === 'fox') { fill(c, x - 4, y - 8, 8, 6, '#f4ece0'); fill(c, x - 2, y - 7, 4, 2, '#2a1a14'); }
-      };
-      // 곰: 뒤에서 팔을 벌린다 (점점 감싼다)
-      const hug = Math.min(1, Math.max(0, (tt - 2.2) / 1.2));
-      suit(W / 2, 34, '#7a4a2a', '#5a3420', [1, 5, 6, 6], 'bear');
-      fill(c, W / 2 - 22 - (1 - hug) * 16, 52, 14 + (1 - hug) * 6, 7, '#7a4a2a'); fill(c, W / 2 + 8 + (1 - hug) * 10, 52, 14 + (1 - hug) * 6, 7, '#7a4a2a');
-      // 앞줄: 토끼, 강아지, 나(가운데), 여우
-      suit(W / 2 - 46, 68, '#e8e4e0', '#c8c0bc', [3, 14, 4, 15], 'rabbit');
-      suit(W / 2 + 46, 68, '#e07a2a', '#b85a18', [2, 7, 6, 8], 'fox');
-      suit(W / 2 + 76, 74, '#c8a070', '#a07a50', [-1, 2, 6, 9], 'dog');
-      // 나: 삼색이. 하트 손
-      const mx = W / 2 + sh, my = 70;
-      fill(c, mx - 9, my, 18, 26, '#34343e'); fill(c, mx - 9, my, 3, 26, '#26262e');
-      fill(c, mx - 10, my - 18, 20, 17, '#efe6d6'); fill(c, mx - 10, my - 18, 8, 7, '#e07a2a'); fill(c, mx + 4, my - 17, 6, 6, '#1c1c20');
-      fill(c, mx - 11, my - 21, 5, 5, '#e07a2a'); fill(c, mx + 6, my - 19, 5, 4, '#1c1c20'); // 처진 귀
-      fill(c, mx - 6, my - 12, 3, 3, '#3a5a3a'); fill(c, mx + 3, my - 12, 3, 3, '#3a5a3a'); fill(c, mx - 1, my - 7, 2, 1, '#e89aa0');
-      if (holding) { // 가슴 앞의 찌그러진 하트
-        c.fillStyle = '#efe6d6'; c.beginPath(); c.arc(mx - 3, my + 6, 3.5, 0, 7); c.arc(mx + 3, my + 6, 3.5, 0, 7); c.fill();
-        c.beginPath(); c.moveTo(mx - 6.5, my + 7); c.lineTo(mx, my + 14); c.lineTo(mx + 6.5, my + 7); c.fill();
-        fill(c, mx - 4, my + 5, 2, 2, '#e89aa0'); fill(c, mx + 2, my + 5, 2, 2, '#e89aa0');
-      } else { fill(c, mx - 13, my + 4, 4, 12, '#34343e'); fill(c, mx + 9, my + 4, 4, 12, '#34343e'); }
-      // 더위: 화면 가장자리가 하얗게 든다
-      const hg = c.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, 150); hg.addColorStop(0, 'rgba(255,250,240,0)'); hg.addColorStop(1, 'rgba(255,248,236,' + (heat * 0.55).toFixed(2) + ')');
+      c.fillStyle = '#120e0c'; c.fillRect(0, 0, W, H);
+      c.imageSmoothingEnabled = false;
+      const frozen = end >= 0;
+      // 화면: 휴대폰 타이머 미리보기. 아직 찍히기 전이라 살짝 어둡고, 찍히는 순간 밝게 굳는다
+      c.globalAlpha = frozen ? 1 : 0.9; c.drawImage(pic, IX, IY); c.globalAlpha = 1;
+      // 나만 움직인다: 버티지 않거나 팔이 떨리면 사진 속 내 자리만 흔들린다
+      const still = held > 0 || (frozen && out === 'clear');
+      const jx = frozen ? (out === 'blur' ? 2 : 0) : !still ? Math.round(Math.sin(t * 9) * 2) : shake > 0.35 ? Math.round((Math.random() - 0.5) * shake * 4) : 0;
+      if (jx) { c.globalAlpha = 0.55; c.drawImage(pic, CX - 22, CY, 44, 70, IX + CX - 22 + jx, IY + CY, 44, 70); c.globalAlpha = 1; }
+      // 더위: 가장자리가 하얗게 든다 (탈 안에서 보는 것처럼)
+      const hg = c.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, 150); hg.addColorStop(0, 'rgba(255,250,240,0)'); hg.addColorStop(1, 'rgba(255,248,236,' + (heat * 0.5).toFixed(2) + ')');
       c.fillStyle = hg; c.fillRect(0, 0, W, H);
-      // 뷰파인더: 모서리 괄호와 타이머
-      const br = (x: number, y: number, dx: number, dy: number): void => { fill(c, x, y, 10 * dx || 1, 1, '#fff'); fill(c, x, y, 1, 10 * dy || 1, '#fff'); };
-      c.save(); c.globalAlpha = 0.8;
-      fill(c, 12, 10, 12, 1, '#fff'); fill(c, 12, 10, 1, 12, '#fff'); fill(c, W - 24, 10, 12, 1, '#fff'); fill(c, W - 13, 10, 1, 12, '#fff');
-      fill(c, 12, H - 11, 12, 1, '#fff'); fill(c, 12, H - 22, 1, 12, '#fff'); fill(c, W - 24, H - 11, 12, 1, '#fff'); fill(c, W - 13, H - 22, 1, 12, '#fff');
-      c.restore(); void br;
-      const left = Math.max(0, Math.ceil(10 - tt * (10 / T)));
-      if (end < 0) { if (Math.floor(t * 2) % 2 === 0) { c.fillStyle = '#e8302a'; c.beginPath(); c.arc(W - 30, 20, 2.5, 0, 7); c.fill(); } num(c, W - 50, 16, left, '#ffffff', 2); }
-      // 팔 떨림 막대
-      fill(c, 20, H - 30, 3, 16, '#2a2224'); fill(c, 20, H - 14 - Math.round(16 * shake), 3, Math.round(16 * shake), shake > 0.7 ? '#d8574e' : '#efe6d6');
-      // 셔터
-      if (end >= 0) { const f = Math.max(0, 1 - end * 1.6); c.fillStyle = 'rgba(255,255,255,' + f.toFixed(2) + ')'; c.fillRect(0, 0, W, H); }
-      void letGo;
+      // 미리보기 테두리와 타이머
+      if (!frozen) {
+        c.fillStyle = 'rgba(255,255,255,0.85)';
+        for (const [x, y, dx, dy] of [[14, 10, 1, 1], [W - 14, 10, -1, 1], [14, H - 10, 1, -1], [W - 14, H - 10, -1, -1]] as const) { c.fillRect(Math.min(x, x + dx * 12), y, 12, 1); c.fillRect(x, Math.min(y, y + dy * 12), 1, 12); }
+        const left = Math.max(0, Math.ceil(10 - tt * (10 / T)));
+        c.fillStyle = 'rgba(0,0,0,0.45)'; c.fillRect(W - 46, 12, 30, 16);
+        if (Math.floor(t * 2) % 2 === 0) { c.fillStyle = '#e8302a'; c.beginPath(); c.arc(W - 40, 20, 2.5, 0, 7); c.fill(); }
+        num(c, W - 34, 15, left, '#ffffff', 2);
+        // 팔 떨림
+        c.fillStyle = 'rgba(0,0,0,0.45)'; c.fillRect(16, H - 34, 7, 22);
+        c.fillStyle = '#2a2224'; c.fillRect(18, H - 32, 3, 18); c.fillStyle = shake > 0.7 ? '#d8574e' : '#efe6d6'; c.fillRect(18, H - 14 - Math.round(18 * shake), 3, Math.round(18 * shake));
+      } else { const f = Math.max(0, 1 - end * 1.6); c.fillStyle = 'rgba(255,255,255,' + f.toFixed(2) + ')'; c.fillRect(0, 0, W, H); }
     },
   };
 }
@@ -1292,29 +1272,37 @@ function catchb(): Play {
       return null;
     },
     draw(c) {
-      c.fillStyle = '#2a2a30'; c.fillRect(0, 0, W, H); c.fillStyle = '#34343c'; c.fillRect(0, 100, W, 44);
-      // 선풍기 두 대
-      for (const fx of [40, 216]) { c.fillStyle = '#5a5a64'; c.fillRect(fx - 1, 50, 2, 50); c.strokeStyle = '#8a8a94'; c.beginPath(); c.arc(fx, 46, 10, 0, 7); c.stroke(); const a = tt * 20; c.fillStyle = 'rgba(200,200,210,0.5)'; for (let i = 0; i < 3; i++) { c.beginPath(); c.ellipse(fx + Math.cos(a + i * 2.1) * 5, 46 + Math.sin(a + i * 2.1) * 5, 4, 2, a + i * 2.1, 0, 7); c.fill(); } }
-      // 현우: 여우 몸에 사람 머리. 얼굴은 그리지 않는다
-      c.fillStyle = '#e07a2a'; c.fillRect(186, 64, 22, 36); c.fillStyle = '#b85a18'; c.fillRect(186, 64, 4, 36);
-      c.fillStyle = '#2a2220'; c.fillRect(189, 46, 16, 18); c.fillStyle = '#c9a48a'; c.fillRect(190, 52, 14, 12);
+      // 뒤에 휴게실 맵이 비친다. 앞에는 내 두 손만 크게 (머리는 벗었고, 몸은 아직 삼색이다)
+      c.fillStyle = 'rgba(8,8,12,0.38)'; c.fillRect(0, 0, W, H);
       const f = Math.max(0, Math.min(1.3, (tt - START) / FLY));
-      const arm = tt < START ? (tt / START) : 1;
-      c.fillStyle = '#e07a2a'; c.fillRect(176 - arm * 6, 70 - arm * 10, 12, 6);
-      // 내 손 (아래 왼쪽, 고양이 손: 분홍 젤리)
-      const hx = 64, hy = 96;
-      c.fillStyle = '#34343e'; c.fillRect(hx - 30, hy + 4, 40, 10);
-      c.fillStyle = '#efe6d6'; c.fillRect(hx - 8, hy - 2, 18, 12); c.fillStyle = '#e89aa0'; c.fillRect(hx - 3, hy + 2, 6, 4); for (let i = 0; i < 3; i++) c.fillRect(hx - 6 + i * 6, hy - 1, 3, 2);
-      // 물병: 포물선
-      if (tt > START && !(end >= 0 && out === 'caught')) {
-        const bx = 180 + (hx - 180) * f, by = 70 + (hy - 6 - 70) * f - Math.sin(Math.min(1, f) * Math.PI) * 40 + (f > 1 ? (f - 1) * 120 : 0);
-        c.save(); c.translate(bx, by); c.rotate(f * 9);
-        c.fillStyle = 'rgba(170,210,240,0.8)'; c.fillRect(-3, -7, 6, 14); c.fillStyle = '#3a7ac8'; c.fillRect(-2, -9, 4, 2); c.fillStyle = 'rgba(255,255,255,0.7)'; c.fillRect(-2, -5, 1, 8);
+      const hx = 112, hy = 112;
+      const paw = (x: number, y: number, flip: number): void => {
+        c.fillStyle = '#26262e'; c.fillRect(x - 12, y + 8, 24, 40); c.fillStyle = '#34343e'; c.fillRect(x - 11, y + 8, 22, 40); // 소매(몸통 털)
+        c.fillStyle = '#1a1a20'; c.beginPath(); c.ellipse(x, y + 2, 14, 12, 0, 0, 7); c.fill();
+        c.fillStyle = '#efe6d6'; c.beginPath(); c.ellipse(x, y + 2, 13, 11, 0, 0, 7); c.fill();
+        c.fillStyle = '#d8ccba'; c.beginPath(); c.ellipse(x + flip * 4, y + 6, 8, 5, 0, 0, 7); c.fill();
+        if (flip < 0) { c.fillStyle = '#e07a2a'; c.beginPath(); c.ellipse(x - 5, y - 3, 6, 5, 0.4, 0, 7); c.fill(); }
+        c.fillStyle = '#e89aa0'; c.beginPath(); c.ellipse(x, y + 4, 5, 4, 0, 0, 7); c.fill(); // 큰 젤리
+        for (let i = 0; i < 4; i++) { c.beginPath(); c.ellipse(x - 7.5 + i * 5, y - 4 - (i === 1 || i === 2 ? 1.5 : 0), 2, 2.4, 0, 0, 7); c.fill(); } // 발가락 젤리
+        c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(x - 1, y + 2, 2, 1);
+      };
+      const reach = end >= 0 && out === 'caught' ? 0 : f > 0.5 ? Math.min(1, (f - 0.5) * 2) * 4 : 0;
+      paw(hx - 18 + reach, hy - reach, -1); paw(hx + 18 - reach, hy - reach, 1);
+      // 물병: 오른쪽 위(현우 쪽)에서 포물선
+      const bottle = (x: number, y: number, r: number): void => {
+        c.save(); c.translate(x, y); c.rotate(r);
+        c.fillStyle = 'rgba(160,205,240,0.85)'; c.fillRect(-4, -9, 8, 18); c.fillStyle = 'rgba(120,170,215,0.9)'; c.fillRect(-4, -2, 8, 5);
+        c.fillStyle = '#2a6ac0'; c.fillRect(-3, -12, 6, 3); c.fillStyle = 'rgba(255,255,255,0.75)'; c.fillRect(-3, -7, 1, 12);
         c.restore();
-      }
-      if (end >= 0 && out === 'caught') { c.fillStyle = 'rgba(170,210,240,0.9)'; c.fillRect(hx - 2, hy - 12, 6, 14); c.fillStyle = '#3a7ac8'; c.fillRect(hx - 1, hy - 14, 4, 2); }
-      // 받는 자리 표시: 손 위 동그라미 (물병이 오면 밝아진다)
-      c.strokeStyle = f > 0.8 && f < 1.05 ? 'rgba(255,240,200,0.9)' : 'rgba(255,240,200,0.25)'; c.beginPath(); c.arc(hx, hy - 6, 9, 0, 7); c.stroke();
+      };
+      if (tt > START && !(end >= 0 && out === 'caught')) {
+        const sx = 214, sy = 30, ex = hx, ey = hy - 10;
+        const bx = sx + (ex - sx) * f, by = sy + (ey - sy) * f - Math.sin(Math.min(1, f) * Math.PI) * 36 + (f > 1 ? (f - 1) * 140 : 0);
+        bottle(bx, by, f * 8);
+      } else if (tt <= START) { c.fillStyle = 'rgba(255,240,200,' + (0.4 + Math.sin(tt * 12) * 0.2).toFixed(2) + ')'; c.font = '600 6px sans-serif'; c.fillText('현우: 받아요!', 186, 26); }
+      if (end >= 0 && out === 'caught') bottle(hx, hy - 10, 0);
+      // 받는 자리: 두 손 사이 (물병이 오면 밝아진다)
+      c.strokeStyle = f > 0.8 && f < 1.05 ? 'rgba(255,240,200,0.95)' : 'rgba(255,240,200,0.22)'; c.lineWidth = 1; c.beginPath(); c.arc(hx, hy - 10, 11, 0, 7); c.stroke();
       void at;
     },
   };
@@ -1347,8 +1335,10 @@ function zip(): Play {
     },
     draw(c, t) {
       c.fillStyle = '#1a1c22'; c.fillRect(0, 0, W, H);
-      // 가방 윗면
-      c.fillStyle = '#26282e'; c.fillRect(24, 40, W - 48, 74); c.fillStyle = '#1e2026'; c.fillRect(24, 40, W - 48, 3); c.fillRect(24, 111, W - 48, 3);
+      // 가방 윗면: 군용 가방. 국방색 천, 박음질, 손잡이 끈
+      c.fillStyle = '#3e4430'; c.fillRect(24, 40, W - 48, 74); c.fillStyle = '#343a28'; c.fillRect(24, 40, W - 48, 3); c.fillRect(24, 111, W - 48, 3);
+      c.fillStyle = 'rgba(0,0,0,0.25)'; for (let x = 28; x < W - 28; x += 3) { c.fillRect(x, 44, 1, 1); c.fillRect(x, 108, 1, 1); }
+      c.fillStyle = '#2a2e20'; c.fillRect(W / 2 - 20, 94, 40, 4); c.fillRect(W / 2 - 22, 92, 4, 8); c.fillRect(W / 2 + 18, 92, 4, 8);
       for (let i = 0; i < 40; i++) { c.fillStyle = 'rgba(255,255,255,0.03)'; c.fillRect(30 + ((i * 53) % (W - 60)), 46 + ((i * 29) % 60), 1, 1); }
       // 지퍼 이빨: 닫힌 쪽(왼쪽)은 맞물리고, 열린 쪽은 벌어져 안이 보인다
       for (let x = X0; x < X1 + 6; x += 2) {
@@ -1366,12 +1356,21 @@ function zip(): Play {
       // 지퍼 손잡이 (떨린다)
       const j = (Math.random() - 0.5) * stare * 2;
       c.fillStyle = '#b8bac0'; c.fillRect(zx - 3 + j, TY - 4, 6, 8); c.fillStyle = '#d8dade'; c.fillRect(zx - 2 + j, TY + 4, 4, 9); c.fillStyle = '#5a5c62'; c.fillRect(zx - 1 + j, TY + 6, 2, 5);
-      // 손가락
-      c.fillStyle = '#c9ab92'; c.fillRect(zx - 6 + j, TY + 10, 12, 8); c.fillStyle = '#e2cdb8'; c.fillRect(zx - 5 + j, TY + 10, 4, 3);
-      if (snag) { c.fillStyle = '#e8302a'; c.fillRect(zx + 5, TY - 8, 1, 3); c.fillRect(zx + 5, TY - 4, 1, 1); }
-      // 위: 맞은편 시선. 얼굴 없는 실루엣들이 고개를 든다
-      for (let i = 0; i < 7; i++) { const up = stare > (i + 1) / 8; c.fillStyle = up ? '#3a3e4a' : '#24262e'; c.fillRect(20 + i * 32, up ? 6 : 12, 16, 18); c.fillStyle = up ? '#4a4e5a' : '#2a2c34'; c.fillRect(24 + i * 32, up ? 0 : 6, 8, 8); }
-      c.fillStyle = 'rgba(0,0,0,0.0)';
+      // 손가락: 엄지와 검지로 손잡이를 집는다
+      c.fillStyle = '#b8987e'; c.beginPath(); c.ellipse(zx + j, TY + 16, 7, 5, 0, 0, 7); c.fill();
+      c.fillStyle = '#c9ab92'; c.beginPath(); c.ellipse(zx - 1 + j, TY + 14, 6, 4, -0.3, 0, 7); c.fill(); c.beginPath(); c.ellipse(zx + 4 + j, TY + 11, 3, 4, 0.2, 0, 7); c.fill();
+      c.fillStyle = '#e2cdb8'; c.fillRect(zx + 3 + j, TY + 8, 2, 2);
+      if (snag) { c.fillStyle = '#e8302a'; c.fillRect(zx + 6, TY - 9, 1, 3); c.fillRect(zx + 6, TY - 5, 1, 1); }
+      // 위: 맞은편 좌석. 얼굴 없는 사람들. 휴대폰 불빛이 꺼지면서 고개가 든다
+      c.fillStyle = '#20304a'; c.fillRect(8, 22, W - 16, 10); c.fillStyle = '#2a3c5a'; c.fillRect(8, 22, W - 16, 2);
+      for (let i = 0; i < 7; i++) {
+        const up = stare > (i * 0.11 + 0.18), x = 24 + i * 32, hy = up ? 6 : 9;
+        c.fillStyle = ['#3a3a44', '#4a3a34', '#2e3a44', '#3e3a30', '#443440', '#2a3a34', '#3a3440'][i];
+        c.beginPath(); c.ellipse(x, 24, 11, 8, 0, Math.PI, 0); c.fill(); c.fillRect(x - 11, 24, 22, 8); // 어깨와 몸
+        c.fillStyle = '#5a4a44'; c.beginPath(); c.arc(x, hy + 5, 5, 0, 7); c.fill(); c.fillStyle = '#1e1a1a'; c.beginPath(); c.arc(x, hy + 4, 5, Math.PI * 1.05, Math.PI * 1.95); c.fill(); c.fillRect(x - 5, hy + 2, 10, 2); // 머리 (얼굴은 그리지 않는다)
+        if (!up) { c.fillStyle = 'rgba(170,200,255,0.7)'; c.fillRect(x - 3, 21, 6, 4); c.fillStyle = 'rgba(170,200,255,0.12)'; c.fillRect(x - 6, 13, 12, 9); }
+      }
+      c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(0, 32, W, 4);
     },
   };
 }
@@ -1410,12 +1409,16 @@ function knock(): Play {
       // 문 아래 틈의 빛과 웃음
       c.fillStyle = 'rgba(255,220,160,0.6)'; c.fillRect(DX + 4, DY + DH - 2, DW - 8, 2);
       if (Math.floor(t * 1.3) % 3 === 0) { c.fillStyle = 'rgba(255,230,200,0.5)'; c.font = '600 6px sans-serif'; c.fillText('하하', DX + DW + 6 + Math.sin(t) * 2, 40 + (Math.floor(t * 1.3) % 2) * 20); }
-      // 손: 맨손. 아래에서 올라온다
-      const hy = 130 - hand * 70 + (hitT > 0 ? -2 : 0), hx = DX - 14 + (hitT > 0 ? 6 : 0);
+      // 손: 맨손 주먹. 왼쪽 아래에서 팔이 올라와 문 앞에 선다
+      const hy = 128 - hand * 66, hx = DX - 10 + (hitT > 0 ? 7 : 0);
       const tr = dread > 0.5 ? (Math.random() - 0.5) * dread * 3 : 0;
-      c.fillStyle = '#26262e'; c.fillRect(hx - 6 + tr, hy + 10, 14, 60);
-      c.fillStyle = '#c9ab92'; c.fillRect(hx - 5 + tr, hy - 4, 12, 15); c.fillStyle = '#b8987e'; for (let i = 0; i < 4; i++) c.fillRect(hx - 5 + tr, hy - 3 + i * 3.5, 12, 0.6);
-      c.fillStyle = '#e2cdb8'; c.fillRect(hx + 5 + tr, hy - 2, 2, 10);
+      c.fillStyle = '#1e1e26'; c.beginPath(); c.moveTo(hx - 12 + tr, hy + 8); c.lineTo(hx + 4 + tr, hy + 10); c.lineTo(hx - 18, H + 4); c.lineTo(hx - 44, H + 4); c.closePath(); c.fill(); // 소매
+      c.fillStyle = '#2a2a34'; c.beginPath(); c.moveTo(hx - 12 + tr, hy + 8); c.lineTo(hx - 6 + tr, hy + 9); c.lineTo(hx - 34, H + 4); c.lineTo(hx - 44, H + 4); c.closePath(); c.fill();
+      c.fillStyle = '#c9ab92'; c.beginPath(); c.ellipse(hx - 2 + tr, hy, 9, 10, 0, 0, 7); c.fill(); // 주먹
+      c.fillStyle = '#b8987e'; for (let i = 0; i < 4; i++) c.fillRect(hx + 3 + tr, hy - 7 + i * 4, 4, 3); // 마디
+      c.fillStyle = '#e2cdb8'; for (let i = 0; i < 4; i++) c.fillRect(hx + 5 + tr, hy - 7 + i * 4, 2, 1);
+      c.fillStyle = '#a88a72'; c.fillRect(hx - 8 + tr, hy - 2, 8, 3); // 엄지
+      if (hitT > 0) { c.fillStyle = 'rgba(255,255,255,0.5)'; for (let i = 0; i < 3; i++) c.fillRect(DX + 2, hy - 8 + i * 6, 4, 1); }
       // 무서움: 화면 가장자리가 좁아진다
       const v = c.createRadialGradient(W / 2, H / 2, 60 - dread * 30, W / 2, H / 2, 150); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,' + (0.35 + dread * 0.55).toFixed(2) + ')');
       c.fillStyle = v; c.fillRect(0, 0, W, H);
