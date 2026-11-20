@@ -190,9 +190,19 @@ VAR i_opened = false    // 토요일 밤에 오빠와의 창을 열었다 (윤�
 
 = i_search_hub
 { i_s_mean and i_s_ill and i_s_cat: -> i_search_more }
+{ (i_s_mean or i_s_ill or i_s_cat) and not i_s_stir: -> i_s_stir }
 * [검색한다: 퍼리 뜻] -> i_s_mean
 * [검색한다: 퍼리 정신병] -> i_s_ill
 * [검색한다: 자기가 고양이인 줄 아는 병] -> i_s_cat
+
+= i_s_stir
+# ui: browser_close
+룸메이트가 이쪽으로 돌아눕는다. 이불 틈으로 빛이 샌다. 숨소리가 멈췄다.
+* [화면을 가슴에 엎는다 # at: wait]
+- 이불 속이 캄캄해진다. 내 숨만 크다.
+하나, 둘, 셋. 룸메이트의 숨이 다시 길어진다.
+# ui: browser_open
+-> i_search_hub
 
 = i_s_mean
 퍼리: 사람처럼 그려진 동물 캐릭터를 좋아하는 사람, 또는 그 문화. # caption

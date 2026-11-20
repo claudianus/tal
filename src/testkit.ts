@@ -47,6 +47,15 @@ async function game(h){
     }
     return 'paw'; }
   if(/보낸다/.test(h)){ await hold('z',50); return 'send'; }
+  if(/Z 를 누르면 끈다/.test(h)){ const w=Math.random()<0.5?3000+Math.random()*6000:30000; for(let i=0;i*200<w && document.querySelector('#game.on');i++) await S(200); if(document.querySelector('#game.on')) await hold('z',80); for(let i=0;i<60&&document.querySelector('#game.on');i++) await S(200); return 'watch'; }
+  if(/Z 를 누르면 나간다/.test(h)){ for(let i=0;i<60 && document.querySelector('#game.on');i++){await hold('z',70); await S(250+Math.random()*300);} return 'leave'; }
+  if(/엄지를 띄운다/.test(h)){ // 왼쪽 세로 막대의 표시 높이를 읽고, 내려갔을 때만 누른다
+    const cv=document.querySelector('#game'); const cx=cv.getContext('2d'); const k=cv.width/256;
+    for(let i=0;i<400 && document.querySelector('#game.on');i++){
+      const col=cx.getImageData(Math.round(60*k+1),Math.round(30*k),1,Math.round(92*k)).data; let yy=-1;
+      for(let j=0;j<col.length/4;j++){ const r=col[j*4],g=col[j*4+1]; if(r>200&&(g>200||g<120)){yy=j;break;} }
+      const pp=yy<0?0.5:(yy/k)/87; if(pp>0.45){ await hold('ArrowUp',50); await S(120);} else await S(60);
+    } return 'lurk'; }
   if(/댓글에 닿으면/.test(h)){ const ks=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight']; for(let i=0;i<80 && document.querySelector('#game.on');i++){await hold(ks[(Math.random()*4)|0],150+Math.random()*200);} return 'dodge'; }
   if(/영상을 키운다/.test(h)){ await hold('ArrowLeft',950); await hold('ArrowDown',100); down('z'); for(let i=0;i<80&&document.querySelector('#game.on');i++) await S(100); up('z'); return 'zoom'; }
   if(/들이쉰다|멈춘다 · 그대로|내쉰다 · Z/.test(h)){ // 들이쉬는 차례가 올 때까지 기다렸다가, 8초 누르고 4초 뗀다

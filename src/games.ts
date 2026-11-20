@@ -4,7 +4,7 @@
 import { sfx } from './audio.ts';
 import * as ui from './ui.ts';
 import type { GameKey } from './ui.ts';
-import { mirrorScene, videoPlayground } from './art/cuts.ts';
+import { mirrorScene, videoPlayground, videoFace } from './art/cuts.ts';
 import { canvasOf } from './sprites.ts';
 
 const W = 256, H = 144;
@@ -73,7 +73,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn' };
+const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -870,7 +870,228 @@ function tug(): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze, tilt, tug };
+// ═══════════ 엄지 (3장: 서른 명이 보는 입력창) ═══════════
+// 손이 떨려서 엄지가 자꾸 자판 쪽으로 내려간다. ↑ 를 눌러 엄지를 띄운다.
+// 자판에 닿으면 '입력 중…' 이 뜨고, 서른 명이 그 한 줄을 본다.
+function lurk(opt: GameOpt): Play {
+  const chat = (opt.lines && opt.lines.length ? opt.lines : ['곰표: 저는 삼색이님 만나 봤어요']).slice(-5).map((l) => {
+    const m = /^([^:]{1,8}):\s*(.*)$/.exec(l); return m ? { who: m[1], t: m[2] } : { who: '', t: l };
+  });
+  const BX = 72, BY = 10, BW = 112, BH = 124;
+  const KY = BY + BH - 34; // 자판 윗줄
+  let p = 0.35, tt = 0, jerk = 1.6, end = -1, out = '', said = 0, seen = 1, lift = 0, slip = 0, slips = 0;
+  const DUR = 14;
+  let mc: CanvasRenderingContext2D | null = null;
+  const F = '600 5px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
+  const fit = (t: string, w: number): string => { if (!mc) mc = document.createElement('canvas').getContext('2d'); mc!.font = F; let s = t; while (s.length > 1 && mc!.measureText(s).width > w) s = s.slice(0, -2) + '…'; return s; };
+  return {
+    scale: 4,
+    hint: '↑ 를 눌러 엄지를 띄운다 · 너무 들면 휴대폰이 미끄러진다',
+    step(dt, _t, _k, hit) {
+      tt += dt; lift -= dt;
+      if (end >= 0) { end += dt; return end > 1.6 ? out : null; }
+      seen = Math.min(30, seen + dt * 4.2);
+      p += dt * (0.065 + tt * 0.006) + Math.sin(tt * 23) * dt * 0.05 * (1 + tt / 6);
+      jerk -= dt;
+      if (jerk <= 0) { p += 0.07 + Math.random() * 0.06; jerk = 1.2 + Math.random() * 1.6; sfx('heartbeat_soft'); }
+      if (hit.has('up') && slip <= 0) {
+        p -= 0.09; lift = 0.18;
+        // 너무 세게 들면 쥔 손이 풀려서 휴대폰이 미끄러진다. 엄지가 오히려 자판 쪽으로 쏠린다.
+        if (p < 0.04) { p = 0.62; slip = 0.7; slips++; sfx('hit'); ui.hint(slips >= 2 ? '한 번 더 미끄러지면 놓친다' : '너무 들었다 · 휴대폰이 미끄러진다'); if (slips >= 3) p = 1; }
+      }
+      slip -= dt;
+      p = Math.max(0, p);
+      if (tt > 4 && said === 0) { said = 1; ui.hint('손이 떨린다 · 엄지를 띄운다'); }
+      if (tt > 9 && said === 1) { said = 2; ui.hint('서른 명이 보고 있다'); }
+      if (p >= 1) { end = 0; out = 'typing'; ui.hint(''); sfx('hit'); }
+      else if (tt > DUR) { end = 0; out = 'quiet'; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      c.fillStyle = 'rgba(4,5,8,0.8)'; c.fillRect(0, 0, W, H);
+      const shake = slip > 0 ? Math.round((Math.random() - 0.5) * 5) : Math.round(Math.sin(t * 31) * (p > 0.7 ? 1 : 0));
+      c.save(); c.translate(shake, 0);
+      // 휴대폰
+      px(c, BX - 5, BY - 4, BW + 10, BH + 10, '#0c0d11'); px(c, BX - 4, BY - 3, BW + 8, 1, '#262830');
+      px(c, BX, BY, BW, BH, '#14161c');
+      // 위 칸: 채널 이름, 보는 사람 수
+      px(c, BX, BY, BW, 11, '#1c1f28'); px(c, BX, BY + 11, BW, 1, '#2a2e3a');
+      c.font = F; c.textBaseline = 'middle';
+      c.fillStyle = '#8a92a6'; c.fillText('#', BX + 4, BY + 6); c.fillStyle = '#e6e8ee'; c.fillText('잡담', BX + 10, BY + 6);
+      // 보는 사람: 얼굴 없는 동그라미 서른 개 중 켜진 만큼
+      for (let i = 0; i < 10; i++) { const on = i < Math.round(seen / 3); ell(c, BX + BW - 46 + i * 3.4, BY + 6, 1.2, 1.2, on ? '#c8ccd6' : '#3a3e4a'); }
+      num(c, BX + BW - 10, BY + 4, Math.round(seen), '#c8ccd6');
+      // 대화
+      let y = BY + 14;
+      for (const m of chat) {
+        ell(c, BX + 7, y + 5, 3, 3, m.who === '곰표' ? '#8a6a4a' : '#4a5060');
+        c.fillStyle = m.who === '곰표' ? '#c8a07a' : '#8a92a6'; c.fillText(m.who, BX + 13, y + 2.5);
+        c.fillStyle = '#dfe2e8'; c.fillText(fit(m.t, BW - 18), BX + 13, y + 8.5);
+        y += 12;
+      }
+      // 입력 중
+      if (out === 'typing') {
+        px(c, BX, KY - 17, BW, 7, '#14161c'); c.fillStyle = '#e6e8ee'; c.fillText('삼색이님이 입력 중', BX + 5, KY - 13.5);
+        for (let i = 0; i < 3; i++) ell(c, BX + 58 + i * 4, KY - 13.5, 1.2, 1.2, (Math.floor(t * 4) % 3) === i ? '#ffffff' : '#6a7080');
+      }
+      // 입력창과 커서
+      px(c, BX + 3, KY - 9, BW - 6, 7, '#20232c'); px(c, BX + 3, KY - 9, BW - 6, 1, '#2c303c');
+      if (Math.floor(t * 2) % 2 === 0) px(c, BX + 6, KY - 7, 1, 4, '#e6e8ee');
+      // 자판
+      px(c, BX, KY, BW, BH - (KY - BY), '#1a1c22');
+      const kw = 10, rows = [10, 9, 7];
+      const thumbX = BX + BW - 40 + Math.sin(t * 1.3) * 6, thumbY = BY + 24 + p * (KY - BY - 18);
+      rows.forEach((n, r) => {
+        const ox = BX + (BW - n * (kw + 1)) / 2;
+        for (let i = 0; i < n; i++) {
+          const kx = ox + i * (kw + 1), ky = KY + 3 + r * 9;
+          const under = Math.abs(kx + kw / 2 - thumbX) < kw / 2 + 0.5 && r === 0;
+          px(c, kx, ky, kw, 7, under && p > 0.75 ? '#4a4f60' : '#2c2f38'); px(c, kx, ky + 7, kw, 1, '#101116');
+        }
+      });
+      // 엄지: 아래 오른쪽에서 올라온 손가락. 끝이 자판에 가까울수록 그림자가 짙다
+      const tipY = Math.round(thumbY);
+      const sh = Math.max(0, p - 0.5) * 2;
+      if (sh > 0) ell(c, thumbX, KY + 5, 6 * sh + 1, 2 * sh + 0.5, 'rgba(0,0,0,' + (0.25 + sh * 0.4).toFixed(2) + ')');
+      c.fillStyle = '#c9ab92';
+      c.beginPath(); c.moveTo(thumbX - 7, tipY + 2); c.quadraticCurveTo(thumbX - 7, tipY - 6, thumbX, tipY - 6); c.quadraticCurveTo(thumbX + 7, tipY - 6, thumbX + 8, tipY + 2);
+      c.lineTo(BX + BW + 22, H + 4); c.lineTo(BX + BW - 6, H + 4); c.closePath(); c.fill();
+      px(c, thumbX - 4, tipY - 5, 7, 4, '#e2cdb8'); px(c, thumbX - 3, tipY - 4, 5, 2, '#efe2d6'); // 손톱
+      px(c, thumbX + 6, tipY + 1, 1, 5, '#9c7f68'); // 엄지 옆 그늘
+      if (lift > 0) { px(c, thumbX - 1, tipY - 10 - (0.18 - lift) * 20, 2, 2, 'rgba(240,236,228,0.5)'); }
+      c.restore();
+      // 아래: 얼마나 내려갔는지
+      // 왼쪽 세로 막대: 엄지가 자판에서 얼마나 떨어졌는지. 위 끝은 너무 들었다, 아래 끝은 닿았다.
+      const GX = BX - 16, GY = BY + 20, GH = 90;
+      px(c, GX, GY, 3, GH, '#2a2c34'); px(c, GX, GY, 3, 4, '#5a3a30'); px(c, GX, GY + GH - 14, 3, 14, '#4a2226');
+      const gy = GY + Math.round(Math.min(1, p) * (GH - 3));
+      px(c, GX - 2, gy, 7, 3, p > 0.8 || p < 0.08 ? '#d8574e' : '#e6e8ee');
+      for (let i = 0; i < 3 - slips; i++) ell(c, GX + 1.5, GY + GH + 6 + i * 5, 1.5, 1.5, '#8a92a6'); // 남은 손아귀 힘
+    },
+  };
+}
+
+// ═══════════ 영상 (3장: 구독자 사십만 채널) ═══════════
+// 내가 나오는 영상을 본다. Z 를 누르면 끈다. 안 누르면 끝까지 간다. 보는 동안 숫자가 오른다.
+const WATCH_SUB = [
+  "여러분, 이게 '퍼리'라는 건데요.",
+  '쉽게 말해서 동물 탈을 쓰고',
+  '성적 만족을 얻는 사람들입니다.',
+  '해외에서는 이미 심각한 사회 문제고요.',
+  '문제는 이 남성이 한 달 동안 새벽마다',
+  '초등학생 아이와 단둘이 있었다는 겁니다.',
+  '전문가들은 이런 성향이',
+  '범죄로 이어질 수 있다고 경고합니다.',
+  '제보에 따르면 이십 대 중반, 무직.',
+  '사 년째 집 밖으로 나오지 않았다고 합니다.',
+  '영상이 유익하셨다면 구독과 좋아요 부탁드립니다.',
+];
+function watch(opt: GameOpt): Play {
+  const face = canvasOf(videoFace(!!opt.droopy)), play = canvasOf(videoPlayground(!!opt.droopy));
+  const PER = 1.7, DUR = WATCH_SUB.length * PER + 0.6;
+  let tt = 0, end = -1, out = '', views = 412880, said = 0;
+  const F = '600 5px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
+  return {
+    scale: 4,
+    hint: 'Z 를 누르면 끈다',
+    step(dt, _t, _k, hit) {
+      tt += dt;
+      if (end >= 0) { end += dt; return end > 1.2 ? out : null; }
+      views += dt * (3 + Math.random() * 9);
+      if (tt > 7 && said === 0) { said = 1; ui.hint('Z 를 누르면 끈다 · 숫자가 오른다'); }
+      if (hit.has('z')) { end = 0; out = 'off'; ui.hint(''); sfx('tap'); }
+      else if (tt > DUR) { end = 0; out = 'end'; ui.hint(''); }
+      return null;
+    },
+    draw(c, t) {
+      c.fillStyle = '#05060a'; c.fillRect(0, 0, W, H);
+      const VX = 24, VY = 8, VW = 208, VH = 117;
+      const cur = Math.min(WATCH_SUB.length - 1, Math.floor(tt / PER));
+      c.save(); c.beginPath(); c.rect(VX, VY, VW, VH); c.clip();
+      c.imageSmoothingEnabled = false;
+      // 장면: 처음엔 옆얼굴(빨간 동그라미), 아이 얘기에서 놀이터, 다시 옆얼굴로 당긴다
+      const usePlay = cur >= 4 && cur <= 6;
+      const zoom = 1 + (usePlay ? 0 : Math.min(0.5, (tt % 5) * 0.06));
+      const iw = VW * zoom, ih = VH * zoom;
+      c.drawImage(usePlay ? play : face, VX + (VW - iw) * 0.4, VY + (VH - ih) * 0.4, iw, ih);
+      if (!usePlay) { // 빨간 동그라미가 깜빡인다
+        if (Math.floor(t * 3) % 2 === 0) { c.strokeStyle = '#ff2a2a'; c.lineWidth = 2; c.beginPath(); c.ellipse(VX + 112 * zoom - (iw - VW) * 0.4, VY + 44 * zoom - (ih - VH) * 0.4, 26, 30, 0, 0, 7); c.stroke(); }
+      } else { // 아이 쪽에 노란 화살표
+        c.fillStyle = '#ffe14a'; c.beginPath(); c.moveTo(VX + 150, VY + 40); c.lineTo(VX + 160, VY + 34); c.lineTo(VX + 158, VY + 46); c.fill();
+      }
+      if (end >= 0 && out === 'off') { c.fillStyle = 'rgba(0,0,0,' + Math.min(1, end * 2).toFixed(2) + ')'; c.fillRect(VX, VY, VW, VH); }
+      c.restore();
+      // 자막: 흰 글씨에 검은 테
+      if (!(end >= 0 && out === 'off')) {
+        c.font = F; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+        c.lineWidth = 2; c.strokeStyle = '#000'; c.fillStyle = '#fff';
+        c.strokeText(WATCH_SUB[cur], VX + VW / 2, VY + VH - 9); c.fillText(WATCH_SUB[cur], VX + VW / 2, VY + VH - 9);
+        c.textAlign = 'left';
+        // 기계로 바꾼 목소리: 왼쪽 위의 파형
+        for (let i = 0; i < 12; i++) { const a = Math.abs(Math.sin(t * 13 + i * 1.7)) * 4 + 1; px(c, VX + 6 + i * 2, VY + 8 - a / 2, 1, a, 'rgba(255,255,255,0.7)'); }
+      }
+      // 아래 막대: 재생 위치, 조회수
+      px(c, VX, VY + VH + 2, VW, 2, '#2a2c34'); px(c, VX, VY + VH + 2, Math.round(VW * Math.min(1, tt / DUR)), 2, '#e8302a');
+      ell(c, VX + VW * Math.min(1, tt / DUR), VY + VH + 3, 2, 2, '#e8302a');
+      c.font = F; c.fillStyle = '#9aa2b4'; c.textBaseline = 'middle'; c.fillText('조회수', VX, VY + VH + 10);
+      c.fillStyle = '#e6e8ee'; c.fillText(Math.floor(views).toLocaleString('ko-KR') + '회', VX + 22, VY + VH + 10);
+      c.fillStyle = '#9aa2b4'; c.fillText('구독자 40만', VX + VW - 46, VY + VH + 10);
+    },
+  };
+}
+
+// ═══════════ 나가기 (4장: 대화방을 하나씩) ═══════════
+// Z 를 누르면 '나가기', 한 번 더 누르면 정말 나간다. 위에서부터. 마지막 방에서는 손이 멈춘다.
+const ROOMS = ['털날림 주의보 · 잡담', '털날림 주의보 · 정모 공지', '털날림 주의보 · 탈 만들기', '털날림 주의보 · 성인', '굿즈 공동구매 3차', '탈 재료 나눔방', '108동 택배 알림', '토토'];
+function leave(): Play {
+  const rooms = ROOMS.map((n) => ({ n, gone: 0 }));
+  let tt = 0, ask = false, idx = 0, end = -1, idle = 0;
+  const LAST = rooms.length - 1; // 토토 방은 나가지 못한다
+  const F = '600 5px "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif';
+  return {
+    scale: 4,
+    hint: 'Z 를 누르면 나간다',
+    step(dt, _t, _k, hit) {
+      tt += dt; idle += dt;
+      for (const r of rooms) if (r.gone > 0) r.gone += dt;
+      if (end >= 0) { end += dt; return end > 2.4 ? 'left' : null; }
+      if (hit.has('z') && idx < LAST) {
+        idle = 0;
+        if (!ask) { ask = true; sfx('tap'); } else { ask = false; rooms[idx].gone = 0.01; idx++; sfx('tap'); }
+      }
+      if (idle > 9 && idx < LAST) { idle = 6.5; rooms[idx].gone = 0.01; idx++; ask = false; sfx('tap'); } // 손이 저절로 한다
+      if (idx === LAST) { end = 0; ui.hint('…'); }
+      return null;
+    },
+    draw(c, t) {
+      c.fillStyle = 'rgba(4,5,8,0.82)'; c.fillRect(0, 0, W, H);
+      const BX = 72, BY = 8, BW = 112, BH = 128;
+      px(c, BX - 5, BY - 4, BW + 10, BH + 8, '#0c0d11');
+      px(c, BX, BY, BW, BH, '#14161c'); px(c, BX, BY, BW, 11, '#1c1f28');
+      c.font = F; c.textBaseline = 'middle'; c.fillStyle = '#e6e8ee'; c.fillText('대화', BX + 5, BY + 6);
+      let y = BY + 15;
+      rooms.forEach((r, i) => {
+        if (r.gone > 0.6) return;
+        const a = r.gone > 0 ? 1 - r.gone / 0.6 : 1, off = r.gone > 0 ? r.gone * 60 : 0;
+        c.globalAlpha = a;
+        const sel = i === idx && end < 0;
+        px(c, BX + 2 - off, y, BW - 4, 14, sel ? '#232734' : '#181a21');
+        ell(c, BX + 9 - off, y + 7, 4, 4, '#4a5060');
+        c.fillStyle = '#dfe2e8'; c.fillText(r.n, BX + 16 - off, y + 5);
+        c.fillStyle = '#6a7080'; c.fillText(i === LAST ? '긴 메시지' : i < 4 ? '읽지 않음 ' + (30 + i * 17) : '…', BX + 16 - off, y + 11);
+        if (sel && ask) { px(c, BX + BW - 26, y + 3, 22, 9, '#c0403a'); c.fillStyle = '#fff'; c.fillText('나가기', BX + BW - 23, y + 7.5); }
+        c.globalAlpha = 1;
+        y += 16;
+      });
+      // 엄지 그늘
+      if (end >= 0) { // 마지막 방 위에서 엄지가 멈춘다
+        const ty = BY + 15 + 7; px(c, BX + BW - 30, ty - 2 + Math.sin(t * 9) * 0.6, 8, 6, '#c9ab92'); px(c, BX + BW - 29, ty - 1, 4, 2, '#efe2d6');
+      }
+    },
+  };
+}
+
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still, flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;
