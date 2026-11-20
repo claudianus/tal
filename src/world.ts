@@ -394,7 +394,11 @@ export class World {
     if (!down) { this.held = this.held.filter((d) => d !== dir); return; }
     if (!this.binds) return;
     if (!repeat && (this.resolve(dir) || this.resolve('move'))) return; // 일어나려는 시도. 꾹 누르고 있어도 한 번만 센다.
-    if (this.player.pose === 'lie') return; // 누운 채로는 걷지 않는다 (머리만 미끄러져 간다)
+    if (this.player.pose === 'lie') {
+      // 누운 채로는 걷지 않는다. 다만 이번 선택이 물건까지 걸어가야 하는 것뿐이면, 방향키가 몸을 일으킨다.
+      if (!this.binds.some((b) => b.at && !SPECIAL.has(b.at))) return;
+      this.player.pose = 'stand';
+    }
     if (!this.held.includes(dir)) this.held.push(dir);
     this.player.path = []; this.player.onArrive = null;
   }
@@ -411,7 +415,10 @@ export class World {
   }
   private click(e: MouseEvent): void {
     if (!this.binds || !this.map) return;
-    if (this.player.pose === 'lie') { this.resolve('move'); return; } // 누워 있을 때 화면을 누르면 일어나려는 시도. 걸어가지 않는다.
+    if (this.player.pose === 'lie') { // 누워 있을 때 화면을 누르면 일어나려는 시도. 물건까지 걸어가야 하는 선택이면 일어나서 간다.
+      if (this.resolve('move') || !this.binds.some((b) => b.at && !SPECIAL.has(b.at))) return;
+      this.player.pose = 'stand';
+    }
     const rc = this.canvas.getBoundingClientRect();
     const [cx, cy] = this.camera();
     const tx = Math.floor(((e.clientX - rc.left) / rc.width * this.W + cx) / TILE);
