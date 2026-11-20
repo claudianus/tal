@@ -74,7 +74,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', swing3: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail', history: 'read', longmsg: 'read', buzz: 'caught', lining: 'held', headoff: 'off', tape: 'matched', book: 'off', bookok: 'booked', erase: 'gone', dates: 'counted', leak: 'seen', react: 'heart' };
+const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', swing3: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail', history: 'read', longmsg: 'read', buzz: 'caught', lining: 'held', headoff: 'off', tape: 'matched', book: 'off', bookok: 'booked', erase: 'gone', dates: 'counted', leak: 'seen', react: 'heart', unsend: 'erased' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -332,18 +332,20 @@ function flood(opt: { ghosts?: string[]; text?: string }): Play {
 // ═══════════ 타자 (막간: 윤서가 그 문장을 친다) ═══════════
 // 한 번 누를 때마다 한 글자. 화는 손가락보다 빠르다. 다 치면 Z 로 보낸다. 안 보내는 길은 없다.
 const TYPED_YS = '제발 죽든지, 그런 짓 좀 하지 말든지 해.'; // 막간: 윤서가 오빠에게
-function type(opt: GameOpt): Play {
+function type(opt: GameOpt, erase = false): Play { // erase: 다 쓰고 나서 보내지 못하고 한 글자씩 지운다
   const ghosts = opt.ghosts || [];
   const TYPED = opt.text || TYPED_YS; // 선택지에 "…" 로 적힌 말이 있으면 그 말을 친다
   const form = opt.skin === 'browser'; // 웹 양식에 적는다
   const srv = !!opt.text && opt.skin !== 'kakao' && !form; // 카톡 창이 아니면 퍼리 서버 창이다 (어두운 화면, 방금 붙인 사진)
-  let n = 0, sent = -1, key = -1, keyT = 0, said = 0;
+  let n = 0, sent = -1, key = -1, keyT = 0, said = 0, back = false;
   return {
     scale: 3,
     hint: '아무 키나 누르면 한 글자씩 써진다',
     step(dt, _t, _k, hit) {
       keyT -= dt;
-      if (sent >= 0) { sent += dt; return sent > 1.1 ? 'sent' : null; }
+      if (sent >= 0) { sent += dt; return sent > 1.1 ? (erase ? 'erased' : 'sent') : null; }
+      if (back) { if (hit.size) { n--; key = Math.floor(Math.random() * 30); keyT = 0.12; sfx('tap'); if (n <= 0) { n = 0; sent = 0; ui.hint(''); } } return null; }
+      if (erase && n >= TYPED.length) { back = true; ui.hint('보내지 못한다   ·   아무 키나 누르면 한 글자씩 지워진다'); return null; }
       if (n >= TYPED.length) { if (hit.has('z')) { sent = 0; sfx('notify'); ui.hint(''); } return null; }
       if (hit.size) {
         n++; key = Math.floor(Math.random() * 30); keyT = 0.12; sfx('tap');
@@ -2531,7 +2533,7 @@ function react(opt: GameOpt): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), swing3: () => swing(true, true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam, history, longmsg, buzz, lining, headoff, tape, book: () => book(false), bookok: () => book(true), erase, dates, leak, react };
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), swing3: () => swing(true, true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam, history, longmsg, buzz, lining, headoff, tape, book: () => book(false), bookok: () => book(true), erase, dates, leak, react, unsend: (o: GameOpt) => type(o, true) };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;

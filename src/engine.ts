@@ -34,7 +34,7 @@ const gameOf = (tags: string[] | null | undefined): [string, string] | null => {
   return null;
 };
 /** 맵 위에서 하는 게임의 조작 안내 */
-const WORLD_GAME_HINT: Record<string, string> = { crowd: '→ 계단까지 간다 · ↑↓ 로 사람 사이를 피한다 · 기둥 뒤에서 숨을 고른다' };
+const WORLD_GAME_HINT: Record<string, string> = { patrol: '손전등 빛을 피해 108동 현관까지 간다 · 빛에 오래 닿으면 들킨다 · 현관 앞에서 Z', crowd: '→ 계단까지 간다 · ↑↓ 로 사람 사이를 피한다 · 기둥 뒤에서 숨을 고른다' };
 
 /** 선택지의 "# timer: 초" (at: timeout 과 함께 쓴다) */
 const timerOf = (tags: string[] | null | undefined): number => {
@@ -233,12 +233,14 @@ export class Game {
       return k >= 0 ? k : gi;
     }
     const binds: Bind[] = ch.map((c, i) => ({ at: atOf(c.tags), idx: i }));
-    const walkable = w.active && this.pres.skin === 'none' && binds.every((b) => b.at && w.hasTarget(b.at));
+    const KEYED = new Set(['move', 'wait', 'timeout', 'up', 'down', 'left', 'right']); // 맵이 안 보여도 (휴대폰을 든 채로도) 키 하나로 하는 행동
+    const walkable = w.active && binds.every((b) => b.at && w.hasTarget(b.at)) && (this.pres.skin === 'none' || binds.every((b) => KEYED.has(b.at!)));
     if (!walkable) return ui.choose(texts);
 
     // 조작 안내: 처음 몇 번, 그리고 방향키·Z 에 직접 묶인 선택지가 있을 때
-    const sp = binds.filter((b) => b.at === 'move' || b.at === 'wait');
-    if (sp.length) ui.hint(sp.map((b) => `${b.at === 'move' ? ui.DIR_KEY : 'Z'}  ${texts[b.idx].replace(LOCK, '').trim()}`).join('   ·   '));
+    const KEYS: Record<string, string> = { move: ui.DIR_KEY, wait: 'Z', up: '↑', down: '↓', left: '←', right: '→' };
+    const sp = binds.filter((b) => b.at && KEYS[b.at]);
+    if (sp.length) ui.hint(sp.map((b) => `${KEYS[b.at!]}  ${texts[b.idx].replace(LOCK, '').trim()}`).join('   ·   '));
     else if (binds.every((b) => w.isTouch(b.at)) && new Set(binds.map((b) => b.at)).size === binds.length) ui.hint(texts.join('   ·   ')); // 갈 곳
     else if (ui.boxEmpty()) ui.hint(texts.map((t) => t.replace(LOCK, '').trim()).join('   ·   ')); // 글 상자가 비었으면 할 일을 위에 적어 둔다
     else if (this.walks++ < 3) ui.hint(`${ui.DIR_KEY}로 걷는다   ·   Z 로 조사한다`);

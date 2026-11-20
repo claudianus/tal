@@ -24,7 +24,7 @@ for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.ink'))) {
       const val = c < 0 ? '' : tag.slice(c + 1).trim();
       const where = `${f}:${i + 1}  # ${tag}`;
       if (T.LINE_KINDS.includes(name)) continue;
-      if (name === 'at') { if (!(val === 'move' || val === 'wait' || val === 'timeout' || allObjs.has(val))) bad.push(where + '  (맵에 없는 물건)'); continue; }
+      if (name === 'at') { if (!(val === 'move' || val === 'wait' || val === 'timeout' || ['up', 'down', 'left', 'right'].includes(val) || allObjs.has(val))) bad.push(where + '  (맵에 없는 물건)'); continue; }
       if (!T.DIRECTIVES.includes(name)) { bad.push(where + '  (모르는 태그)'); continue; }
       const ok =
         name === 'scene' ? val in T.SCENES :

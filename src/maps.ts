@@ -263,7 +263,7 @@ export const MAPS: Record<string, MapDef> = {
       'pppppppppppppppppppppp:::ppppp',
     ],
     spawn: 'from_home', outdoor: true, painted: true, top: 72, view: 200,
-    points: { from_home: [4, 1, 'down'], from_play: [23, 8, 'up'] },
+    points: { from_home: [4, 1, 'down'], from_play: [23, 8, 'up'], guard_post: [16, 2, 'down'], pat_a: [16, 7, 'down'], pat_b: [10, 7, 'left'], pat_c: [10, 2, 'up'], pat_d: [16, 2, 'right'] },
     objs: [
       { id: 'z_lamp', x: 9, y: 1, h: 8, touch: true }, { id: 'z_fence', x: 19, y: 1, h: 8, touch: true },
       { id: 'z_play', x: 22, y: 9, w: 3, touch: true }, { id: 'z_guard', x: 15, y: 1, h: 8, touch: true },

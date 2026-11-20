@@ -11,7 +11,7 @@ const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/M
 const URL = process.env.URL || 'http://localhost:4173/?test';
 const PORT = 9333;
 
-// [이름, 시작 대사, 게임 뒤에 나와야 하는 대사 (정규식), 제한 초]
+// [이름, 시작 대사, 게임 뒤에 나와야 하는 대사 (정규식), 제한 초, 꼭 있어야 하는 행동 (정규식, 생략 가능), 메뉴·몸짓에서 고를 글 (정규식, 생략 가능)]
 const CASES = [
   ['앨범', '찾고 싶었던 적이 없다', /볼펜으로 수염/, 90],
   ['공책', '내가 옆에 써 둔 대사를', /이 년 동안 웃었다/, 90],
@@ -33,12 +33,15 @@ const CASES = [
   ['비 숨', '탈 안에서는 내 숨이 제일 크게', /잠들었다/, 90],
   ['서랍 담기', '병원 이름이 다르다', /초록 점은 꺼져 있다/, 60],
   ['엔딩 A 그네', '발끝으로 민다. 그네가 조금 간다', /그럼 왜 왔어요/, 90],
-  ['옷장 날짜', '옷은 몇 벌 없다', /2012년까지 이어진다/, 90],
-  ['하트', '완성하면 사진 ㄱㄱ', /토토는 내 얼굴을 모른다/, 60],
-  ['지워지는 말풍선', '사 년 동안 전부 읽었다', /삼 초쯤 걸렸다/, 60],
-  ['실명 스크롤', '내 이름이 저기 있다', /중학교 삼 학년의 내가/, 60],
-  ['예약 3장', '이 세 글자를 치는 게', /저장되지 않았을/, 120],
-  ['예약 에필로그', '가진 것 중에 제일 큰 걸', /두 번째에 눌렸다/, 90],
+  ['옷장 날짜', '옷은 몇 벌 없다', /2012년까지 이어진다/, 90, /G:dates/],
+  ['곰표 지우기', '곰표가 입력창을 누른다', /한 글자씩 지운다/, 90, /G:type/],
+  ['몸짓 하은 그림', '선생님이 이게 누구냐고 해서', /이건 아저씨 가져요/, 60, /W:(left|right)/],
+  ['하트', '완성하면 사진 ㄱㄱ', /토토는 내 얼굴을 모른다/, 60, /G:react/, /하트만/],
+  ['순찰 도망', '오늘도 그렇게 생각한다', /유리문이 등 뒤에서 닫힌다/, 150, /W:homedoor/],
+  ['지워지는 말풍선', '사 년 동안 전부 읽었다', /삼 초쯤 걸렸다/, 60, /G:erase/],
+  ['실명 스크롤', '내 이름이 저기 있다', /중학교 삼 학년의 내가/, 60, /G:leak/],
+  ['예약 3장', '이 세 글자를 치는 게', /저장되지 않았을/, 120, /G:book/],
+  ['예약 에필로그', '가진 것 중에 제일 큰 걸', /두 번째에 눌렸다/, 90, /G:book/],
   ['3장 밤 문', '엄마도 봤다', /삑\. 삑삑/, 60],
   ['막간 검색', '이불 속에서 화면 밝기를', /한 줄이다|성도착증|병 이름을/, 90],
   ['휴게실 선풍기 다시', '네. 들어가십시오', /못 들은 척/, 60],
@@ -68,7 +71,7 @@ try {
   ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.rej(new Error(m.error.message)) : p.res(m.result); } });
   await send('Runtime.enable');
   let fail = 0;
-  for (const [name, from, after, secs] of CASES) {
+  for (const [name, from, after, secs, expect, pick] of CASES) {
     if (only && !name.includes(only)) continue;
     await send('Page.navigate', { url: URL });
     await sleep(1500);
@@ -76,11 +79,11 @@ try {
     await evalJs(`(async () => {
       for (let i = 0; i < 50 && !window.talBegin; i++) await new Promise(r => setTimeout(r, 100));
       window.talBegin({ mode: 'chapter', title: ${JSON.stringify('@' + from)} });
-      window.__flow = window.__kb({ ms: ${secs * 1000}, gap: 120, stop: ${after} });
+      window.__flow = window.__kb({ ms: ${secs * 1000}, gap: 120, stop: ${after}${pick ? `, pick: (ls) => ls.findIndex((l) => ${pick}.test(l)), at: (ats) => { const h = document.querySelector('#hint')?.textContent || ''; const m = h.split('·').map((x) => x.trim()).find((x) => ${pick}.test(x)); const k = m && ({ '↑': 'up', '↓': 'down', '←': 'left', '→': 'right', Z: 'wait' })[m[0]]; return k && ats.includes(k) ? k : ats[0]; }` : ''} });
       return 'started';
     })()`, 20000);
     if (SHOT) {
-      for (let i = 0; i < 300; i++) { if (await evalJs(`!!document.querySelector('#game.on')`)) break; await sleep(100); }
+      for (let i = 0; i < 300; i++) { if (await evalJs(`!!document.querySelector('#game.on') || /손전등|인파/.test(document.querySelector('#hint')?.textContent || '')`)) break; await sleep(100); }
       await sleep(2500);
       const img = await send('Page.captureScreenshot', { format: 'png' });
       const { writeFileSync } = await import('node:fs');
@@ -91,7 +94,7 @@ try {
       return { stop: r.stop, hint: r.hint, games: r.log.filter(x => x.startsWith('G:') || x.startsWith('W:')), last: r.log.slice(-4), tail: document.body.innerText.slice(-140).replace(/\\s+/g, ' ') };
     })()`, (secs + 30) * 1000);
     const r = r2;
-    const ok = r.stop === 'text' && r.games.length > 0;
+    const ok = r.stop === 'text' && r.games.length > 0 && (!expect || expect.test(r.games.join(',')));
     if (!ok) fail++;
     console.log(`${ok ? 'OK  ' : 'FAIL'} ${name.padEnd(10)} ${((Date.now() - t0) / 1000).toFixed(0).padStart(3)}s  행동 ${r.games.join(',') || '없음'}  끝 ${r.stop}${ok ? '' : `  마지막 ${JSON.stringify(r.last)}  화면 «${r.tail}»${r.hint ? '  힌트 ' + r.hint : ''}`}`);
   }

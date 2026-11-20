@@ -102,6 +102,7 @@ window.__kb = async (opt={}) => { const w=window.tal.world; const t0=performance
     if(ch.length){ const labels=ch.map(b=>b.innerText); let i=opt.pick?opt.pick(labels):-1; if(i<0) i=ch.findIndex(b=>!b.classList.contains('locked')); if(i<0) i=0; log.push('M:'+labels[i]); await hold(String(i+1),40); await S(300); continue; }
     if(w.binds){ const ats=[...new Set(w.binds.map(b=>b.at))].filter(a=>a!=='timeout'); if(!ats.length){ await S(800); continue; } let at=opt.at?opt.at(ats):ats[0]; const same=log.slice(-2).every(x=>x==='W:'+at); if(!opt.at && ats.length>1 && log.length>=2 && same) at=ats[1+Math.floor(Math.random()*(ats.length-1))]; log.push('W:'+at); if(opt.stopWalk) return {stop:'walk',ats,log};
       if(at==='wait'||at==='move'){ if(at==='move'){await hold('ArrowLeft',120);} else await hold('z',50); await S(600); continue; }
+      if(['up','down','left','right'].includes(at)){ await hold({up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'}[at],60); log.push('W:'+at); await S(600); continue; }
       const ok=await walk(at); if(!ok){ return {stop:'noroute',ats,log}; } await S(400); continue; }
     await hold('z',40); await S(opt.gap||220);
   }

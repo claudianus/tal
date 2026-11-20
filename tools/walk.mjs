@@ -42,12 +42,12 @@ for (let r = 0; r < runs; r++) {
     const map = MAPS[mapId];
     if (map && p.skin === 'none') {
       const ats = ch.map(atOf);
-      const ok = ats.every((a) => a && (a === 'move' || a === 'wait' || a === 'timeout' || map.objs.some((o) => o.id === a)));
+      const ok = ats.every((a) => a && (a === 'move' || a === 'wait' || a === 'timeout' || ['up', 'down', 'left', 'right'].includes(a) || map.objs.some((o) => o.id === a)));
       if (ok) {
         walkSets++;
         const blocked = (x, y) => Object.entries(p.npcs).some(([id, w]) => id !== 'catreal' && map.points[w] && map.points[w][0] === x && map.points[w][1] === y);
         for (const a of ats) {
-          if (a === 'move' || a === 'wait' || a === 'timeout') continue;
+          if (a === 'move' || a === 'wait' || a === 'timeout' || ['up', 'down', 'left', 'right'].includes(a)) continue;
           const rt = routeTo(map, pos, map.objs.find((o) => o.id === a), blocked);
           if (!rt) { const k = `[${p.chapter}] ${mapId} (${pos}) → ${a}`; unreachable.set(k, (unreachable.get(k) || 0) + 1); }
         }

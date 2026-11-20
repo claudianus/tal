@@ -19,7 +19,7 @@ type Actor = {
 };
 export type Bind = { at: string; idx: number };
 
-const SPECIAL = new Set(['move', 'wait', 'timeout']);
+const SPECIAL = new Set(['move', 'wait', 'timeout', 'up', 'down', 'left', 'right']); // up·down·left·right: 그 방향키 하나에 묶인 몸짓
 const SEAT = /^(swing|seat)/; // 이 이름의 자리에 놓인 사람은 앉는다
 const poseAt = (where: string): string => (/^floor/.test(where) ? 'floor' : SEAT.test(where) ? 'sit' : 'stand'); // floor… 자리에서는 바닥에 주저앉는다
 const HAEUN_EYES: Look = { kind: 'haeun', eyes: true };
@@ -72,6 +72,7 @@ export class World {
   fast = false; autopilot = false;
   rain = false; // 바깥 맵에 비가 내린다
   train = { state: '' as '' | 'arrive' | 'stop' | 'open' | 'leave' | 'gone', x: 0, v: 0, done: null as (() => void) | null };
+  private patrol: { t: number; meter: number; game: boolean; end: (o: string) => void } | null = null;
   private crowd: { walkers: Walker[]; meter: number; t: number; spawn: number; game: boolean; hitAt: number; end: (o: string) => void } | null = null;
   onMoved: () => void = () => {};
   private held: Dir[] = [];
@@ -191,6 +192,7 @@ export class World {
   // ── 맵 위의 게임 ──
   /** 환승 통로: 인파를 거슬러 계단까지 간다. 부딪칠 때마다 밀리고 숨이 찬다. 숨이 다 차면 인파에 떠밀린다. */
   runGame(id: string): Promise<string> {
+    if (id === 'patrol') return this.patrolGame();
     if (id !== 'crowd' || !this.map) return Promise.resolve('');
     if (this.fast) return Promise.resolve('made');
     return new Promise((res) => {
@@ -199,6 +201,37 @@ export class World {
       Object.assign(this.crowd!, { game: true, meter: 0.15, t: 0, hitAt: -9, end });
       void this.waitChoice([{ at: 'z_down', idx: 0 }]).then(() => end('made'));
     });
+  }
+  /** 단지의 밤 순찰: 경비가 손전등을 들고 정해진 길을 돈다. 빛을 피해 108동 현관까지 간다. 빛에 오래 닿으면 들킨다. */
+  private patrolGame(): Promise<string> {
+    const g0 = this.npcs.get('guard');
+    if (!this.map || !g0) return Promise.resolve('');
+    if (this.fast) return Promise.resolve('made');
+    return new Promise((res) => {
+      const pts = ['pat_a', 'pat_b', 'pat_c', 'pat_d'];
+      const st = { t: 0, meter: 0, game: true, end: (o: string): void => { if (!st.game) return; st.game = false; this.patrol = null; this.cancelWalk(); res(o); } };
+      this.patrol = st;
+      const loop = async (i: number): Promise<void> => {
+        const g = this.npcs.get('guard');
+        if (!st.game || !g) return;
+        await this.go(pts[i % pts.length], g);
+        if (!st.game) return;
+        await new Promise((r) => setTimeout(r, 700 + Math.random() * 900)); // 모퉁이에서 서서 훑는다
+        void loop(i + 1);
+      };
+      void loop(0);
+      void this.waitChoice([{ at: 'homedoor', idx: 0 }]).then(() => st.end('made'));
+    });
+  }
+  private patrolTick(dt: number): void {
+    const st = this.patrol, g = this.npcs.get('guard');
+    if (!st || !st.game || !g) return;
+    st.t += dt;
+    const b = this.beam(g, this.t), p = this.player;
+    const lit = Math.hypot(p.px + 8 - b.x, p.py + 6 - b.y) < b.r * 0.72 || Math.hypot(p.px - g.px, p.py - g.py) < 18;
+    st.meter = Math.max(0, Math.min(1, st.meter + (lit ? dt * 1.15 : -dt * 0.3)));
+    if (lit && Math.floor(st.t * 4) !== Math.floor((st.t - dt) * 4)) sfx(st.meter > 0.6 ? 'heartbeat' : 'heartbeat_soft');
+    if (st.meter >= 1) { sfx('bump'); this.shake(220); st.end('seen'); }
   }
   /** 인파만 지나가게 한다 (게임 없이). off 면 치운다. */
   crowdOn(on: boolean): void {
@@ -327,7 +360,7 @@ export class World {
   key(dir: Dir, down: boolean, repeat: boolean): void {
     if (!down) { this.held = this.held.filter((d) => d !== dir); return; }
     if (!this.binds) return;
-    if (!repeat && this.resolve('move')) return; // 일어나려는 시도. 꾹 누르고 있어도 한 번만 센다.
+    if (!repeat && (this.resolve(dir) || this.resolve('move'))) return; // 일어나려는 시도. 꾹 누르고 있어도 한 번만 센다.
     if (this.player.pose === 'lie') return; // 누운 채로는 걷지 않는다 (머리만 미끄러져 간다)
     if (!this.held.includes(dir)) this.held.push(dir);
     this.player.path = []; this.player.onArrive = null;
@@ -362,7 +395,7 @@ export class World {
     const dt = Math.min(1, (now - this.last) / 1000);
     this.last = now; this.t += dt;
     if (!this.map) return;
-    this.crowdTick(dt); this.trainTick(dt);
+    this.crowdTick(dt); this.trainTick(dt); this.patrolTick(dt);
     const all = [this.player, ...this.npcs.values()];
     for (const a of all) {
       let left = a.speed * dt;
@@ -623,6 +656,13 @@ export class World {
       c.fillStyle = 'rgba(40,60,60,0.35)';
       for (let a = 0; a < 24; a++) { const th = (a / 24) * Math.PI * 2; if (a % 2) continue; c.fillRect(Math.round(ex + Math.cos(th) * 9), Math.round(ey + Math.sin(th) * 9), 1, 1); }
       c.fillRect(Math.round(ex), Math.round(ey), 1, 1);
+    }
+    // 들킴: 손전등 빛에 닿아 있는 만큼 찬다
+    if (this.patrol?.game) {
+      const k = this.patrol.meter, pulse = Math.sin(t * (6 + k * 10)) > 0 ? 1 : 0;
+      c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(W / 2 - 31, 22, 62, 6);
+      c.fillStyle = k > 0.6 ? `rgba(240,226,170,${0.8 + pulse * 0.2})` : 'rgba(200,196,180,0.8)'; c.fillRect(W / 2 - 30, 23, Math.round(60 * k), 4);
+      if (k > 0.3) { c.fillStyle = `rgba(250,246,226,${(k - 0.3) * 0.35})`; c.fillRect(0, 0, W, H); }
     }
     // 숨: 인파 속에서 차오른다
     if (this.crowd?.game) {
