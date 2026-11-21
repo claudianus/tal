@@ -108,9 +108,11 @@ window.__kb = async (opt={}) => { const w=window.tal.world; const t0=performance
       if(['up','down','left','right'].includes(at)){ await hold({up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'}[at],60); log.push('W:'+at); await S(600); continue; }
       const ok=await walk(at); if(!ok){ return {stop:'noroute',ats,log}; } await S(400); continue; }
     { const st=document.getElementById('stage');
-      if(window.__roamy && st && (st.classList.contains('roam')||st.classList.contains('peer')) && Math.random()<0.6){ // 걸으며 듣기: 대사 사이에 아무 쪽으로나 몇 걸음
+      if(window.__roamy && st && (st.classList.contains('roam')||st.classList.contains('peer')||st.classList.contains('hold')) && Math.random()<0.6){ // 걸으며 듣기: 대사 사이에 아무 쪽으로나 몇 걸음
         const p=w.player, x0=p.x, y0=p.y, d0=p.dir, ks=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight']; await hold(ks[(Math.random()*4)|0], 120+Math.random()*380); await S(120);
         const r=window.__roamLog||(window.__roamLog={walk:0,turn:0,peer:0,tries:0}); r.tries++; if(st.classList.contains('peer')) r.peer++; else if(p.x!==x0||p.y!==y0) r.walk++; else if(p.dir!==d0) r.turn++; }
+      if(st&&st.classList.contains('more')){ const c=st.classList; const r=window.__hands||(window.__hands={lines:0,idle:0,ex:[]}); r.lines++; // 이 줄에서 손이 살아 있는가
+        if(!(c.contains('roam')||c.contains('peer')||c.contains('scroll')||c.contains('hold'))){ r.idle++; const t=(document.querySelector('#win.on #win-body .cur')||document.querySelector('#flow .cur'))?.textContent||''; if(r.ex.length<12) r.ex.push(t.slice(0,18)+' ['+c.value.replace(/pov-\S+|has-map/g,'').trim()+']'); } }
       await hold(st&&st.classList.contains('scroll')&&st.classList.contains('more')?'ArrowDown':'z',40); } await S(opt.gap||220);
   }
   return {stop:'time',log}; };

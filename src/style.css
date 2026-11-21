@@ -305,6 +305,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 #pics .frame canvas { transition: transform 0.45s ease-out; transform-origin: center; }
 #winchoices .ch { flex: none; }
 
+/* 통화: ←→ 로 휴대폰을 귀에서 뗀다. 떼면 글이 흐려진다 (목소리는 먹먹해진다) */
+#stage.hold #col::after { content: '←→ 귀에서 뗀다'; position: absolute; right: 16px; bottom: 8px; font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.06em; color: #9aa1a8; opacity: 0.6; pointer-events: none; }
+#stage.hold.away #col::after { content: '←→ 귀에 댄다'; }
+#stage.away #col .ln { filter: blur(1.6px); opacity: 0.4; transition: filter 0.3s, opacity 0.3s; }
+#stage.away #col { transform: translateX(-50%) scale(0.94) rotate(-2deg); transition: transform 0.35s; }
+
 /* ── 터치 조작 (손가락으로 하는 기기에서만) ── */
 #pad, #pad-z { display: none; }
 #deck, #winres { position: absolute; left: 0; right: 0; bottom: 0; height: var(--deck, 0px); visibility: hidden; pointer-events: none; }
@@ -313,12 +319,12 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   #stage { touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
     --padL: max(14px, env(safe-area-inset-left)); --padR: max(16px, env(safe-area-inset-right)); --padB: max(16px, env(safe-area-inset-bottom));
     --side: calc(var(--padL) + 150px); } /* 가로로 들었을 때 패드·Z 가 차지하는 양옆 폭 */
-  #stage.walk #pad, #stage.game #pad, #stage.peer #pad { display: grid; position: absolute; z-index: 6; left: var(--padL); bottom: var(--padB);
+  #stage.walk #pad, #stage.game #pad, #stage.peer #pad, #stage.hold #pad { display: grid; position: absolute; z-index: 6; left: var(--padL); bottom: var(--padB);
     grid-template: 46px 46px 46px / 46px 46px 46px; grid-template-areas: ". u ." "l . r" ". d ."; touch-action: none; user-select: none; -webkit-user-select: none; opacity: 0.6; }
   #pad button { border-radius: 10px; background: rgba(20, 22, 26, 0.6); border: 1px solid rgba(255, 255, 255, 0.18); color: #c9ccce; font-size: 15px; touch-action: none; }
   #pad button.on { background: rgba(255, 255, 255, 0.18); }
   #pad [data-dir="up"] { grid-area: u; } #pad [data-dir="left"] { grid-area: l; } #pad [data-dir="right"] { grid-area: r; } #pad [data-dir="down"] { grid-area: d; }
-  #stage.walk #pad-z, #stage.game #pad-z, #stage.peer #pad-z { display: block; position: absolute; z-index: 6; right: var(--padR); bottom: calc(var(--padB) + 18px); width: 68px; height: 68px; border-radius: 50%;
+  #stage.walk #pad-z, #stage.game #pad-z, #stage.peer #pad-z, #stage.hold #pad-z { display: block; position: absolute; z-index: 6; right: var(--padR); bottom: calc(var(--padB) + 18px); width: 68px; height: 68px; border-radius: 50%;
     background: rgba(20, 22, 26, 0.6); border: 1px solid rgba(255, 255, 255, 0.22); color: #e2e5e8; font-family: var(--mono); font-size: 18px; opacity: 0.65; touch-action: none; user-select: none; -webkit-user-select: none; }
   #pad-z.on { background: rgba(255, 255, 255, 0.2); }
   #menu-btn { width: 44px; height: 44px; top: max(4px, env(safe-area-inset-top)); left: max(6px, env(safe-area-inset-left)); }
@@ -336,7 +342,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   #stage.walk #win, #stage.game #win, #stage.peer #win { bottom: var(--deck); }
   #stage.walk #winchoices, #stage.game #winchoices, #stage.peer #winchoices { bottom: calc(var(--deck) + 7.6em); }
   #col { top: calc(max(4px, env(safe-area-inset-top)) + 50px); } /* 메뉴 단추 아래부터 */
-  #stage.walk #col, #stage.game #col, #stage.peer #col { bottom: var(--deck); }
+  #stage.walk #col, #stage.game #col, #stage.peer #col, #stage.hold #col { bottom: var(--deck); }
   #game { width: 100vw; top: calc((100% - var(--deck)) / 2); }
   #hint { top: calc(max(4px, env(safe-area-inset-top)) + 50px); }
   #pics { top: calc(max(4px, env(safe-area-inset-top)) + 124px); width: min(420px, 86vw, calc((100vh - var(--deck) - 340px) * 16 / 9)); }
@@ -352,11 +358,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   #win-body .ln:not(:nth-last-child(-n+2)) { display: none; } /* 낮은 화면: 대화창에는 마지막 두 줄만. 위로 자라서 지도와 사진을 덮지 않게 */
   #stage.walk #win, #stage.game #win, #stage.peer #win { width: calc(100vw - 2 * var(--side)); bottom: max(10px, env(safe-area-inset-bottom)); }
   #stage.walk #winchoices, #stage.game #winchoices, #stage.peer #winchoices { right: var(--side); max-width: calc(100vw - 2 * var(--side)); }
-  #stage.walk #col, #stage.game #col, #stage.peer #col { width: calc(100vw - 2 * var(--side)); }
+  #stage.walk #col, #stage.game #col, #stage.peer #col, #stage.hold #col { width: calc(100vw - 2 * var(--side)); }
   #game { width: min(calc(100vw - 2 * var(--side)), calc(80vh * 16 / 9)); top: 50%; }
   #hint { max-width: calc(100vw - 2 * var(--side)); }
   #hud-bl { bottom: auto; top: calc(max(4px, env(safe-area-inset-top)) + 46px); left: max(14px, env(safe-area-inset-left)); }
-  #pics { top: calc(max(4px, env(safe-area-inset-top)) + 50px); width: min(420px, 70vw, calc((100vh - 220px) * 16 / 9)); }
+  #pics { top: calc(max(4px, env(safe-area-inset-top)) + 50px); width: min(420px, 70vw, calc((100vh - 245px) * 16 / 10)); }
   #col { top: calc(max(4px, env(safe-area-inset-top)) + 48px); }
 }
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 380px) {

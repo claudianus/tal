@@ -20,6 +20,7 @@ const CHAPTERS = [
   ['4장 — 바닥', /기획 · 방향|만든 사람/],
   ['에필로그 — 탈', /기획 · 방향|만든 사람/],          // 엔딩 B
   ['에필로그 — 남겨진 방', /기획 · 방향|만든 사람/],   // 엔딩 C
+  ['에필로그 — 전화', /기획 · 방향|만든 사람/],        // 엔딩 A
 ];
 const idx = Number(process.argv[2] || 0);
 const [title, next] = CHAPTERS[idx];
@@ -48,11 +49,12 @@ try {
   await sleep(1500);
   const t0 = Date.now();
   await evalJs(`(async () => { for (let i = 0; i < 200 && !(window.talBegin && window.__kb); i++) await new Promise(r => setTimeout(r, 100)); ${process.env.ROAM ? 'window.__roamy = true;' : ''} window.talBegin({ mode: 'chapter', title: ${JSON.stringify(title)} }); await new Promise(r => setTimeout(r, 2500)); window.__play_ = window.__kb({ ms: ${MIN * 60000}, gap: 110, stop: ${next} }); return 1; })()`, 30000);
-  const r = await evalJs(`(async () => { const r = await window.__play_; return { stop: r.stop, hint: r.hint, log: r.log, roam: window.__roamLog, tail: document.body.innerText.slice(-160).replace(/\\s+/g, ' ') }; })()`, (MIN * 60 + 60) * 1000);
+  const r = await evalJs(`(async () => { const r = await window.__play_; return { stop: r.stop, hint: r.hint, log: r.log, roam: window.__roamLog, hands: window.__hands, tail: document.body.innerText.slice(-160).replace(/\\s+/g, ' ') }; })()`, (MIN * 60 + 60) * 1000);
   const n = (p) => r.log.filter((x) => x.startsWith(p)).length;
   const ok = r.stop === 'text' && n('M:') === 0 && !errs.length; // 메뉴가 한 번이라도 뜨거나 오류가 나면 실패
   if (errs.length) console.log('  오류 ' + errs.length + ': ' + [...new Set(errs)].slice(0, 3).join(' | '));
   console.log(`${ok ? 'OK  ' : 'FAIL'} ${title}  ${((Date.now() - t0) / 1000).toFixed(0)}s  게임 ${n('G:')} · 걷기·몸짓 ${n('W:')} · 메뉴 ${n('M:')}  끝 ${r.stop}${r.stop === 'text' ? '' : '  화면 «' + r.tail + '»' + (r.hint ? '  힌트 ' + r.hint : '')}`);
+  if (r.hands) console.log(`  손: 넘긴 줄 ${r.hands.lines} · 손 없는 줄 ${r.hands.idle}${r.hands.idle ? '  예: ' + r.hands.ex.join(' | ') : ''}`);
   if (r.roam) console.log(`  걸으며 듣기: 시도 ${r.roam.tries} · 걸음 ${r.roam.walk} · 돌아봄 ${r.roam.turn} · 들여다봄 ${r.roam.peer}`);
   console.log('  ' + r.log.join(' '));
   process.exitCode = ok ? 0 : 1;

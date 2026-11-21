@@ -103,7 +103,7 @@ export class Game {
     w.fast = ui.isFast();
     ambient(spec.amb);
     setSpace(spec.map && HALL.has(spec.map) ? 'hall' : spec.map && MAPS[spec.map]?.outdoor ? 'out' : 'room');
-    setMuffle(p.suit);
+    setMuffle(p.suit || ui.isAway()); // 통화 중 귀에서 뗐으면 먹먹하다
   }
 
   /** 맵을 지금 상태(pres)대로 통째로 다시 놓는다. 불러오기와 장 건너뛰기에서 쓴다. */
@@ -234,14 +234,18 @@ export class Game {
     const p = this.pres, w = this.world;
     w.roam = w.active && !!SCENES[p.scene]?.map && p.skin === 'none' && p.cine <= 0;
     ui.el.stage.classList.toggle('walk', w.active); ui.el.stage.classList.toggle('has-map', w.active); // 맵이 방금 떴으면 패드도 지금 뜬다 (sync 는 맵을 놓기 전에 돌 수 있다)
-    ui.setPeer(p.cine > 0 && !SCROLL_SKINS.has(p.skin)); // 컷 그림은 방향키로 들여다본다
+    ui.setPeer(p.cine > 0 && !SCROLL_SKINS.has(p.skin) && p.skin !== 'call'); // 컷 그림은 방향키로 들여다본다
+    ui.setCallHold(p.skin === 'call', (a) => setMuffle(a || this.pres.suit)); // 통화는 ←→ 로 귀에서 뗀다
+    // 그림 없는 컷(검은 띠·화면 효과): 지도는 그대로 보인다. 걷지는 못하고 고개만 돌린다
+    w.turnOnly = !w.roam && w.active && !!SCENES[p.scene]?.map && p.skin === 'none' && p.cine > 0 && !ui.el.stage.classList.contains('peer');
+    if (w.turnOnly) w.roam = true;
     const pose = w.player.pose;
-    ui.setRoam(w.roam, w.ghost ? '←→ 떠돈다' : pose === 'lie' ? '←→ 돌아눕는다' : pose === 'stand' || pose === 'stoop' ? '←→ 걸으며 듣기' : '←→ 고개를 돌린다');
+    ui.setRoam(w.roam, w.turnOnly ? '←→ 눈을 돌린다' : w.ghost ? '←→ 떠돈다' : pose === 'lie' ? '←→ 돌아눕는다' : pose === 'stand' || pose === 'stoop' ? '←→ 걸으며 듣기' : '←→ 고개를 돌린다');
   }
 
   /** 다음 줄을 기다린다. 휴대폰 화면이면 엄지로 내려야 넘어간다. */
   private waitNext(): Promise<void> {
-    ui.setScrollMode(SCROLL_SKINS.has(this.pres.skin) && this.pres.cine <= 0);
+    ui.setScrollMode(SCROLL_SKINS.has(this.pres.skin)); // 휴대폰 화면에 컷(영상·캡처)이 떠도 엄지로 내리며 본다
     return ui.waitAdvance();
   }
 

@@ -42,16 +42,16 @@ const btns = ui.el.menuBtns;
 btns.appendChild(button('처음부터', () => begin({ mode: 'chapter', title: CHAPTERS[0] })));
 const saved = savedChapter();
 if (saved) btns.appendChild(button(`이어하기 · ${saved.split(' — ')[0]}`, () => begin({ mode: 'load' })));
-const lab = document.createElement('div');
-lab.className = 'lab';
-lab.textContent = '장 고르기 (앞 장의 선택은 무작위로 채워집니다)';
-btns.appendChild(lab);
-const row = document.createElement('div');
-row.className = 'row';
-CHAPTERS.forEach((c) => row.appendChild(button(c.split(' — ')[0], () => begin({ mode: 'chapter', title: c }))));
-btns.appendChild(row);
-// 엔딩 바로가기는 결말을 미리 알려 준다. 개발 서버(npm run dev)에서만 보인다. 배포 빌드에는 없다.
+// 장 고르기·엔딩 바로가기는 이야기를 미리 알려 준다. 개발 서버(npm run dev)에서만 보인다. 배포 빌드에는 없다.
 if (import.meta.env.DEV) {
+  const lab = document.createElement('div');
+  lab.className = 'lab';
+  lab.textContent = '장 고르기 (개발용)';
+  btns.appendChild(lab);
+  const row = document.createElement('div');
+  row.className = 'row';
+  CHAPTERS.forEach((c) => row.appendChild(button(c.split(' — ')[0], () => begin({ mode: 'chapter', title: c }))));
+  btns.appendChild(row);
   const erow = document.createElement('div');
   erow.className = 'row';
   ENDINGS.forEach(([k, c]) => erow.appendChild(button(`엔딩 ${k}`, () => begin({ mode: 'chapter', title: c }))));

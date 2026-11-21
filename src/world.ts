@@ -72,6 +72,7 @@ export class World {
   fast = false; autopilot = false;
   /** 걸으며 듣기: 고를 것이 없어도 대사가 흐르는 동안 방향키로 걷는다. 누워 있으면 뒤척이고, 앉아 있으면 고개만 돌린다. */
   roam = false;
+  turnOnly = false; // 컷(검은 띠) 동안: 걷지는 못하고 고개만 돌린다 (눈을 돌리거나, 돌리지 않거나)
   private bumpAt = -9;
   private placedAt = -9; // 맵을 새로 놓은 때 (그 직후의 자세는 소리 없이 놓는다)
   tossAt = -9; // 마지막으로 뒤척인 때
@@ -426,6 +427,7 @@ export class World {
   private roamKey(dir: Dir, repeat: boolean): void {
     const p = this.player;
     if (!this.roam || !this.map || p.onArrive || p.path.length || p.pose === 'gone') return; // 대본이 시킨 걸음은 끊지 않는다
+    if (this.turnOnly) { if (!repeat && p.dir !== dir) { p.dir = dir; sfx('rustle', { vol: 0.35 }); } return; }
     if (p.pose === 'stand' || p.pose === 'stoop') { if (!this.held.includes(dir)) this.held.push(dir); return; }
     if (repeat) return;
     if (p.pose === 'lie' && p.dir !== dir) { this.tossAt = this.t; sfx('rustle_long', { vol: 0.8 }); } // 이불이 들썩인다
