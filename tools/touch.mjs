@@ -48,7 +48,7 @@ try {
   await sleep(3500);
   const t0 = Date.now();
   let walks = 0, kbUntil = 0;
-  const NEED = ['넘기기', '패드걷기', 'Z조사', '휴대폰내리기', 'Z누르고떼기', 'Z미끄러짐']; // 선택창·휴대폰 선택지는 본편에서 뜨지 않는다 (play.mjs 가 메뉴 0 을 요구한다). 뜨면 눌러 본다.
+  const NEED = ['넘기기', '패드걷기', 'Z조사', '휴대폰내리기', 'Z누르고떼기', 'Z미끄러짐', '선택창', '휴대폰선택지']; // 선택창·휴대폰 선택지는 본편에서 뜨지 않는다 (play.mjs 가 메뉴 0 을 요구한다). 뜨면 눌러 본다.
   while (Date.now() - t0 < SECS * 1000 && NEED.some((k) => !got[k])) {
     const s = await ev(`(() => { const st = document.getElementById('stage'), w = window.tal.world;
       return { cl: st.className, game: !!document.querySelector('#game.on'), hint: document.getElementById('hint').textContent,
@@ -110,6 +110,19 @@ try {
       continue;
     }
     await sleep(150);
+  }
+  // 선택창·휴대폰 선택지는 본편에서 뜨지 않으니, 같은 함수를 직접 띄워 손가락으로 눌러 본다
+  for (const [skin, box, name] of [['none', '#winchoices.on .ch', '선택창'], ['kakao', '#choices .ch', '휴대폰선택지']]) {
+    if (got[name]) continue;
+    await ev(`(async () => { window.talSkin(${JSON.stringify(skin)}); await window.talLine('narr', '시험 줄', { instant: true }); window.__pick = window.talChoose(['첫째', '둘째', '셋째']); window.__pick.then(i => window.__picked = i); return 1; })()`);
+    await sleep(400);
+    const c = await ev(`(() => { const b = document.querySelectorAll(${JSON.stringify(box)})[1]; if (!b) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, r.height]; })()`);
+    if (!c) { bad.push(name + '가 뜨지 않았다'); continue; }
+    await tap(c[0], c[1]); await sleep(400);
+    const picked = await ev(`window.__picked`);
+    if (picked === 1) got[name]++; else bad.push(`${name} 둘째를 눌렀는데 ${picked}`);
+    if (c[2] < 40) bad.push(`${name} 줄 높이 ${Math.round(c[2])}px`);
+    await ev(`window.__picked = undefined; window.talSkin('none'); 1`);
   }
   const miss = NEED.filter((k) => !got[k]);
   console.log(`${!bad.length && !errs.length && !miss.length ? 'OK  ' : 'FAIL'} ${process.env.DEV || 'portrait'} ${TITLE}  ${Object.entries(got).map(([k, v]) => k + ' ' + v).join(' · ')}`);

@@ -27,7 +27,7 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
   return b;
 }
 
-if (q.has('auto') || q.has('test')) Object.assign(window, { talBegin: begin, talGame: playGame });
+if (q.has('auto') || q.has('test')) Object.assign(window, { talBegin: begin, talGame: playGame, talChoose: ui.choose, talLine: ui.line, talSkin: (s: string) => { ui.el.col.dataset.skin = s; } });
 if (q.has('test')) void import('./testkit.ts').then((m) => m.installKeyboardKit()); // 검사용: 원하는 장/엔딩에서 바로 시작
 
 // 손가락으로 하는 기기: 키보드 안내 대신 화면의 패드와 Z 를 알려 준다
