@@ -397,6 +397,7 @@ export class World {
     if (!down) { this.held = this.held.filter((d) => d !== dir); return; }
     if (!this.binds) { this.roamKey(dir, repeat); return; }
     if (!repeat && (this.resolve(dir) || this.resolve('move'))) return; // 일어나려는 시도. 꾹 누르고 있어도 한 번만 센다.
+    if (this.player.pose !== 'stand' && this.player.pose !== 'stoop' && this.player.pose !== 'lie') { if (!repeat) this.player.dir = dir; return; } // 앉은 채로는 고개만 돌린다 (걸으며 듣는 동안 돌린 고개를 되돌릴 수 있게)
     if (this.player.pose === 'lie') {
       // 누운 채로는 걷지 않는다. 다만 이번 선택이 물건까지 걸어가야 하는 것뿐이면, 방향키가 몸을 일으킨다.
       if (!this.binds.some((b) => b.at && !SPECIAL.has(b.at))) return;
@@ -423,6 +424,9 @@ export class World {
     for (const o of this.map.objs) {
       if (o.touch) continue;
       if ((inObj(o, p.x + dx, p.y + dy) || inObj(o, p.x, p.y)) && this.resolve(o.id)) return true;
+    }
+    if (p.pose !== 'stand' && p.pose !== 'stoop') { // 앉거나 누운 채로는 몸을 돌릴 수 없으니, 손 닿는 네 칸 어디든 된다
+      for (const [ex, ey] of Object.values(DELTA)) for (const o of this.map.objs) if (!o.touch && inObj(o, p.x + ex, p.y + ey) && this.resolve(o.id)) return true;
     }
     return this.resolve('wait');
   }

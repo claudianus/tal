@@ -82,7 +82,7 @@ try {
   await send('Runtime.enable');
   let fail = 0;
   for (const [name, from, after, secs, expect, pick, pre] of CASES) {
-    if (only && !name.includes(only)) continue;
+    if (only && !(only.startsWith("/") ? new RegExp(only.slice(1)).test(name) : name.includes(only))) continue; // "/정규식" 도 된다
     const tc = Date.now();
     try {
     await send('Page.navigate', { url: URL });
