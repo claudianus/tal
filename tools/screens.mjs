@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 const root = new URL('..', import.meta.url).pathname;
 const { newPres, parseTags, applyTag } = await import(root + 'src/pres.ts');
-const { SCENES } = await import(root + 'src/tables.ts');
+const { SCENES, CUTS } = await import(root + 'src/tables.ts');
 const require = createRequire(root + 'package.json');
 const { Story } = require('inkjs');
 const json = fs.readFileSync(root + 'src/story.json', 'utf8');
@@ -19,20 +19,25 @@ const stillRuns = new Map(); // 시작 자리 → 가장 긴 still 줄 수
 const mixed = new Map(); // 방향키 몸짓과 물건이 섞인 묶음
 const get = (c) => { if (!per.has(c)) per.set(c, { lines: 0, still: 0, walk: 0, gesture: 0, press: 0, game: 0, maxStill: 0 }); return per.get(c); };
 for (let r = 0; r < runs; r++) {
-  const s = new Story(json); const p = newPres(); let run = 0, key = '';
+  const s = new Story(json); const p = newPres(); let run = 0, key = '', frame = false;
   const close = () => { if (run) { const st = get(p.chapter); if (run > st.maxStill) st.maxStill = run; if (run > (stillRuns.get(key) || 0)) stillRuns.set(key, run); } run = 0; };
   for (let steps = 0; steps < 3000; steps++) {
     while (s.canContinue) {
       const text = s.Continue().trim();
-      for (const d of parseTags(s.currentTags).dirs) applyTag(p, d);
+      for (const d of parseTags(s.currentTags).dirs) { applyTag(p, d); if (d.name === 'cut' && CUTS[d.val]?.k === 'frame') frame = true; }
       if (!text) continue;
       const cut = p.cine > 0; if (p.cine > 0) p.cine--; // 엔진처럼: 컷은 다섯 줄 동안만 남는다
+      const framed = frame; if (p.cine === 0) frame = false;
       const st = get(p.chapter); st.lines++;
       const onMap = p.skin === 'none' && !cut && !!SCENES[p.scene]?.map;
       if (onMap) { close(); continue; }
       // 휴대폰(메신저·카톡·브라우저)은 줄마다 엄지로 ↓ 를 내려야 넘어간다: 그림 위의 글이 아니라 스크롤이다
       if (['messenger', 'kakao', 'browser'].includes(p.skin) && !cut) { st.scroll = (st.scroll || 0) + 1; close(); continue; }
       st.still++;
+      // still 화면이라도 손이 하는 것: 그림 컷은 들여다본다, 그림 없는 컷은 지도 위에서 눈을 돌린다, 통화는 귀에서 뗀다, 휴대폰 위 컷은 엄지로 내린다
+      const hand = p.skin === 'call' ? 'call' : ['messenger', 'kakao', 'browser'].includes(p.skin) ? 'thumb' : cut && framed ? 'peer' : cut && SCENES[p.scene]?.map ? 'look' : '';
+      if (hand) { st[hand] = (st[hand] || 0) + 1; close(); continue; }
+      st.idle = (st.idle || 0) + 1;
       if (!run) key = `[${p.chapter}] ${(s.state.currentPathString || '').split('.')[0]} «${text.slice(0, 16)}» (${p.skin !== 'none' ? p.skin : cut ? 'cut' : 'no-map:' + p.scene})`;
       run++;
     }
@@ -54,7 +59,7 @@ for (let r = 0; r < runs; r++) {
   close();
 }
 console.log('장            줄/판  ↓스크롤줄  still줄/판  걷기  몸짓  Z·시간  게임  (판당)  가장 긴 still');
-for (const [c, v] of per) console.log(`  ${c.padEnd(14)} ${(v.lines / runs).toFixed(0).padStart(4)} ${((v.scroll || 0) / runs).toFixed(0).padStart(8)} ${(v.still / runs).toFixed(0).padStart(8)} ${(v.walk / runs).toFixed(1).padStart(6)} ${(v.gesture / runs).toFixed(1).padStart(5)} ${(v.press / runs).toFixed(1).padStart(6)} ${(v.game / runs).toFixed(1).padStart(5)} ${String(v.maxStill).padStart(12)}`);
+for (const [c, v] of per) console.log(`  ${c.padEnd(14)} ${(v.lines / runs).toFixed(0).padStart(4)} ${((v.scroll || 0) / runs).toFixed(0).padStart(8)} ${(v.still / runs).toFixed(0).padStart(8)} ${(v.walk / runs).toFixed(1).padStart(6)} ${(v.gesture / runs).toFixed(1).padStart(5)} ${(v.press / runs).toFixed(1).padStart(6)} ${(v.game / runs).toFixed(1).padStart(5)} ${String(v.maxStill).padStart(12)}   still 중 손: 들여다봄 ${((v.peer || 0) / runs).toFixed(0)} · 눈돌림 ${((v.look || 0) / runs).toFixed(0)} · 귀에서뗌 ${((v.call || 0) / runs).toFixed(0)} · 엄지 ${((v.thumb || 0) / runs).toFixed(0)} · 손 없음 ${((v.idle || 0) / runs).toFixed(1)}`);
 const pl = [...plain.keys()];
 console.log(`\n메뉴만 있는 선택지 묶음: ${pl.length}개`);
 pl.slice(0, top).forEach((k) => console.log('  ' + k));
