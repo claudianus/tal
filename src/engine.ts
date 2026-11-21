@@ -233,6 +233,7 @@ export class Game {
   private roam(): void {
     const p = this.pres, w = this.world;
     w.roam = w.active && !!SCENES[p.scene]?.map && p.skin === 'none' && p.cine <= 0;
+    ui.el.stage.classList.toggle('walk', w.active); ui.el.stage.classList.toggle('has-map', w.active); // 맵이 방금 떴으면 패드도 지금 뜬다 (sync 는 맵을 놓기 전에 돌 수 있다)
     ui.setPeer(p.cine > 0 && !SCROLL_SKINS.has(p.skin)); // 컷 그림은 방향키로 들여다본다
     const pose = w.player.pose;
     ui.setRoam(w.roam, w.ghost ? '←→ 떠돈다' : pose === 'lie' ? '←→ 돌아눕는다' : pose === 'stand' || pose === 'stoop' ? '←→ 걸으며 듣기' : '←→ 고개를 돌린다');

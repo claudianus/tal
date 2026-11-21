@@ -9,7 +9,7 @@ import { canvasOf } from './sprites.ts';
 
 const W = 256, H = 144;
 type GameOpt = { ghosts?: string[]; text?: string; droopy?: boolean; lines?: string[]; skin?: string; pov?: string };
-type Keys = Record<GameKey, boolean>;
+type Keys = Record<Exclude<GameKey, 'any'>, boolean>;
 type Ctx = CanvasRenderingContext2D;
 /** 한 판: 매 프레임 step 을 부르고, 결과가 나오면 문자열을 돌려준다. */
 type Play = { step: (dt: number, t: number, k: Keys, hit: Set<GameKey>) => string | null; draw: (c: Ctx, t: number) => void; hint: string; scale?: number; peek?: () => Record<string, number> }; // peek: 시험용 (tools 에서 상태를 본다)
@@ -54,8 +54,9 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
   c.setTransform(sc, 0, 0, sc, 0, 0);
   c.imageSmoothingEnabled = false;
   const keys: Keys = { up: false, down: false, left: false, right: false, z: false };
+  (window as unknown as { __keys?: Keys }).__keys = keys; // 시험용: 터치로 누른 Z 가 떼어졌는지 본다
   let hit = new Set<GameKey>();
-  ui.setGameKeys((k, down, repeat) => { if (down && !repeat && !keys[k]) hit.add(k); keys[k] = down; });
+  ui.setGameKeys((k, down, repeat) => { if (k === 'any') { if (down) hit.add(k); return; } if (down && !repeat && !keys[k]) hit.add(k); keys[k] = down; });
   ui.hint(g.hint);
   setTension(0); tenseSet = false;
   ui.el.stage.classList.add('game');

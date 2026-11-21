@@ -74,11 +74,31 @@ function setCursor(i: number): void {
 
 const KEY_DIR: Record<string, Dir> = {
   ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
-  w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right',
+  w: 'up', s: 'down', a: 'left', d: 'right',
 };
+/**
+ * 눌린 키의 이름. 한글 입력 상태에서는 e.key 가 'ㅋ'(맥) 이나 'Process'(윈도) 로 와서 Z·X·숫자·WASD 가 먹지 않는다.
+ * 그럴 때는 글자 대신 자판의 자리(e.code)로 읽는다. 영문 상태에서는 e.key 를 그대로 쓴다 (다른 자판 배열도 글자대로).
+ */
+export function keyName(e: KeyboardEvent): string {
+  const k = e.key || '';
+  if (/^[a-zA-Z]$/.test(k)) return k.toLowerCase();
+  if (/^[0-9 ]$/.test(k) || /^(Arrow(Up|Down|Left|Right)|Enter|Escape|Control)$/.test(k)) return k;
+  const c = e.code || '';
+  if (/^Key[A-Z]$/.test(c)) return c.slice(3).toLowerCase();
+  if (/^Digit\d$/.test(c)) return c.slice(5);
+  if (/^Numpad\d$/.test(c)) return c.slice(6);
+  if (c === 'Space') return ' ';
+  if (c === 'Enter' || c === 'NumpadEnter') return 'Enter';
+  if (/^Arrow(Up|Down|Left|Right)$/.test(c) || c === 'Escape') return c;
+  if (c === 'ControlLeft' || c === 'ControlRight') return 'Control';
+  return k;
+}
+const OK_KEYS = new Set([' ', 'Enter', 'z']);
+
 export type Hooks = { onMenu: () => void; onDir: (d: Dir, down: boolean, repeat: boolean) => void; onAct: () => void };
 /** 미니게임이 돌고 있으면 방향키와 Z 를 전부 가져간다 (누를 때와 뗄 때 모두). */
-export type GameKey = Dir | 'z';
+export type GameKey = Dir | 'z' | 'any'; // any: 방향키·Z 말고 다른 글자 키 ('아무 키나' 치는 판)
 let gameKeys: ((k: GameKey, down: boolean, repeat: boolean) => void) | null = null;
 export function setGameKeys(f: typeof gameKeys): void { gameKeys = f; }
 
@@ -94,19 +114,20 @@ export function bindInput(h: Hooks): void {
     lastWheel = performance.now(); thumb(); advance();
   }, { passive: true });
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Control') { fast = true; advance(); return; }
-    if (e.key === 'Escape' && !(menu && menu.cancel)) { h.onMenu(); return; }
+    const key = keyName(e);
+    if (key === 'Control') { fast = true; advance(); return; }
+    if (key === 'Escape' && !(menu && menu.cancel)) { h.onMenu(); return; }
     if (blocked) return;
-    const dir = KEY_DIR[e.key];
-    const ok = e.key === ' ' || e.key === 'Enter' || e.key === 'z' || e.key === 'Z';
+    const dir = KEY_DIR[key];
+    const ok = OK_KEYS.has(key);
     if (dir || ok) e.preventDefault();
-    if (gameKeys && !menu) { if (dir) gameKeys(dir, true, e.repeat); else if (ok) gameKeys('z', true, e.repeat); return; }
+    if (gameKeys && !menu) { if (dir) gameKeys(dir, true, e.repeat); else if (ok) gameKeys('z', true, e.repeat); else if (/^[a-z0-9]$/.test(key) && !e.repeat) gameKeys('any', true, false); return; }
     if (menu) {
       if (dir === 'up') setCursor(menu.cur - 1);
       else if (dir === 'down') setCursor(menu.cur + 1);
       else if (ok && !e.repeat) menu.pick(menu.cur);
-      else if ((e.key === 'x' || e.key === 'X' || e.key === 'Escape') && menu.cancel) menu.cancel();
-      else if (/^[1-9]$/.test(e.key) && Number(e.key) <= menu.n) menu.pick(Number(e.key) - 1);
+      else if ((key === 'x' || key === 'Escape') && menu.cancel) menu.cancel();
+      else if (/^[1-9]$/.test(key) && Number(key) <= menu.n) menu.pick(Number(key) - 1);
       return;
     }
     if (scrollMode && dir === 'down' && (typing || waiter)) { if (!e.repeat) { thumb(); advance(); } return; }
@@ -115,9 +136,10 @@ export function bindInput(h: Hooks): void {
     if (ok && !e.repeat) { if (!advance()) h.onAct(); }
   });
   window.addEventListener('keyup', (e) => {
-    if (e.key === 'Control') fast = false;
-    const dir = KEY_DIR[e.key];
-    if (gameKeys) { if (dir) gameKeys(dir, false, false); else if (e.key === ' ' || e.key === 'Enter' || e.key === 'z' || e.key === 'Z') gameKeys('z', false, false); }
+    const key = keyName(e);
+    if (key === 'Control') fast = false;
+    const dir = KEY_DIR[key];
+    if (gameKeys) { if (dir) gameKeys(dir, false, false); else if (OK_KEYS.has(key)) gameKeys('z', false, false); }
     if (dir) h.onDir(dir, false, false);
   });
   // 터치 화면: 방향 패드와 Z. 누르고 있는 동안 걷는다.
@@ -138,11 +160,13 @@ export function bindInput(h: Hooks): void {
     b.addEventListener('click', (e) => e.stopPropagation());
   });
   const z = document.getElementById('pad-z');
-  z?.addEventListener('pointerup', (e) => { e.preventDefault(); if (gameKeys) gameKeys('z', false, false); });
+  const zUp = (e: Event): void => { e.preventDefault(); z?.classList.remove('on'); if (gameKeys) gameKeys('z', false, false); }; // 손가락이 미끄러져 나가도 뗀 것으로 친다
+  z?.addEventListener('pointerup', zUp); z?.addEventListener('pointercancel', zUp); z?.addEventListener('lostpointercapture', zUp);
   z?.addEventListener('pointerdown', (e) => {
     e.preventDefault(); e.stopPropagation();
     if (blocked) return;
-    if (gameKeys && !menu) { gameKeys('z', true, false); return; }
+    z.classList.add('on'); setTimeout(() => { if (!gameKeys) z.classList.remove('on'); }, 140);
+    if (gameKeys && !menu) { try { z.setPointerCapture(e.pointerId); } catch { /* 합성 이벤트 */ } gameKeys('z', true, false); return; }
     if (menu) { menu.pick(menu.cur); return; }
     if (scrollMode && waiter && !typing) { nag(); return; }
     if (!advance()) h.onAct();
@@ -264,14 +288,25 @@ export function choose(texts: string[], opts: { cancel?: boolean } = {}): Promis
       box.appendChild(b);
     });
     box.classList.add('on');
+    placeChoices(box);
     menu = { n: texts.length, cur: 0, pick, cancel: opts.cancel ? () => { if (!done) { done = true; end(-1); } } : null, box };
     (box.children[0] as HTMLElement).classList.add('sel');
     scrollDown(); requestAnimationFrame(scrollDown);
   });
 }
 
+/** 선택창은 대화창 바로 위에 뜬다. 대화창 높이는 글에 따라 달라서, 뜰 때마다 잰다. 위로 넘치면 선택창 안에서 스크롤된다. */
+function placeChoices(box: HTMLElement): void {
+  box.style.bottom = ''; box.style.maxHeight = '';
+  if (box !== el.winChoices || !el.win.classList.contains('on')) return;
+  const st = el.stage.getBoundingClientRect(), w = el.win.getBoundingClientRect();
+  if (!w.height) return;
+  box.style.bottom = `${Math.round(st.bottom - w.top + 12)}px`;
+  box.style.maxHeight = `${Math.round(Math.max(140, w.top - st.top - 60))}px`;
+}
+
 export function hint(text: string): void {
-  el.hint.textContent = text;
+  el.hint.textContent = DIR_KEY === '패드' ? text.replace(/방향키/g, '패드') : text; // 손가락으로 하는 기기에는 방향키가 없다
   el.hint.classList.toggle('on', !!text);
 }
 
@@ -384,15 +419,25 @@ export async function warn(text: string, canSkip: boolean): Promise<'go' | 'skip
   el.card.classList.add('help');
   const p = document.createElement('p'); p.textContent = text; el.card.appendChild(p);
   const row = document.createElement('div'); row.className = 'endbtns';
-  const go = document.createElement('button'); go.className = 'cont'; go.textContent = '계속 본다';
+  const go = document.createElement('button'); go.className = 'cont'; go.textContent = DIR_KEY === '패드' ? '계속 본다' : '계속 본다 · Z';
   row.appendChild(go);
   let sk: HTMLButtonElement | null = null;
-  if (canSkip) { sk = document.createElement('button'); sk.className = 'cont'; sk.textContent = '이 장면 넘기기'; row.appendChild(sk); }
+  if (canSkip) { sk = document.createElement('button'); sk.className = 'cont'; sk.textContent = DIR_KEY === '패드' ? '이 장면 넘기기' : '이 장면 넘기기 · X'; row.appendChild(sk); }
   el.card.appendChild(row);
   el.card.classList.add('on'); el.card.style.pointerEvents = 'auto';
+  go.focus();
   const r = await new Promise<'go' | 'skip'>((res) => {
-    go.addEventListener('click', (e) => { e.stopPropagation(); res('go'); }, { once: true });
-    sk?.addEventListener('click', (e) => { e.stopPropagation(); res('skip'); }, { once: true });
+    const key = (e: KeyboardEvent): void => { // 키보드로 하는 사람도: Z·Enter 는 계속 본다, X 는 넘긴다
+      if (e.repeat) return;
+      const k = keyName(e);
+      const v = OK_KEYS.has(k) ? 'go' : sk && k === 'x' ? 'skip' : null;
+      if (!v) return;
+      e.preventDefault(); e.stopPropagation(); done(v);
+    };
+    const done = (v: 'go' | 'skip'): void => { window.removeEventListener('keydown', key, true); res(v); };
+    window.addEventListener('keydown', key, true);
+    go.addEventListener('click', (e) => { e.stopPropagation(); done('go'); }, { once: true });
+    sk?.addEventListener('click', (e) => { e.stopPropagation(); done('skip'); }, { once: true });
   });
   el.card.classList.remove('on', 'help'); el.card.style.pointerEvents = '';
   inHelp = false;
@@ -430,7 +475,7 @@ export async function help(long: boolean): Promise<void> {
   b.disabled = false; b.focus();
   await new Promise<void>((r) => {
     const key = (e: KeyboardEvent): void => { // 키보드로 하는 사람도 넘어갈 수 있게
-      if (e.repeat || !['z', 'Z', 'Enter', ' '].includes(e.key)) return;
+      if (e.repeat || !OK_KEYS.has(keyName(e))) return;
       e.preventDefault(); e.stopPropagation(); done();
     };
     const done = (): void => { window.removeEventListener('keydown', key, true); r(); };
@@ -469,6 +514,7 @@ export function render(p: Pres, vars: { energy: number; heat: number; gaze: numb
   c.toggle('pov-yunjae', p.pov === 'yunjae');
   c.toggle('pov-world', p.pov === 'world');
   c.toggle('has-map', hasMap);
+  if (!hasMap && roam) setRoam(false); // 맵이 내려가면 걸으며 듣기도 끝난다 (다음 줄을 기다리지 않고)
   c.toggle('color', p.scene === 'grandma_house'); // 4장 할머니 집: 이 게임에서 유일하게 색이 있는 장면
   if (el.col.dataset.skin !== p.skin) {
     el.col.dataset.skin = p.skin;

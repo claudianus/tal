@@ -30,6 +30,12 @@ function button(label: string, onClick: () => void): HTMLButtonElement {
 if (q.has('auto') || q.has('test')) Object.assign(window, { talBegin: begin, talGame: playGame });
 if (q.has('test')) void import('./testkit.ts').then((m) => m.installKeyboardKit()); // 검사용: 원하는 장/엔딩에서 바로 시작
 
+// 손가락으로 하는 기기: 키보드 안내 대신 화면의 패드와 Z 를 알려 준다
+if (ui.DIR_KEY === '패드') {
+  const note = document.querySelector('#menu .note');
+  if (note) note.textContent = '화면을 누르면 넘어가고, 아래 패드로 걷고, Z 로 조사합니다 · 헤드폰을 권합니다' + (matchMedia('(orientation: portrait)').matches ? ' · 가로로 들면 그림이 더 크게 보입니다' : '');
+}
+
 // ── 시작 화면 ──
 ui.setBlocked(true);
 const btns = ui.el.menuBtns;

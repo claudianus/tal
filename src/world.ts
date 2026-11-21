@@ -86,6 +86,7 @@ export class World {
   private resolveWalk: ((idx: number[]) => void) | null = null;
   private last = performance.now();
   private t = 0;
+  private viewH = 0;
   private lagX = 0; private lagY = 0; // 센서등은 한 박자 늦게 켜진다
   private shakeUntil = 0;
 
@@ -107,9 +108,14 @@ export class World {
 
   private resize(): void {
     const st = this.canvas.parentElement!.getBoundingClientRect();
-    if (!st.width || !st.height) return; // 화면이 아직 안 보이면 (크기 0) 건너뛴다: 0 크기 캔버스를 그리면 그리기 루프가 죽는다
-    const k = Math.max(1, Math.floor(st.height / (this.map?.view || 172)));
-    this.W = Math.ceil(st.width / k); this.H = Math.ceil(st.height / k);
+    const deck = document.getElementById('deck')?.offsetHeight || 0; // 세로로 든 휴대폰: 아래 패드 자리는 지도가 쓰지 않는다
+    const h = st.height - deck;
+    if (!st.width || h <= 0) return; // 화면이 아직 안 보이면 (크기 0) 건너뛴다: 0 크기 캔버스를 그리면 그리기 루프가 죽는다
+    // 높이로 배율을 고르되, 가로로 열한 칸은 보이게 한다 (세로로 든 휴대폰에서 방이 반쪽만 보이지 않게)
+    const k = Math.max(1, Math.min(Math.floor(h / (this.map?.view || 172)), Math.floor(st.width / 176)));
+    this.W = Math.ceil(st.width / k); this.H = Math.ceil(h / k);
+    const res = (document.getElementById('winres')?.offsetHeight ?? st.height * 0.26) - deck; // 대화창이 가리는 아래쪽 (패드 띠는 빼고)
+    this.viewH = Math.max(this.H * 0.5, this.H - Math.max(0, res) / k);
     this.canvas.width = this.dark.width = this.W; this.canvas.height = this.dark.height = this.H;
     this.canvas.style.width = `${this.W * k}px`; this.canvas.style.height = `${this.H * k}px`;
   }
@@ -541,7 +547,7 @@ export class World {
     const m = this.map!;
     const top = m.top || 0; // 그림이 맵 위로 더 솟은 만큼
     const mw = m.grid[0].length * TILE, mh = m.grid.length * TILE + top;
-    const viewH = this.H * 0.74; // 아래쪽은 대화창이 가린다
+    const viewH = this.viewH || this.H * 0.74; // 아래쪽은 대화창이 가린다 (얼마나 가리는지는 화면 방향마다 다르다: resize)
     const cx = mw <= this.W ? (mw - this.W) / 2 : Math.max(0, Math.min(mw - this.W, this.player.px + 8 - this.W / 2));
     // 사람은 키가 크고 볼 것은 벽에 있다: 발이 화면 위에서 2/3 쯤에 오게 해서 머리 위를 더 보여 준다
     const cy = (mh <= viewH + 4 ? (mh - viewH) / 2 : Math.max(-8, Math.min(mh - viewH + 8, this.player.py + 13 + top - viewH * 0.64))) - top;
