@@ -70,12 +70,15 @@ export class World {
   swings: Record<string, string> = {}; // 그네 자리 → still / gentle / high
   flags = { monitor: false, eyes: false, lampOff: false, headGone: false, headDone: true, mark: '' as '' | 'torn' | 'sewn', box: '' as '' | 'shut' | 'open', tidy: false, ajar: false, headAt: '' as '' | 'bed' | 'floor', pile: '' as '' | 'torn' | 'folded', closet: '' as '' | 'left' | 'mirror', siren: false, door: '' as '' | 'front' | '1107' };
   fast = false; autopilot = false;
+  /** 걸으며 듣기: 고를 것이 없어도 대사가 흐르는 동안 방향키로 걷는다. 누워 있으면 뒤척이고, 앉아 있으면 고개만 돌린다. */
+  roam = false;
+  tossAt = -9; // 마지막으로 뒤척인 때
   rain = false; // 바깥 맵에 비가 내린다
   train = { state: '' as '' | 'arrive' | 'stop' | 'open' | 'leave' | 'gone', x: 0, v: 0, done: null as (() => void) | null };
   private patrol: { t: number; meter: number; game: boolean; end: (o: string) => void } | null = null;
   private sneak: { t: number; meter: number; snore: boolean; phase: number; lx: number; ly: number; game: boolean; end: (o: string) => void } | null = null;
   private crowd: { walkers: Walker[]; meter: number; t: number; spawn: number; game: boolean; hitAt: number; end: (o: string) => void } | null = null;
-  onMoved: () => void = () => {};
+  onMoved: (free?: boolean) => void = () => {}; // free: 고를 것 없이 걸으며 듣는 걸음 (대화창을 치우지 않는다)
   private held: Dir[] = [];
   private binds: Bind[] | null = null;
   private resolveWalk: ((idx: number[]) => void) | null = null;
@@ -392,7 +395,7 @@ export class World {
 
   key(dir: Dir, down: boolean, repeat: boolean): void {
     if (!down) { this.held = this.held.filter((d) => d !== dir); return; }
-    if (!this.binds) return;
+    if (!this.binds) { this.roamKey(dir, repeat); return; }
     if (!repeat && (this.resolve(dir) || this.resolve('move'))) return; // 일어나려는 시도. 꾹 누르고 있어도 한 번만 센다.
     if (this.player.pose === 'lie') {
       // 누운 채로는 걷지 않는다. 다만 이번 선택이 물건까지 걸어가야 하는 것뿐이면, 방향키가 몸을 일으킨다.
@@ -402,6 +405,16 @@ export class World {
     if (!this.held.includes(dir)) this.held.push(dir);
     this.player.path = []; this.player.onArrive = null;
   }
+  private roamKey(dir: Dir, repeat: boolean): void {
+    const p = this.player;
+    if (!this.roam || !this.map || p.onArrive || p.path.length || p.pose === 'gone') return; // 대본이 시킨 걸음은 끊지 않는다
+    if (p.pose === 'stand' || p.pose === 'stoop') { if (!this.held.includes(dir)) this.held.push(dir); return; }
+    if (repeat) return;
+    if (p.pose === 'lie' && p.dir !== dir) this.tossAt = this.t; // 이불이 들썩인다
+    p.dir = dir; // 누운 채 돌아눕거나, 앉은 채 고개를 돌린다
+  }
+  /** 걸으며 듣는 동안 밟으면 안 되는 칸: 밟는 순간 다음 선택이 저절로 골라지는 자리 (문턱·출구) */
+  private touchTile(x: number, y: number): boolean { return !!this.map?.objs.some((o) => o.touch && inObj(o, x, y)); }
   act(): boolean {
     if (!this.binds || !this.map) return false;
     const p = this.player;
@@ -463,12 +476,12 @@ export class World {
           continue;
         }
         if (a.onArrive) { const f = a.onArrive; a.onArrive = null; f(); break; }
-        if (a === this.player && this.binds && this.held.length && (a.pose === 'stand' || a.pose === 'stoop')) {
+        if (a === this.player && (this.binds || this.roam) && this.held.length && (a.pose === 'stand' || a.pose === 'stoop')) {
           const dir = this.held[this.held.length - 1];
           a.dir = dir;
           const [dx, dy] = DELTA[dir];
-          if (this.solid(a.x + dx, a.y + dy)) break;
-          a.x += dx; a.y += dy; this.onMoved();
+          if (this.solid(a.x + dx, a.y + dy) || (!this.binds && this.touchTile(a.x + dx, a.y + dy))) break;
+          a.x += dx; a.y += dy; this.onMoved(!this.binds);
           continue;
         }
         break;
@@ -627,7 +640,8 @@ export class World {
       if (this.mapId === 'er' && a.id.startsWith('feet')) { const f = ART.feet?.[a.id.includes('white') ? 'sneakers' : a.id.includes('slip') ? 'slippers' : 'shoes']; if (f) c.drawImage(canvasOf(f), Math.round(a.px + 2 - cx), Math.round(116 - cy)); return; }
       const moving = a.px !== a.x * TILE || a.py !== a.y * TILE;
       const step = moving ? Math.floor(a.walked / 6) % 4 : 0;
-      const ax = Math.round(a.px - cx), ay = Math.round(a.py - cy - 6 + (ride.get(a) || 0));
+      const toss = a === this.player && a.pose === 'lie' && t - this.tossAt < 0.4 ? -Math.round(Math.sin((t - this.tossAt) / 0.4 * Math.PI) * 2) : 0; // 뒤척이면 이불째 들썩인다
+      const ax = Math.round(a.px - cx), ay = Math.round(a.py - cy - 6 + (ride.get(a) || 0) + toss);
       const pst = a === this.player && a.pose === 'stand' ? this.posture : '';
       if (pst) { // 3장 뒤의 몸: 허리는 굽고, 다리는 절고, 팔은 몸통에 붙인다
         c.save();

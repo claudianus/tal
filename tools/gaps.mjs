@@ -4,6 +4,9 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 const root = new URL('..', import.meta.url).pathname;
 const { newPres, parseTags, applyTag } = await import(root + 'src/pres.ts');
+const { SCENES } = await import(root + 'src/tables.ts');
+// 걸으며 듣기: 지도가 떠 있고, 앱·컷이 없고, 서 있으면 대사 중에도 방향키로 걷는다 (engine.roamable 과 같은 조건)
+const roam = (p, cut) => !!SCENES[p.scene]?.map && p.skin === 'none' && !cut; // 누우면 돌아눕고, 앉으면 고개를 돌리고, 엔딩 C 에선 떠돈다
 const require = createRequire(root + 'package.json');
 const { Story } = require('inkjs');
 const json = fs.readFileSync(root + 'src/story.json', 'utf8');
@@ -21,6 +24,7 @@ for (let r = 0; r < runs; r++) {
       lines.set(p.chapter, (lines.get(p.chapter) || 0) + 1);
       if (!run) key = `[${p.chapter}] ${(s.state.currentPathString || '').split('.')[0]} «${text.slice(0, 18)}»`;
       const cut = p.cine > 0; if (p.cine > 0) p.cine--;
+      if (!process.env.NOROAM && roam(p, cut)) { close(); acts.set(p.chapter, (acts.get(p.chapter) || 0) + 1); continue; }
       if (['messenger', 'kakao', 'browser'].includes(p.skin) && !cut) { close(); acts.set(p.chapter, (acts.get(p.chapter) || 0) + 1); continue; } // 휴대폰 줄은 ↓ 로 내린다
       run++; last = `${(s.state.currentPathString || '').split('.')[0]} «${text.slice(0, 14)}»`;
     }

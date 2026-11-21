@@ -313,3 +313,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 #stage.scroll.more.nag #col::after { content: '↓ 로 내린다'; margin-left: -34px; color: #f0e6d8; }
 #stage.scroll #flow { transition: transform 0.12s ease-out; }
 #stage.scroll.thumb #flow { transform: translateY(-6px); }
+/* 걸으며 듣기: 대화창 오른쪽 아래, ▾ 옆에 방향키가 살아 있다는 표시 */
+#win::after { content: attr(data-roam); position: absolute; right: 32px; bottom: 6px; font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.06em; color: #9aa1a8; opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+#stage.roam #win.on::after, #stage.peer #win.on::after { opacity: 0.55; }
+#pics .frame { overflow: hidden; }
+#pics .frame canvas { transition: transform 0.45s ease-out; transform-origin: center; }

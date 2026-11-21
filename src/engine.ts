@@ -58,7 +58,7 @@ export class Game {
       spec: SCENES.black, suit: false, gaze: 0, eyes: false, cat: false, monitor: false, droopy: false,
     });
     this.world = new World(worldCanvas);
-    this.world.onMoved = () => { ui.fadeWin(); };
+    this.world.onMoved = (free) => { if (!free) ui.fadeWin(); };
   }
 
   private num(name: string): number {
@@ -198,12 +198,22 @@ export class Game {
     this.sync(); // 이 줄에서 기력·더위·시선이 바뀌었을 수 있다
     if (kind === 'voice') ui.ghost(text);
     ui.hint('');
+    this.roam();
     await ui.line(kind, text, { me: p.pov === 'yunseo' ? '윤서' : p.pov === 'yunjae' ? '나' : '' });
     p.tail.push({ kind, text });
     if (p.tail.length > 3) p.tail.shift();
     this.heard.push({ kind, text }); if (this.heard.length > 24) this.heard.shift();
     if (p.cine > 0 && --p.cine === 0) this.sync();
     this.pending = true;
+  }
+
+  /** 걸으며 듣기: 지도가 떠 있고 앱·컷이 없으면, 대사가 흐르는 동안에도 방향키로 걷는다 (tools/gaps.mjs 의 roam 과 같은 조건). */
+  private roam(): void {
+    const p = this.pres, w = this.world;
+    w.roam = w.active && !!SCENES[p.scene]?.map && p.skin === 'none' && p.cine <= 0;
+    ui.setPeer(p.cine > 0 && !SCROLL_SKINS.has(p.skin)); // 컷 그림은 방향키로 들여다본다
+    const pose = w.player.pose;
+    ui.setRoam(w.roam, w.ghost ? '←→ 떠돈다' : pose === 'lie' ? '←→ 돌아눕는다' : pose === 'stand' || pose === 'stoop' ? '←→ 걸으며 듣기' : '←→ 고개를 돌린다');
   }
 
   /** 다음 줄을 기다린다. 휴대폰 화면이면 엄지로 내려야 넘어간다. */
@@ -225,6 +235,7 @@ export class Game {
     const ch = this.story.currentChoices;
     const texts = ch.map((c) => c.text);
     const w = this.world;
+    w.roam = false; ui.setRoam(false); // 이제부터는 고르는 걸음이다
     // 미니게임: 결과에 맞는 선택지를 고른다. 장면 경고로 넘기는 중이면 첫 선택지(정해진 결과).
     const games = ch.map((c) => gameOf(c.tags));
     const gi = games.findIndex((g) => g);

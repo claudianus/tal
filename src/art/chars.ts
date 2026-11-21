@@ -994,8 +994,8 @@ export function charFrame(look: Look, dir: Dir, step: number, pose = 'stand', em
   const hdx = emote === 'tilt' ? 1 : emote === 'shake' ? (ph ? 1 : -1) : 0, hdy = (emote === 'nod' || emote === 'tilt') && ph ? 1 : 0;
   hEm = emote; hPh = ph;
   if (pose === 'lie') { // 이불 밖으로 머리만 나온다
-    if (look.kind === 'yunjae' || look.kind === 'person' || look.kind === 'yunseo') ops.push(...humanOps(look.kind === 'yunseo' ? YS : YJ, 'down', 0, false, true).head);
-    else ops.push(...catHeadOps('down', CX, 0, droopy, false, false));
+    if (look.kind === 'yunjae' || look.kind === 'person' || look.kind === 'yunseo') ops.push(...humanOps(look.kind === 'yunseo' ? YS : YJ, d, 0, false, true).head);
+    else ops.push(...catHeadOps(d, CX, 0, droopy, false, left));
   } else switch (look.kind) {
     case 'cat': {
       const s = suitOps(d, step, sit, emote, ph, left, idle);

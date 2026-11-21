@@ -74,7 +74,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
     requestAnimationFrame(loop);
   });
 }
-const FAST: Record<string, string> = { dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', swing3: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail', history: 'read', longmsg: 'read', buzz: 'caught', lining: 'held', headoff: 'off', tape: 'matched', book: 'off', bookok: 'booked', erase: 'gone', dates: 'counted', leak: 'seen', react: 'heart', unsend: 'erased', hush: 'held', curtain: 'hid' };
+const FAST: Record<string, string> = { ring: 'held', dodge: 'held', zoom: 'seen', breath: 'calm', bill: 'done', coins: 'done', stitch: 'done', still: 'still', flood: 'off', type: 'sent', closet: 'hid', dial: 'call', gaze: 'looked', tilt: 'tilt', tug: 'torn', lurk: 'quiet', watch: 'end', leave: 'left', leaveall: 'left', swing: 'high', swing2: 'together', swing3: 'together', stillhot: 'still', photo: 'clear', catchb: 'caught', zip: 'zipped', knock: 'knocked', sleeve: 'bared', album: 'found', point: 'home', pills: 'taken', grab: 'gone', push: 'pushed', bag: 'given', beam: 'tail', history: 'read', longmsg: 'read', buzz: 'caught', lining: 'held', headoff: 'off', tape: 'matched', book: 'off', bookok: 'booked', erase: 'gone', dates: 'counted', leak: 'seen', react: 'heart', unsend: 'erased', hush: 'held', curtain: 'hid' };
 
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
@@ -680,6 +680,58 @@ function dial(opt: { ghosts?: string[]; text?: string }): Play {
       const fx = cy === 4 ? X + PW / 2 : X + 8 + cx * 22 + 10, fy = cy === 4 ? Y + PH - 14 : Y + 30 + cy * 19 + 8;
       ell(c, fx + jx, fy + jy + 3, 6, 7, 'rgba(232,200,176,0.55)'); ell(c, fx + jx, fy + jy + 1, 3, 3, 'rgba(255,236,220,0.6)');
       if (calling >= 0) { px(c, X, Y, PW, PH, `rgba(20,30,24,${Math.min(0.6, calling)})`); }
+    },
+  };
+}
+
+// ═══════════ 신호음 (엔딩 A: 109 에 건 전화가 아직 안 받는다) ═══════════
+// 엄지가 자꾸 빨간 끊기 쪽으로 미끄러진다. 신호음 사이 조용할 때 더 빨리 내려간다.
+// Z 를 누르고 있으면 손가락을 오므려 끌어올린다. 오래 쥐면 손이 저려서 잠깐 놓아야 한다. 신호가 다섯 번 간다.
+function ring(opt: { ghosts?: string[] }): Play {
+  const ghosts = opt.ghosts?.length ? opt.ghosts : ['아무도 안 받아.', '끊어. 지금 끊으면 없던 일이야.'];
+  let tt = 0, d = 0.7, grip = 1, tones = 0, next = 0.4, pulse = 0, touched = 0, flash = 0, numb = 0, end = -1, said = 0, jx = 0;
+  return {
+    hint: '엄지가 끊기 쪽으로 미끄러진다 · Z 를 누르고 있으면 손가락을 오므린다',
+    step(dt, _t, k) {
+      tt += dt; pulse = Math.max(0, pulse - dt * 0.9); flash = Math.max(0, flash - dt * 2);
+      if (end >= 0) { end += dt; return end > 1.6 ? (touched ? 'almost' : 'held') : null; }
+      next -= dt;
+      if (next <= 0) {
+        if (tones >= 5) { end = 0; ui.hint('신호가 간다'); return null; }
+        tones++; next = 2.6; pulse = 1; sfx('ringback');
+        if (tones === 3 && !touched) ui.hint('세 번째 · 아직 아무도 안 받는다');
+      }
+      const silent = pulse < 0.35; // 신호음 사이가 제일 길다
+      d -= dt * (silent ? 0.16 : 0.05) * (1 + Math.sin(tt * 2.3) * 0.3);
+      if (k.z && grip > 0 && numb <= 0) { d = Math.min(1, d + dt * 0.35); grip = Math.max(0, grip - dt * 0.22); if (grip <= 0) { numb = 0.9; ui.hint('손이 저린다 · 잠깐 놓는다'); } }
+      else { grip = Math.min(1, grip + dt * (k.z ? 0.1 : 0.5)); numb = Math.max(0, numb - dt); }
+      jx = Math.sin(tt * 15) * (0.8 + (1 - grip) * 2) + Math.sin(tt * 4.1);
+      if (d < 0.28 && said < ghosts.length && tt > 1 + said * 3) { ui.ghost(ghosts[said]); said++; }
+      if (d <= 0) { touched++; d = 0.3; flash = 1; sfx('heartbeat'); ui.hint(touched > 1 ? '또 닿았다 · 그래도 안 끊겼다' : '엄지가 닿았다 · 누르지는 않았다'); }
+      return null;
+    },
+    peek: () => ({ d, grip, tones, touched, numb: numb > 0 ? 1 : 0, end: end >= 0 ? 1 : 0 }),
+    draw(c, t) {
+      c.fillStyle = 'rgba(4,5,8,0.78)'; c.fillRect(0, 0, W, H);
+      const X = W / 2 - 40, Y = 4, PW = 80, PH = H - 8, mx = X + PW / 2;
+      px(c, X - 3, Y - 3, PW + 6, PH + 6, '#0e0f13'); px(c, X, Y, PW, PH, '#12151b');
+      // 신호음이 갈 때마다 번호 둘레로 번진다
+      if (pulse > 0) for (let r = 0; r < 3; r++) { const rr = 14 + (1 - pulse) * 22 + r * 5; c.strokeStyle = `rgba(150,200,170,${pulse * 0.25 / (r + 1)})`; c.lineWidth = 1; c.beginPath(); c.arc(mx, Y + 30, rr, 0, Math.PI * 2); c.stroke(); }
+      num(c, mx - 17, Y + 22, 109, '#e8eaee', 3);
+      // 발신 중: 점 셋이 차례로 켜진다
+      for (let i = 0; i < 3; i++) px(c, mx - 6 + i * 5, Y + 46, 2, 2, Math.floor(t * 2.5) % 3 === i ? '#cfd4dc' : '#3a404a');
+      // 지난 신호음 수
+      for (let i = 0; i < 5; i++) px(c, mx - 12 + i * 5, Y + 56, 3, 1, i < tones ? '#7fa892' : '#262b34');
+      // 끊기 버튼
+      const by = Y + PH - 14;
+      ell(c, mx, by, 9, 9, flash > 0 ? '#ff6a5a' : '#c2463c'); px(c, mx - 4, by - 1, 8, 2, '#f6dcd6');
+      // 엄지: 위로 오므릴수록 버튼에서 멀다
+      const fy = by - 6 - d * 52;
+      ell(c, mx + jx, fy + 3, 6, 7, 'rgba(232,200,176,0.55)'); ell(c, mx + jx, fy + 1, 3, 3, 'rgba(255,236,220,0.6)');
+      if (d < 0.3) px(c, mx - 10, by - 12, 20, 1, `rgba(255,120,100,${0.4 * (1 - d / 0.3)})`); // 닿을 것 같다
+      // 쥐는 힘
+      px(c, 20, H - 10, 50, 2, '#1a171a'); px(c, 20, H - 10, Math.round(50 * grip), 2, numb > 0 ? '#c45050' : '#8a8078');
+      if (end >= 0) { c.fillStyle = `rgba(4,5,8,${Math.min(0.55, end * 0.4)})`; c.fillRect(0, 0, W, H); }
     },
   };
 }
@@ -2686,7 +2738,7 @@ function react(opt: GameOpt): Play {
   };
 }
 
-const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), swing3: () => swing(true, true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam, history, longmsg, buzz, lining, headoff, tape, book: () => book(false), bookok: () => book(true), erase, dates, leak, react, unsend: (o: GameOpt) => type(o, true), hush, curtain };
+const GAMES: Record<string, (opt: GameOpt) => Play> = { dodge, zoom, breath, bill: () => paw(0), coins: () => paw(1), stitch, still: () => still(true), stillhot: () => still(false), flood, type, closet, dial, gaze, tilt, tug, lurk, watch, leave: () => leave(false), leaveall: () => leave(true), swing: () => swing(false), swing2: () => swing(true), swing3: () => swing(true, true), photo, catchb, zip, knock, sleeve, album, point, pills, grab, push, bag, beam, history, longmsg, buzz, lining, headoff, tape, book: () => book(false), bookok: () => book(true), erase, dates, leak, react, unsend: (o: GameOpt) => type(o, true), hush, curtain, ring };
 export const GAME_IDS = Object.keys(GAMES);
 /** 시험용 (tools/games-sim.mjs) */
 export const _GAMES = GAMES;

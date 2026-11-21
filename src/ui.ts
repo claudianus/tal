@@ -37,6 +37,23 @@ function advance(): boolean {
 // 휴대폰 화면(메신저·카톡·브라우저)에서는 다음 줄을 엄지로 내려서 본다: ↓ (또는 휠·화면 누르기). Z 로는 넘어가지 않는다.
 let scrollMode = false, scrollNagged = 0, lastWheel = 0;
 export function setScrollMode(on: boolean): void { scrollMode = on; el.stage.classList.toggle('scroll', on); }
+// 들여다보기: 컷 그림이 떠 있는 동안 방향키로 눈길을 옮긴다 (그림이 그쪽으로 다가온다)
+let peer = false, peerX = 0, peerY = 0;
+export function setPeer(on: boolean): void {
+  const f = el.pics.querySelector<HTMLElement>('.frame');
+  peer = on && !!f;
+  if (!peer) { peerX = peerY = 0; const c = f?.querySelector('canvas'); if (c) c.style.transform = ''; }
+  else el.win.dataset.roam = '←→ 들여다본다';
+  el.stage.classList.toggle('peer', peer);
+}
+function peerKey(d: Dir): void {
+  const f = el.pics.querySelector<HTMLElement>('.frame canvas'); if (!f) return;
+  peerX = Math.max(-1, Math.min(1, peerX + (d === 'left' ? -1 : d === 'right' ? 1 : 0)));
+  peerY = Math.max(-1, Math.min(1, peerY + (d === 'up' ? -1 : d === 'down' ? 1 : 0)));
+  f.style.transform = peerX || peerY ? `scale(1.32) translate(${-peerX * 11}%, ${-peerY * 10}%)` : '';
+}
+let roam = false; // 걸으며 듣기: 대사가 흐르는 동안에도 방향키가 몸을 움직인다
+export function setRoam(on: boolean, label = '←→ 걸으며 듣기'): void { roam = on; el.stage.classList.toggle('roam', on); if (on) el.win.dataset.roam = label; }
 function thumb(): void { el.stage.classList.remove('thumb'); void el.stage.offsetWidth; el.stage.classList.add('thumb'); setTimeout(() => el.stage.classList.remove('thumb'), 220); blip('type'); }
 function nag(): void { if (performance.now() - scrollNagged < 1500) return; scrollNagged = performance.now(); el.stage.classList.remove('nag'); void el.stage.offsetWidth; el.stage.classList.add('nag'); }
 export function waitAdvance(): Promise<void> {
@@ -93,7 +110,7 @@ export function bindInput(h: Hooks): void {
       return;
     }
     if (scrollMode && dir === 'down' && (typing || waiter)) { if (!e.repeat) { thumb(); advance(); } return; }
-    if (dir) { if (!typing && !waiter) h.onDir(dir, true, e.repeat); return; }
+    if (dir) { if (peer && (typing || waiter)) { if (!e.repeat) peerKey(dir); return; } if ((!typing && !waiter) || roam) h.onDir(dir, true, e.repeat); return; }
     if (ok && !e.repeat && scrollMode && waiter && !typing) { nag(); return; }
     if (ok && !e.repeat) { if (!advance()) h.onAct(); }
   });
@@ -111,7 +128,8 @@ export function bindInput(h: Hooks): void {
       e.preventDefault(); e.stopPropagation();
       if (blocked) return;
       if (gameKeys && !menu) { b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch { /* 합성 이벤트 */ } gameKeys(d, true, false); return; }
-      if (typing || waiter) { if (scrollMode && d === 'down') { thumb(); advance(); } return; }
+      if (peer && (typing || waiter)) { peerKey(d); return; }
+      if ((typing || waiter) && !roam) { if (scrollMode && d === 'down') { thumb(); advance(); } return; }
       if (menu) { if (d === 'up') setCursor(menu.cur - 1); else if (d === 'down') setCursor(menu.cur + 1); return; }
       try { b.setPointerCapture(e.pointerId); } catch { /* 합성 이벤트 */ }
       b.classList.add('on'); h.onDir(d, true, false);

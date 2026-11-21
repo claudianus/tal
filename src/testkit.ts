@@ -89,6 +89,7 @@ async function game(h){
   if(/가만히 있는다/.test(h)){ while(document.querySelector('#game.on')) await S(200); return 'still'; }
   if(/커튼을 연다/.test(h)){ let on=false; for(let i=0;i<800&&document.querySelector('#game.on');i++){ const st=window.__play?.peek?.(); if(!st) break; const want=window.__careless?true:!(st.warn||st.up); if(want&&!on){down('z');on=true;} if(!want&&on){up('z');on=false;} await S(40);} if(on) up('z'); return 'curtain'; }
   if(/문틈을 지날/.test(h)){ let on=false; for(let i=0;i<800&&document.querySelector('#game.on');i++){ const st=window.__play?.peek?.(); if(!st) break; const want=window.__careless?false:Math.abs(st.x)<0.8; if(want&&!on){down('z');on=true;} if(!want&&on){up('z');on=false;} await S(40);} if(on) up('z'); return 'hush'; }
+  if(/끊기 쪽으로 미끄러진다/.test(h)){ let on=false; for(let i=0;i<800&&document.querySelector('#game.on');i++){ const st=window.__play?.peek?.(); if(!st||st.end) break; const want=!window.__careless&&!st.numb&&(on?(st.d<0.85&&st.grip>0.12):(st.d<0.5&&st.grip>0.45)); if(want&&!on){down('z');on=true;} if(!want&&on){up('z');on=false;} await S(40);} if(on) up('z'); for(let i=0;i<60&&document.querySelector('#game.on');i++) await S(100); return 'ring'; }
   if(/숨을 참는다/.test(h)){ for(let i=0;i<30&&document.querySelector('#game.on');i++){ await hold('z',1500); await S(700);} return 'closet'; }
   if(/알림을 밀어/.test(h)){ for(let i=0;i<40&&document.querySelector('#game.on');i++){ await hold(i%2?'ArrowLeft':'ArrowRight',80); await S(150);} await hold('z',50); return 'flood'; }
   if(/고개를 기울인다/.test(h)){ await hold('ArrowLeft',900); await S(400); await hold('ArrowRight',900); for(let i=0;i<40&&document.querySelector('#game.on');i++) await S(100); return 'tilt'; }
@@ -105,7 +106,11 @@ window.__kb = async (opt={}) => { const w=window.tal.world; const t0=performance
       if(at==='wait'||at==='move'){ if(at==='move'){await hold('ArrowLeft',120);} else await hold('z',50); await S(600); continue; }
       if(['up','down','left','right'].includes(at)){ await hold({up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'}[at],60); log.push('W:'+at); await S(600); continue; }
       const ok=await walk(at); if(!ok){ return {stop:'noroute',ats,log}; } await S(400); continue; }
-    { const st=document.getElementById('stage'); await hold(st&&st.classList.contains('scroll')&&st.classList.contains('more')?'ArrowDown':'z',40); } await S(opt.gap||220);
+    { const st=document.getElementById('stage');
+      if(window.__roamy && st && (st.classList.contains('roam')||st.classList.contains('peer')) && Math.random()<0.6){ // 걸으며 듣기: 대사 사이에 아무 쪽으로나 몇 걸음
+        const p=w.player, x0=p.x, y0=p.y, d0=p.dir, ks=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight']; await hold(ks[(Math.random()*4)|0], 120+Math.random()*380); await S(120);
+        const r=window.__roamLog||(window.__roamLog={walk:0,turn:0,peer:0,tries:0}); r.tries++; if(st.classList.contains('peer')) r.peer++; else if(p.x!==x0||p.y!==y0) r.walk++; else if(p.dir!==d0) r.turn++; }
+      await hold(st&&st.classList.contains('scroll')&&st.classList.contains('more')?'ArrowDown':'z',40); } await S(opt.gap||220);
   }
   return {stop:'time',log}; };
 }

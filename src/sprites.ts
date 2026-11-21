@@ -144,7 +144,7 @@ const ICONS: Record<string, [string[], Record<string, string>]> = {
 /** idle: 제자리에 서 있다 (걷는 중의 0번 박자와 구별한다). 그때만 꼬리를 흔들고 숨을 쉰다. */
 export function drawChar(c: C, look: Look, x: number, y: number, dir: Dir, step: number, pose: string, emote: string, t: number, idle = false): void {
   if (pose === 'lie') { // 이불 밖으로 머리만 나온다. 베개 위.
-    const h = trim(charFrame(look, 'down', 0, 'lie'));
+    const h = trim(charFrame(look, dir, 0, 'lie')); // 돌아누우면 머리가 그쪽을 본다 (위 = 벽 쪽으로 등을 돌린다)
     c.drawImage(canvasOf(h.pix), Math.round(x + 15.5 - h.pix.w / 2), Math.round(y + 16 - h.pix.h / 2));
     return;
   }
