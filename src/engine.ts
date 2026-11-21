@@ -272,7 +272,7 @@ export class Game {
       if (!GAME_IDS.includes(id)) ui.hint(WORLD_GAME_HINT[id] || '');
       const said = /"(.+)"/.exec(texts[gi]); // 선택지 글에 따옴표로 적은 말 (타자 게임이 그 말을 친다)
       const lines = this.heard.filter((t) => t.kind === 'comment' || t.kind === 'msg' || t.kind === 'caption').map((t) => t.text).slice(-14); // 댓글 판: 방금 읽은 말이 날아온다
-      const out = GAME_IDS.includes(id) ? await playGame(id, { ghosts: ghosts.length ? ghosts : undefined, text: said ? said[1] : undefined, droopy: (this.story.variablesState['eye_shape'] as unknown) === 'droopy', lines, skin: this.pres.skin, pov: this.pres.pov }) : await w.runGame(id);
+      const out = GAME_IDS.includes(id) ? await playGame(id, { ghosts: ghosts.length ? ghosts : undefined, text: said ? said[1] : undefined, droopy: (this.story.variablesState['eye_shape'] as unknown) === 'droopy', lines, skin: this.pres.skin, pov: this.pres.pov, caught: Number(this.story.variablesState['caught']) || 0, wounds: Number(this.story.variablesState['wounds']) || 0 }) : await w.runGame(id, Number(this.story.variablesState['caught']) || 0);
       ui.hint('');
       const k = games.findIndex((g) => g && g[1] === out);
       return k >= 0 ? k : gi;

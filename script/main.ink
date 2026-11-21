@@ -56,6 +56,14 @@ VAR talked_toto = false // 프롤로그에서 토토에게 답장했는가
 VAR promised_haeun = 0  // 1장에서 하은에게 한 대답: 0 대답 없음, 1 온다, 2 모르겠다
 VAR posted_photo = false
 
+// 들킴: 긴장 장면에서 진 값은 그 자리에서 끝나지 않는다. 뒤의 대사가 기억하고, 뒤의 판이 더 어려워진다 (숨김)
+VAR caught = 0          // 밤에 들킨 횟수: 다음 순찰·커튼·숨죽이기가 그만큼 빨리 들킨다
+VAR wounds = 0          // 댓글에 맞은 횟수: 다음 댓글 판을 그만큼 적은 기력으로 시작한다
+VAR father_heard = false // 1장 새벽, 안방 앞에서 발소리가 들어갔다
+VAR guard_saw = false   // 3장 밤, 박씨의 손전등이 등에 붙었다
+VAR curtain_shot = false // 3장 낮, 커튼 틈이 찍혔다
+VAR hush_heard = false  // 4장 새벽, 숨이 샜다
+
 INCLUDE prologue.ink
 INCLUDE ch1.ink
 INCLUDE ch2.ink

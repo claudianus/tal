@@ -78,7 +78,7 @@ export class World {
   tossAt = -9; // 마지막으로 뒤척인 때
   rain = false; // 바깥 맵에 비가 내린다
   train = { state: '' as '' | 'arrive' | 'stop' | 'open' | 'leave' | 'gone', x: 0, v: 0, done: null as (() => void) | null };
-  private patrol: { t: number; meter: number; game: boolean; end: (o: string) => void } | null = null;
+  private patrol: { t: number; meter: number; wary: number; game: boolean; end: (o: string) => void } | null = null;
   private sneak: { t: number; meter: number; snore: boolean; phase: number; lx: number; ly: number; game: boolean; end: (o: string) => void } | null = null;
   private crowd: { walkers: Walker[]; meter: number; t: number; spawn: number; game: boolean; hitAt: number; end: (o: string) => void } | null = null;
   onMoved: (free?: boolean) => void = () => {}; // free: 고를 것 없이 걸으며 듣는 걸음 (대화창을 치우지 않는다)
@@ -210,8 +210,8 @@ export class World {
 
   // ── 맵 위의 게임 ──
   /** 환승 통로: 인파를 거슬러 계단까지 간다. 부딪칠 때마다 밀리고 숨이 찬다. 숨이 다 차면 인파에 떠밀린다. */
-  runGame(id: string): Promise<string> {
-    if (id === 'patrol') return this.patrolGame();
+  runGame(id: string, caught = 0): Promise<string> {
+    if (id === 'patrol') return this.patrolGame(caught);
     if (id === 'sneak') return this.sneakGame();
     if (id !== 'crowd' || !this.map) return Promise.resolve('');
     if (this.fast) return Promise.resolve('made');
@@ -223,13 +223,13 @@ export class World {
     });
   }
   /** 단지의 밤 순찰: 경비가 손전등을 들고 정해진 길을 돈다. 빛을 피해 108동 현관까지 간다. 빛에 오래 닿으면 들킨다. */
-  private patrolGame(): Promise<string> {
+  private patrolGame(caught = 0): Promise<string> {
     const g0 = this.npcs.get('guard');
     if (!this.map || !g0) return Promise.resolve('');
     if (this.fast) return Promise.resolve('made');
     return new Promise((res) => {
       const pts = ['pat_a', 'pat_b', 'pat_c', 'pat_d'];
-      const st = { t: 0, meter: 0, game: true, end: (o: string): void => { if (!st.game) return; st.game = false; this.patrol = null; setTension(0); this.cancelWalk(); res(o); } };
+      const st = { t: 0, meter: 0, wary: 1 + Math.min(2, caught) * 0.35, game: true, end: (o: string): void => { if (!st.game) return; st.game = false; this.patrol = null; setTension(0); this.cancelWalk(); res(o); } };
       this.patrol = st;
       const loop = async (i: number): Promise<void> => {
         const g = this.npcs.get('guard');
@@ -281,7 +281,7 @@ export class World {
     st.t += dt;
     const b = this.beam(g, this.t), p = this.player;
     const lit = Math.hypot(p.px + 8 - b.x, p.py + 6 - b.y) < b.r * 0.72 || Math.hypot(p.px - g.px, p.py - g.py) < 18;
-    st.meter = Math.max(0, Math.min(1, st.meter + (lit ? dt * 1.15 : -dt * 0.3)));
+    st.meter = Math.max(0, Math.min(1, st.meter + (lit ? dt * 1.15 * st.wary : -dt * 0.3))); // 새벽에 한 번 들킨 적이 있으면 빛에 더 빨리 걸린다
     if (lit && Math.floor(st.t * 4) !== Math.floor((st.t - dt) * 4)) sfx(st.meter > 0.6 ? 'heartbeat' : 'heartbeat_soft');
     setTension(0.15 + st.meter * 0.85);
     if (st.meter >= 1) { sfx('bump'); sfx('sting'); this.shake(220); st.end('seen'); }

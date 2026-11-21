@@ -286,7 +286,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 #menu #warn-toggle:hover { border-color: rgba(255, 255, 255, 0.35); color: #e2e5e8; }
 
 /* 미니게임 판: 장면 위, 대화창 아래 */
-#game { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: min(96vw, calc(78vh * 16 / 9)); aspect-ratio: 16 / 9; image-rendering: pixelated; image-rendering: crisp-edges; z-index: 5; opacity: 0; pointer-events: none; transition: opacity 0.5s; }
+#game { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: min(96vw, calc(78vh * 16 / 9)); width: min(96vw, calc(78dvh * 16 / 9)); aspect-ratio: 16 / 9; image-rendering: pixelated; image-rendering: crisp-edges; z-index: 5; opacity: 0; pointer-events: none; transition: opacity 0.5s; }
 #game.on { opacity: 1; }
 #stage.game #win { opacity: 0.25; }
 #timer { position: absolute; z-index: 6; left: 50%; top: 8%; transform: translateX(-50%); width: min(320px, 60vw); height: 3px; background: rgba(255,255,255,0.12); opacity: 0; transition: opacity 0.3s; pointer-events: none; }
@@ -345,7 +345,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   #stage.walk #col, #stage.game #col, #stage.peer #col, #stage.hold #col { bottom: var(--deck); }
   #game { width: 100vw; top: calc((100% - var(--deck)) / 2); }
   #hint { top: calc(max(4px, env(safe-area-inset-top)) + 50px); }
-  #pics { top: calc(max(4px, env(safe-area-inset-top)) + 124px); width: min(420px, 86vw, calc((100vh - var(--deck) - 340px) * 16 / 9)); }
+  #pics { top: calc(max(4px, env(safe-area-inset-top)) + 124px); width: min(420px, 86vw, calc((100vh - var(--deck) - 340px) * 16 / 9)); width: min(420px, 86vw, calc((100dvh - var(--deck) - 340px) * 16 / 9)); }
   #timer { top: calc(max(4px, env(safe-area-inset-top)) + 44px); }
   #hud-bl { bottom: auto; top: calc(max(4px, env(safe-area-inset-top)) + 46px); left: 14px; }
   #stage.walk #hud-bl, #stage.game #hud-bl, #stage.peer #hud-bl { top: auto; left: calc(var(--padL) + 150px); bottom: calc(var(--padB) + 40px); }
@@ -359,10 +359,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   #stage.walk #win, #stage.game #win, #stage.peer #win { width: calc(100vw - 2 * var(--side)); bottom: max(10px, env(safe-area-inset-bottom)); }
   #stage.walk #winchoices, #stage.game #winchoices, #stage.peer #winchoices { right: var(--side); max-width: calc(100vw - 2 * var(--side)); }
   #stage.walk #col, #stage.game #col, #stage.peer #col, #stage.hold #col { width: calc(100vw - 2 * var(--side)); }
-  #game { width: min(calc(100vw - 2 * var(--side)), calc(80vh * 16 / 9)); top: 50%; }
+  #game { width: min(calc(100vw - 2 * var(--side)), calc(80vh * 16 / 9)); width: min(calc(100vw - 2 * var(--side)), calc(80dvh * 16 / 9)); top: 50%; }
   #hint { max-width: calc(100vw - 2 * var(--side)); }
   #hud-bl { bottom: auto; top: calc(max(4px, env(safe-area-inset-top)) + 46px); left: max(14px, env(safe-area-inset-left)); }
-  #pics { top: calc(max(4px, env(safe-area-inset-top)) + 50px); width: min(420px, 70vw, calc((100vh - 245px) * 16 / 10)); }
+  #pics { top: calc(max(4px, env(safe-area-inset-top)) + 50px); width: min(420px, 70vw, calc((100vh - 245px) * 16 / 10)); width: min(420px, 70vw, calc((100dvh - 245px) * 16 / 10)); }
   #col { top: calc(max(4px, env(safe-area-inset-top)) + 48px); }
 }
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 380px) {

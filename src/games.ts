@@ -8,7 +8,7 @@ import { mirrorScene, videoPlayground, videoFace, groupPhoto } from './art/cuts.
 import { canvasOf } from './sprites.ts';
 
 const W = 256, H = 144;
-type GameOpt = { ghosts?: string[]; text?: string; droopy?: boolean; lines?: string[]; skin?: string; pov?: string };
+type GameOpt = { ghosts?: string[]; text?: string; droopy?: boolean; lines?: string[]; skin?: string; pov?: string; caught?: number; wounds?: number }; // caught·wounds: 앞에서 진 만큼 판이 어려워진다
 type Keys = Record<Exclude<GameKey, 'any'>, boolean>;
 type Ctx = CanvasRenderingContext2D;
 /** 한 판: 매 프레임 step 을 부르고, 결과가 나오면 문자열을 돌려준다. */
@@ -493,7 +493,8 @@ function closet(opt: { ghosts?: string[]; text?: string }): Play {
 // 침대에 누운 눈높이. 한 뼘 열린 방문, 그 틈으로 거실 불빛이 바닥에 쐐기를 그린다.
 // 비틀거리는 발소리가 거실을 오가며 그 쐐기를 끊는다. 그림자가 틈에 걸릴 때 숨을 쉬면 소리가 난다.
 // Z 를 누르고 있으면 숨을 참는다. 숨은 모자라고, 모자라면 터진다. 마지막에 발소리는 거실에서 멈춘다.
-function hush(): Play {
+function hush(opt: GameOpt = {}): Play {
+  const wary = 1 + Math.min(3, opt.caught || 0) * 0.3; // 앞에서 들킨 만큼 문 너머가 예민하다: 숨이 덜 새도 들린다
   let wasZ = false, lastB = -9, beatT = 0;
   let air = 1, tt = 0, heard = 0, gasp = 0, shake = 0, stopT = -1, said = 0, lastStep = 0, open = 0, pass_ = -1;
   // 그림자 위치: 0 = 틈 한가운데. 세 번 지나가고, 네 번째에 틈 언저리에서 멈춘다.
@@ -521,7 +522,7 @@ function hush(): Play {
       if (stopT >= 0) { beatT += dt; if (beatT > 0.75) { beatT = 0; sfx('heartbeat_soft'); } } // 문 앞에 멈췄다: 내 심장 소리만 남는다
       // 그림자가 틈에 걸려 있는 동안 숨을 쉬고 있으면 (참지 않으면) 잠깐 뒤에 들린다. 한 번 지나갈 때 한 번.
       open = near && (!k.z || gasp > 0.9) ? open + dt : 0;
-      if (open > 0.35 && pass_ !== which) { pass_ = which; heard++; shake = 1; gasp = 1; sfx('heartbeat'); if (which === 2) sfx('sting', { vol: 0.7 }); ui.hint(which === 2 ? '…들렸다' : '발소리가 멈칫한다'); }
+      if (open > 0.35 / wary && pass_ !== which) { pass_ = which; heard++; shake = 1; gasp = 1; sfx('heartbeat'); if (which === 2) sfx('sting', { vol: 0.7 }); ui.hint(which === 2 ? '…들렸다' : '발소리가 멈칫한다'); }
       // 발소리: 그림자가 움직이는 동안만, 비틀거리는 박자로
       if (tt < STOP && Math.abs(pass(tt) - pass(tt - dt)) > 1e-4 && tt - lastStep > 0.55 + Math.sin(tt * 3) * 0.2) { lastStep = tt; foot('floor', 0.1 + (1 - Math.min(1, Math.abs(pass(tt)) / 2)) * 0.22, Math.max(-0.9, Math.min(0.9, pass(tt) / 2))); } // 한 걸음씩, 지나가는 쪽에서
       if (tt > 6 && said === 0) { said = 1; if (pass_ !== 0) ui.hint('다시 온다'); }
@@ -587,7 +588,8 @@ function hush(): Play {
 // ═══════════ 커튼 틈 (3장: 놀이터에서 누가 이 창을 올려다본다) ═══════════
 // Z 를 누르고 있으면 커튼을 손가락 하나만큼 연다. 107동 어느 창에 아이가 자고 있을지 본다(오래 볼수록 띠가 찬다).
 // 놀이터의 사람이 가끔 고개를 든다. 들기 직전에 몸이 멈춘다. 그때 놓아야 한다. 열린 틈을 보면 휴대폰이 올라온다.
-function curtain(): Play {
+function curtain(opt: GameOpt = {}): Play {
+  const wary = 1 + Math.min(3, opt.caught || 0) * 0.35; // 들킨 적이 있으면 아래 사람이 더 자주, 더 빨리 올려다본다
   let wasZ = false, lastR = -9, stepT = 0;
   let tt = 0, gap = 0, look = 0, seen = 0, phase = 2.6, state: 'idle' | 'warn' | 'up' = 'idle', flash = 0, end = -1, out = '', walk = 0, fx = 120;
   return {
@@ -602,12 +604,12 @@ function curtain(): Play {
       if (gap > 0.6) look += dt;
       phase -= dt;
       if (phase <= 0) {
-        if (state === 'idle') { state = 'warn'; phase = 0.75; sfx('footsteps_stop', { vol: 0.4 }); }
+        if (state === 'idle') { state = 'warn'; phase = 0.75 / wary; sfx('footsteps_stop', { vol: 0.4 }); }
         else if (state === 'warn') { state = 'up'; phase = 1.3; sfx('heartbeat'); }
-        else { state = 'idle'; phase = 1.8 + Math.random() * 1.6; }
+        else { state = 'idle'; phase = (1.8 + Math.random() * 1.6) / wary; }
       }
       if (state === 'idle') { walk += dt; fx = 120 + Math.sin(walk * 0.6) * 34; stepT += dt; if (stepT > 0.5) { stepT = 0; foot('asphalt', 0.06, (fx - 128) / 128); } } // 창 아래를 걷는 발소리
-      if (state === 'up' && gap > 0.3) { seen += dt; if (seen > 0.5) { flash = 1; sfx('camera_shutter'); sfx('sting', { vol: 0.6 }); out = 'shot'; end = 0; ui.hint(''); } }
+      if (state === 'up' && gap > 0.3) { seen += dt; if (seen > 0.5 / wary) { flash = 1; sfx('camera_shutter'); sfx('sting', { vol: 0.6 }); out = 'shot'; end = 0; ui.hint(''); } }
       if (look >= 5 || tt > 18) { out = 'hid'; end = 0; ui.hint(''); }
       return null;
     },
@@ -870,7 +872,7 @@ function dodge(opt: GameOpt): Play {
   const ys = opt.pov === 'yunseo';
   type B = { x: number; y: number; vx: number; vy: number; t: string; w: number; h: number; kind: 0 | 1 | 2; hit: boolean };
   const bs: B[] = [];
-  let x = BX + BW / 2 - 4, y = BY + BH / 2 - 4, hp = 5, inv = 0, shake = 0, tt = 0, spawn = 0.4, li = 0, kindDone = false, end = -1, out = '', said = 0, beat = 0;
+  let x = BX + BW / 2 - 4, y = BY + BH / 2 - 4, hp = 5 - Math.min(2, opt.wounds || 0), inv = 0, shake = 0, tt = 0, spawn = 0.4, li = 0, kindDone = false, end = -1, out = '', said = 0, beat = 0;
   const DUR = 17;
   let mc: CanvasRenderingContext2D | null = null;
   const measure = (t: string, f: string): number => { if (!mc) mc = document.createElement('canvas').getContext('2d'); mc!.font = f; return mc!.measureText(t).width; };
