@@ -2,18 +2,37 @@
 // 선택지에 "# at: 물건" 이 전부 붙어 있으면 메뉴 대신 맵을 걸어 다니게 한다.
 import { Story } from 'inkjs';
 import storyText from './story.json?raw';
-import { ambient, blip, setMuffle, setSilent, sfx } from './audio.ts';
+import { ambient, blip, setMuffle, setSilent, setSpace, sfx } from './audio.ts';
 import { SceneView } from './scene.ts';
 import { CUTS, SCENES, WARNS } from './tables.ts';
 import { applyTag, newPres, parseTags, type Pres, type Tag } from './pres.ts';
 import { World, type Bind } from './world.ts';
-import type { Dir } from './maps.ts';
+import { MAPS, type Dir } from './maps.ts';
 import type { Look } from './sprites.ts';
 import * as ui from './ui.ts';
 import { playGame, GAME_IDS } from './games.ts';
 
 const SAVE_KEY = 'tal.save.v2';
 const LOCK = '(잠김)';
+const HALL = new Set(['corridor', 'stairs', 'concourse', 'platform', 'restroom', 'er']); // 소리가 길게 울리는 곳
+// 고른 행동에 붙는 소리: 고른 글을 보고 고른다. 대본이 따로 소리를 내는 자리(문이 삐걱 열린다 등)와 겹치면 손잡이·천 소리가 먼저 난다.
+const ACT_SFX: [RegExp, string, boolean?][] = [ // 셋째 칸: 휴대폰 화면을 만지는 소리 (화면을 든 때나 글에 화면이 나올 때만). 소리가 '' 면 아무 소리도 내지 않는다.
+  [/^["“]|않는다|그대로 둔다|가만히|읽기만|읽음만|비워 둔다/, ''], // 하는 말, 하지 않는 일
+  [/숨을 (죽|참|멈)/, 'gasp'],
+  [/지퍼/, 'zipper_up'],
+  [/(헤드|머리|탈|삼색이)를 (다시 )?(쓴다|벗는다)|입는다|벗는다|벗긴다/, 'rustle_long'],
+  [/이불/, 'rustle_long'],
+  [/커튼/, 'rustle'],
+  [/손을 뻗/, 'rustle'],
+  [/문을 닫|옷장 문|서랍|대문을|현관문|방문|문을 (민다|연다)|옷장을 연다/, 'latch'],
+  [/버튼/, 'switch_on'],
+  [/장을 넘|넘긴다|종이|공책|편다|영수증/, 'paper'],
+  [/휴대폰을 (엎|뒤집|내려)/, 'phone_down'],
+  [/휴대폰을 (집|꺼낸|든)/, 'grab'],
+  [/쓴다:|적는다:|보낸다:|답장한다|답장을 쓴다|지우고/, 'key', true],
+  [/누른다|켠다|탭|링크|영상|사진|휴대폰을 (본다|확인)/, 'touch', true],
+  [/깨운다|민다|당긴다|잡는다|누른다/, 'rustle'],
+];
 const SHAKY = new Set(['door_kick', 'door_break', 'hit', 'crash']);
 
 export type Start = { mode: 'load' } | { mode: 'chapter'; title: string };
@@ -83,6 +102,7 @@ export class Game {
     w.rain = !!spec.rain;
     w.fast = ui.isFast();
     ambient(spec.amb);
+    setSpace(spec.map && HALL.has(spec.map) ? 'hall' : spec.map && MAPS[spec.map]?.outdoor ? 'out' : 'room');
     setMuffle(p.suit);
   }
 
@@ -137,7 +157,7 @@ export class Game {
           if (!ui.isFast() && spec.map !== prevMap) await ui.sleep(350);
         }
         break;
-      case 'train': await w.trainGo(d.val); break;
+      case 'train': if (!quiet && (d.val === 'open' || d.val === 'close')) sfx('train_door'); await w.trainGo(d.val); break;
       case 'crowd': w.crowdOn(d.val === 'on'); break;
       case 'pos': w.setPos(d.val); break;
       case 'go': if (quiet) w.setPos(d.val); else await w.go(d.val); break;
@@ -173,18 +193,20 @@ export class Game {
       case 'chapter_end': this.save(); break;
       case 'ui':
         if (p.skin !== prevSkin && p.skin !== 'none') ui.clearFlow(); // 다른 앱을 열면 앞 앱의 글은 남지 않는다
-        if (d.val === 'panic') { ui.fx('shake', 600); ui.fx('panic', 6000); w.shake(700); }
+        if (d.val === 'panic') { ui.fx('shake', 600); ui.fx('panic', 6000); w.shake(700); if (!quiet) { sfx('sting'); sfx('breath_fast'); } }
+        else if (!quiet && p.skin !== prevSkin) sfx(p.skin === 'none' ? 'phone_lock' : 'touch'); // 화면을 켜고, 앱을 열고, 끈다
+        else if (!quiet && d.val === 'monitor_off') sfx('switch_off');
         break;
       case 'cut': {
         const c = CUTS[d.val];
         if (!c || (quiet && c.k !== 'fx')) break;
         if (quiet && (c.art === 'shake')) break;
         if (c.k === 'title') await ui.card('탈', '고양이 탈을 쓰지 않으면 방 밖에 나갈 수 없는 나는', true);
-        else if (c.k === 'frame') ui.frame(c.art || 'paper', c.label);
+        else if (c.k === 'frame') { ui.frame(c.art || 'paper', c.label); if (!quiet) sfx(/^video|thumbnail|capture/.test(c.art || '') ? 'touch' : 'paper', { vol: 0.7 }); }
         else if (c.k === 'fx') {
           if (c.art === 'shake') { ui.fx('shake', 600); w.shake(600); }
-          else if (c.art === 'eyes') { p.eyes = true; if (w.active) { void w.npc('father', 'doorway', false); const f = w.npcs.get('father'); if (f) { f.look = { kind: 'father', eyes: true }; f.dir = 'left'; } } }
-          else if (c.art === 'cat') p.cat = true;
+          else if (c.art === 'eyes') { if (!quiet && !p.eyes) sfx('sting'); p.eyes = true; if (w.active) { void w.npc('father', 'doorway', false); const f = w.npcs.get('father'); if (f) { f.look = { kind: 'father', eyes: true }; f.dir = 'left'; } } }
+          else if (c.art === 'cat') { if (!quiet && !p.cat) sfx('sting', { vol: 0.5 }); p.cat = true; }
           else if (c.art === 'face') p.bare = true;
         }
         break;
@@ -277,6 +299,18 @@ export class Game {
     }
   }
 
+  /** 고른 행동의 소리: 글에서 먼저 찾고, 없으면 손이 닿은 물건, 없으면 몸짓 */
+  private actSound(text: string, at: string): void {
+    if (ui.isFast() || text.startsWith(LOCK)) return;
+    const phone = this.pres.skin !== 'none' || /휴대폰|화면|링크|영상|사진|입력창|답장|알림/.test(text);
+    const hit = ACT_SFX.find(([re, , ph]) => re.test(text) && (!ph || phone));
+    if (hit) { if (hit[1]) sfx(hit[1]); return; }
+    if (at && this.world.active && this.world.objSound(at)) return;
+    const dir = at === 'up' || at === 'right' ? 'swipe_up' : at === 'down' || at === 'left' ? 'swipe_down' : '';
+    if (dir) sfx(phone ? dir : 'rustle', { vol: phone ? 1 : 0.7 }); // 화면을 쓸거나, 몸을 움직이거나
+    else if (at === 'move') sfx('rustle');
+  }
+
   /** 소리와 연출 없이 그 장의 첫 줄까지 감는다. 앞 장의 선택은 무작위로 채운다. */
   private skipTo(title: string): { text: string; tags: string[] | null } | null {
     setSilent(true);
@@ -331,6 +365,7 @@ export class Game {
       const auto = this.skipping ? Math.max(0, ch.findIndex((c) => !c.text.startsWith(LOCK))) : -1;
       if (auto < 0) this.save();
       const i = auto >= 0 ? auto : await this.pick();
+      if (auto < 0 && !gameOf(ch[i].tags)) this.actSound(ch[i].text, atOf(ch[i].tags));
       this.story.ChooseChoiceIndex(ch[i].index);
       this.pending = false;
     }

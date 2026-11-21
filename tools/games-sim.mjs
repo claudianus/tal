@@ -6,7 +6,7 @@ const stub = {
   setup(b) {
     b.onResolve({ filter: /\.\/(audio|ui)\.ts$/ }, (a) => ({ path: a.path, namespace: 'stub' }));
     b.onLoad({ filter: /.*/, namespace: 'stub' }, (a) => ({
-      contents: a.path.includes('audio') ? 'export const sfx = () => {};' : 'export const hint = () => {}; export const ghost = () => {}; export const isFast = () => false; export const setGameKeys = () => {}; export const el = {};',
+      contents: a.path.includes('audio') ? 'export const sfx = () => {}; export const setTension = () => {}; export const step = () => {};' : 'export const hint = () => {}; export const ghost = () => {}; export const isFast = () => false; export const setGameKeys = () => {}; export const el = {};',
       loader: 'js',
     }));
   },

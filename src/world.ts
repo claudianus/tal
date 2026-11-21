@@ -5,7 +5,7 @@ import { paintRoom, ROOM_OY } from './art/room.ts';
 import { paintPlace, type Prop } from './art/places.ts';
 import { ART } from './art/kit.ts';
 import type { Pix } from './art/pix.ts';
-import { sfx } from './audio.ts';
+import { setTension, sfx, step as footstep } from './audio.ts';
 
 /** 맵 위를 지나가는 사람 (환승 통로의 인파). 칸에 묶이지 않고 픽셀로 움직인다. */
 type Walker = { look: Look; x: number; y: number; vx: number; lane: number; walked: number; hitAt: number };
@@ -72,6 +72,8 @@ export class World {
   fast = false; autopilot = false;
   /** 걸으며 듣기: 고를 것이 없어도 대사가 흐르는 동안 방향키로 걷는다. 누워 있으면 뒤척이고, 앉아 있으면 고개만 돌린다. */
   roam = false;
+  private bumpAt = -9;
+  private placedAt = -9; // 맵을 새로 놓은 때 (그 직후의 자세는 소리 없이 놓는다)
   tossAt = -9; // 마지막으로 뒤척인 때
   rain = false; // 바깥 맵에 비가 내린다
   train = { state: '' as '' | 'arrive' | 'stop' | 'open' | 'leave' | 'gone', x: 0, v: 0, done: null as (() => void) | null };
@@ -121,7 +123,7 @@ export class World {
     this.map = m; this.mapId = mapId; this.mood = mood;
     if (zoomed) this.resize();
     this.canvas.style.display = 'block';
-    if (!same) { this.npcs.clear(); this.place(this.player, m.spawn); this.player.pose = 'stand'; this.player.path = []; this.crowd = null; this.train.state = ''; }
+    if (!same) { this.placedAt = this.t; this.npcs.clear(); this.place(this.player, m.spawn); this.player.pose = 'stand'; this.player.path = []; this.crowd = null; this.train.state = ''; }
     this.lagX = this.player.px; this.lagY = this.player.py;
   }
   hide(): void { this.map = null; this.mapId = ''; this.canvas.style.display = 'none'; this.cancelWalk(); this.crowd = null; }
@@ -136,7 +138,13 @@ export class World {
   }
   setPos(name: string): void { if (this.map) this.place(this.player, name); }
   setTile(x: number, y: number, dir: Dir): void { const a = this.player; a.x = x; a.y = y; a.px = x * TILE; a.py = y * TILE; a.dir = dir; a.path = []; }
-  setPose(p: string): void { this.player.pose = p; }
+  setPose(p: string): void {
+    const was = this.player.pose;
+    this.player.pose = p;
+    if (was === p || this.fast || !this.map || p === 'gone' || was === 'gone' || this.ghost || this.t - this.placedAt < 1) return; // 장면이 막 놓인 참이면 이미 그 자세였던 것이다
+    if (p === 'lie') sfx('thump_soft'); // 몸이 이불에, 바닥에 떨어진다
+    sfx(was === 'lie' || p === 'lie' ? 'rustle_long' : 'rustle');
+  }
   snap(): void { this.lagX = this.player.px; this.lagY = this.player.py; } // 카메라가 따라오지 않고 바로 그 자리를 비춘다
   setFace(d: Dir): void { this.player.dir = d; }
   /** 엔딩 C: 윤재가 없다. 걷는 것은 보이지 않고, 빈자리의 희미한 테두리만 남는다. */
@@ -214,7 +222,7 @@ export class World {
     if (this.fast) return Promise.resolve('made');
     return new Promise((res) => {
       const pts = ['pat_a', 'pat_b', 'pat_c', 'pat_d'];
-      const st = { t: 0, meter: 0, game: true, end: (o: string): void => { if (!st.game) return; st.game = false; this.patrol = null; this.cancelWalk(); res(o); } };
+      const st = { t: 0, meter: 0, game: true, end: (o: string): void => { if (!st.game) return; st.game = false; this.patrol = null; setTension(0); this.cancelWalk(); res(o); } };
       this.patrol = st;
       const loop = async (i: number): Promise<void> => {
         const g = this.npcs.get('guard');
@@ -235,7 +243,7 @@ export class World {
     return new Promise((res) => {
       const p = this.player, speed0 = p.speed;
       p.speed = speed0 * 0.5; // 발끝으로 걷는다
-      const st = { t: 0, meter: 0, snore: true, phase: 0.9, lx: p.px, ly: p.py, game: true, end: (o: string): void => { if (!st.game) return; st.game = false; this.sneak = null; p.speed = speed0; this.cancelWalk(); res(o); } };
+      const st = { t: 0, meter: 0, snore: true, phase: 0.9, lx: p.px, ly: p.py, game: true, end: (o: string): void => { if (!st.game) return; st.game = false; this.sneak = null; setTension(0); p.speed = speed0; this.cancelWalk(); res(o); } };
       this.sneak = st;
       sfx('snore');
       void this.waitChoice([{ at: 'z_entry', idx: 0 }]).then(() => st.end('passed'));
@@ -257,7 +265,8 @@ export class World {
       st.meter = Math.min(1, st.meter + dt * 1.6);
       if (Math.floor(st.t * 3) !== Math.floor((st.t - dt) * 3)) sfx(st.meter > 0.5 ? 'heartbeat' : 'heartbeat_soft');
     } else st.meter = Math.max(0, st.meter - dt * 0.12);
-    if (st.meter >= 1) { sfx('bump'); this.shake(260); st.end('stirred'); }
+    setTension(st.snore ? st.meter * 0.6 : 0.35 + st.meter * 0.65); // 코골이가 끊기면 집 전체가 숨을 죽인다
+    if (st.meter >= 1) { sfx('bump'); sfx('sting'); this.shake(260); st.end('stirred'); }
   }
   private patrolTick(dt: number): void {
     const st = this.patrol, g = this.npcs.get('guard');
@@ -267,7 +276,8 @@ export class World {
     const lit = Math.hypot(p.px + 8 - b.x, p.py + 6 - b.y) < b.r * 0.72 || Math.hypot(p.px - g.px, p.py - g.py) < 18;
     st.meter = Math.max(0, Math.min(1, st.meter + (lit ? dt * 1.15 : -dt * 0.3)));
     if (lit && Math.floor(st.t * 4) !== Math.floor((st.t - dt) * 4)) sfx(st.meter > 0.6 ? 'heartbeat' : 'heartbeat_soft');
-    if (st.meter >= 1) { sfx('bump'); this.shake(220); st.end('seen'); }
+    setTension(0.15 + st.meter * 0.85);
+    if (st.meter >= 1) { sfx('bump'); sfx('sting'); this.shake(220); st.end('seen'); }
   }
   /** 인파만 지나가게 한다 (게임 없이). off 면 치운다. */
   crowdOn(on: boolean): void {
@@ -299,14 +309,15 @@ export class World {
         w.hitAt = cr.t; cr.hitAt = cr.t;
         const dx = Math.sign(w.vx);
         if (!this.solid(p.x + dx, p.y)) { p.x += dx; p.path = []; }
-        if (cr.game) { cr.meter += 0.07; sfx('bump'); this.shake(160); }
+        if (cr.game) { cr.meter += 0.07; sfx('bump'); this.shake(160); } else sfx('wall_bump', { vol: 0.6 });
       }
     }
     cr.walkers = cr.walkers.filter((w) => w.x > 6 * TILE && w.x < mw + 20);
     if (!cr.game) return;
     cr.meter = Math.max(0, cr.meter + dt * (0.006 - (cr.t - cr.hitAt > 1.5 ? 0.025 : 0) - (p.x >= 22 ? 0.03 : 0))); // 안 부딪히고 버티면 숨이 조금 돌아온다
     if (Math.floor(cr.t * (1 + cr.meter * 2)) !== Math.floor((cr.t - dt) * (1 + cr.meter * 2))) sfx(cr.meter > 0.6 ? 'heartbeat' : 'heartbeat_soft');
-    if (cr.meter >= 1 || cr.t > 45) cr.end('pushed');
+    setTension(cr.meter);
+    if (cr.meter >= 1 || cr.t > 45) { setTension(0); cr.end('pushed'); }
   }
   /** 승강장의 열차: arrive(들어와 선다) open(문이 열린다) close leave(떠난다). 끝나면 돌아온다. */
   trainGo(how: string): Promise<void> {
@@ -396,7 +407,7 @@ export class World {
   key(dir: Dir, down: boolean, repeat: boolean): void {
     if (!down) { this.held = this.held.filter((d) => d !== dir); return; }
     if (!this.binds) { this.roamKey(dir, repeat); return; }
-    if (!repeat && (this.resolve(dir) || this.resolve('move'))) return; // 일어나려는 시도. 꾹 누르고 있어도 한 번만 센다.
+    if (!repeat && (this.resolve(dir) || this.resolve('move'))) return; // 몸짓, 또는 일어나려는 시도. 꾹 누르고 있어도 한 번만 센다. (소리는 engine 이 고른 글을 보고 낸다)
     if (this.player.pose !== 'stand' && this.player.pose !== 'stoop' && this.player.pose !== 'lie') { if (!repeat) this.player.dir = dir; return; } // 앉은 채로는 고개만 돌린다 (걸으며 듣는 동안 돌린 고개를 되돌릴 수 있게)
     if (this.player.pose === 'lie') {
       // 누운 채로는 걷지 않는다. 다만 이번 선택이 물건까지 걸어가야 하는 것뿐이면, 방향키가 몸을 일으킨다.
@@ -411,8 +422,34 @@ export class World {
     if (!this.roam || !this.map || p.onArrive || p.path.length || p.pose === 'gone') return; // 대본이 시킨 걸음은 끊지 않는다
     if (p.pose === 'stand' || p.pose === 'stoop') { if (!this.held.includes(dir)) this.held.push(dir); return; }
     if (repeat) return;
-    if (p.pose === 'lie' && p.dir !== dir) this.tossAt = this.t; // 이불이 들썩인다
+    if (p.pose === 'lie' && p.dir !== dir) { this.tossAt = this.t; sfx('rustle_long', { vol: 0.8 }); } // 이불이 들썩인다
     p.dir = dir; // 누운 채 돌아눕거나, 앉은 채 고개를 돌린다
+  }
+  /** 손이 물건에 닿는 소리: 그 물건이 놓인 칸의 종류로 고른다. 없는 자리(밟는 칸·몸짓)면 false. */
+  objSound(at: string): boolean {
+    const o = this.obj(at);
+    if (!this.map || this.fast || !o || o.touch) return false;
+    let name = '';
+    for (let y = o.y; y < o.y + (o.h || 1) && !name; y++) for (let x = o.x; x < o.x + (o.w || 1) && !name; x++) { const n = tileAt(this.map, x, y)[0]; if (n !== 'floor' && n !== 'floor2' && n !== 'void' && n !== 'wall') name = n; }
+    if (/door|elevator|closet/.test(name)) sfx('latch');
+    else if (/bed|sofa|mat/.test(name)) sfx('rustle');
+    else if (/desk|monitor|tv|switch|booth/.test(name)) sfx('touch', { vol: 1.4 });
+    else if (/table|bench|kitchen|prop|bin|trash/.test(name)) sfx('knock', { vol: 0.35 });
+    else sfx('grab', { vol: 0.8 });
+    return true;
+  }
+  /** 발소리: 밟은 칸의 바닥대로. 남의 발소리는 멀수록 작고, 있는 쪽에서 들린다. */
+  private foot(a: Actor): void {
+    if (!this.map || this.fast || (a === this.player && this.ghost) || a.look.kind === 'catreal') return;
+    const p = this.player;
+    let surf = tileAt(this.map, a.x, a.y)[0];
+    if (surf === 'stair_in') surf = 'step';
+    if (this.rain && this.map.outdoor) surf = 'wet';
+    if (a.look.kind === 'cat' || a.look.kind === 'cat_nohead') surf = surf === 'wet' ? 'wet' : 'soft'; // 털 발바닥
+    if (a === p) { footstep(surf, (this.sneak ? 0.13 : p.pose === 'stoop' ? 0.12 : 0.2) * (this.binds ? 1 : 0.85), 0, true); return; }
+    const d = Math.hypot(a.x - p.x, a.y - p.y);
+    if (d > 14) return;
+    footstep(surf, 0.17 / (1 + d * 0.3), Math.max(-0.8, Math.min(0.8, (a.x - p.x) / 7)));
   }
   /** 걸으며 듣는 동안 밟으면 안 되는 칸: 밟는 순간 다음 선택이 저절로 골라지는 자리 (문턱·출구) */
   private touchTile(x: number, y: number): boolean { return !!this.map?.objs.some((o) => o.touch && inObj(o, x, y)); }
@@ -475,7 +512,7 @@ export class World {
             if (a.onArrive && a.dest) { const [dx2, dy2] = a.dest; a.path = []; a.x = dx2; a.y = dy2; a.px = dx2 * TILE; a.py = dy2 * TILE; a.dest = null; const f = a.onArrive; a.onArrive = null; f(); break; }
             a.path = []; a.onArrive = null; break;
           }
-          a.path.shift(); this.turn(a, nx, ny); a.x = nx; a.y = ny;
+          a.path.shift(); this.turn(a, nx, ny); a.x = nx; a.y = ny; this.foot(a);
           if (a === this.player) this.onMoved();
           continue;
         }
@@ -484,8 +521,8 @@ export class World {
           const dir = this.held[this.held.length - 1];
           a.dir = dir;
           const [dx, dy] = DELTA[dir];
-          if (this.solid(a.x + dx, a.y + dy) || (!this.binds && this.touchTile(a.x + dx, a.y + dy))) break;
-          a.x += dx; a.y += dy; this.onMoved(!this.binds);
+          if (this.solid(a.x + dx, a.y + dy) || (!this.binds && this.touchTile(a.x + dx, a.y + dy))) { if (this.t - this.bumpAt > 1.1) { this.bumpAt = this.t; sfx('wall_bump'); } break; }
+          a.x += dx; a.y += dy; this.foot(a); this.onMoved(!this.binds);
           continue;
         }
         break;

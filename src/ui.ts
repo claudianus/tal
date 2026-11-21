@@ -31,7 +31,7 @@ export function setBlocked(b: boolean): void { blocked = b; }
 function advance(): boolean {
   if (blocked) return false;
   if (typing) { skipTyping = true; return true; }
-  if (waiter) { const w = waiter; waiter = null; el.stage.classList.remove('more'); w(); return true; }
+  if (waiter) { const w = waiter; waiter = null; el.stage.classList.remove('more'); blip('move'); w(); return true; }
   return false;
 }
 // 휴대폰 화면(메신저·카톡·브라우저)에서는 다음 줄을 엄지로 내려서 본다: ↓ (또는 휠·화면 누르기). Z 로는 넘어가지 않는다.
@@ -110,7 +110,7 @@ export function bindInput(h: Hooks): void {
       return;
     }
     if (scrollMode && dir === 'down' && (typing || waiter)) { if (!e.repeat) { thumb(); advance(); } return; }
-    if (dir) { if (peer && (typing || waiter)) { if (!e.repeat) peerKey(dir); return; } if ((!typing && !waiter) || roam) h.onDir(dir, true, e.repeat); return; }
+    if (dir) { if (peer && (typing || waiter)) { if (!e.repeat) { peerKey(dir); blip('move'); } return; } if ((!typing && !waiter) || roam) h.onDir(dir, true, e.repeat); return; }
     if (ok && !e.repeat && scrollMode && waiter && !typing) { nag(); return; }
     if (ok && !e.repeat) { if (!advance()) h.onAct(); }
   });

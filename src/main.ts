@@ -1,6 +1,6 @@
 import './style.css';
 import { setGameAuto, playGame } from './games.ts';
-import { audioInit, isMuted, setMuted } from './audio.ts';
+import { audioInit, setVolume } from './audio.ts';
 import { Game, savedChapter, type Start } from './engine.ts';
 import * as ui from './ui.ts';
 
@@ -68,6 +68,13 @@ function paintWarn(): void { for (const b of warnBtns) if (b) b.textContent = ui
 document.getElementById('warn-toggle')?.addEventListener('click', () => { ui.setWarnOn(!ui.warnOn()); paintWarn(); });
 paintWarn();
 
+// ── 소리 크기: 보통 → 크게 → 끔 → 작게 → 보통 ──
+const VOLS: [string, number][] = [['보통', 1], ['크게', 1.6], ['끔', 0], ['작게', 0.5]];
+let vol = 0;
+try { vol = Math.max(0, Math.min(VOLS.length - 1, Number(localStorage.getItem('tal.vol')) || 0)); } catch { /* */ }
+function paintVol(): void { setVolume(VOLS[vol][1]); const b = ui.el.pause.querySelector('[data-act="mute"]'); if (b) b.textContent = `소리: ${VOLS[vol][0]}`; }
+paintVol();
+
 // ── 일시정지 ──
 function togglePause(): void {
   if (!ui.el.menu.hidden || ui.helpOpen()) return; // 도움 안내 중에는 메뉴로 빠져나가지 못한다
@@ -79,10 +86,7 @@ ui.el.menuBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePaus
 ui.el.pause.addEventListener('click', (e) => {
   const act = (e.target as HTMLElement).closest('button')?.dataset.act;
   if (act === 'resume') togglePause();
-  else if (act === 'mute') {
-    setMuted(!isMuted());
-    (e.target as HTMLElement).textContent = isMuted() ? '소리 켜기' : '소리 끄기';
-  } else if (act === 'warn') { ui.setWarnOn(!ui.warnOn()); paintWarn(); }
+  else if (act === 'mute') { vol = (vol + 1) % VOLS.length; paintVol(); try { localStorage.setItem('tal.vol', String(vol)); } catch { /* 저장이 막힌 브라우저 */ } } else if (act === 'warn') { ui.setWarnOn(!ui.warnOn()); paintWarn(); }
   else if (act === 'title') location.reload();
 });
 ui.bindInput({

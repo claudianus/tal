@@ -30,7 +30,7 @@ export const SCENES: Record<string, SceneSpec> = {
   subway: { f: 'subway', mood: 'day', amb: 'subway', map: 'subway', lit: 'bright' },
   transfer_crowd: { f: 'crowd', mood: 'day', amb: 'crowd', map: 'concourse', lit: 'bright' },
   station_gate: { f: 'gate', mood: 'day', amb: 'crowd', map: 'concourse', lit: 'bright' },
-  platform_bench: { f: 'platform', mood: 'day', amb: 'subway', map: 'platform', lit: 'bright' },
+  platform_bench: { f: 'platform', mood: 'day', amb: 'station', map: 'platform', lit: 'bright' },
   street_day: { f: 'street', mood: 'day', amb: 'day', map: 'road', lit: 'bright' },
   street_evening_wet: { f: 'street', mood: 'dusk', amb: 'rain_out', map: 'street', lit: 'evening' },
   partyroom: { f: 'party', mood: 'warm', amb: 'party', map: 'party', lit: 'party' },
@@ -49,10 +49,10 @@ export const SCENES: Record<string, SceneSpec> = {
   dorm_stairwell: { f: 'stairs', mood: 'day', amb: 'still', map: 'stairs', lit: 'day' },
   // 4장
   room_dark_rain: { f: 'room', mood: 'dark', amb: 'rain_in', map: 'room', lit: 'dark' },
-  grandma_house: { f: 'grandma', mood: 'color', amb: 'day', map: 'grandma', lit: 'color', past: true },   // 이 게임에서 유일하게 색이 있는 장면
-  funeral_front: { f: 'funeral', mood: 'night', amb: 'still', map: 'funeral', lit: 'night', past: true },
-  funeral_front_c: { f: 'funeral', mood: 'night', amb: 'still', map: 'funeral', lit: 'few' }, // 엔딩 C: 화환이 둘
-  er_ceiling: { f: 'er', mood: 'white', amb: 'still', map: 'er', lit: 'white' },
+  grandma_house: { f: 'grandma', mood: 'color', amb: 'grandma', map: 'grandma', lit: 'color', past: true },   // 이 게임에서 유일하게 색이 있는 장면
+  funeral_front: { f: 'funeral', mood: 'night', amb: 'funeral', map: 'funeral', lit: 'night', past: true },
+  funeral_front_c: { f: 'funeral', mood: 'night', amb: 'funeral', map: 'funeral', lit: 'few' }, // 엔딩 C: 화환이 둘
+  er_ceiling: { f: 'er', mood: 'white', amb: 'er', map: 'er', lit: 'white' },
   dinner_past: { f: 'living', mood: 'dim', amb: 'room', map: 'living', lit: 'tv', past: true },
 };
 
@@ -75,20 +75,20 @@ export const SFX: Record<string, SfxSpec> = {
   hit: { k: 'thud', f: 95, dur: 0.22, noise: 0.35, vol: 0.8 },
   crash: { k: 'thud', f: 80, dur: 0.8, noise: 0.9, vol: 0.85, crack: 1 },
   door_slam_far: { k: 'thud', f: 60, dur: 0.6, noise: 0.2, vol: 0.3 },
-  door_open: { k: 'creak', dur: 0.7, vol: 0.12, f: 180 },
-  door_open_soft: { k: 'creak', dur: 0.5, vol: 0.06, f: 150 },
+  door_open: { k: 'creak', dur: 0.7, vol: 0.5, f: 180 },
+  door_open_soft: { k: 'creak', dur: 0.5, vol: 0.3, f: 150 },
   water_run: { k: 'wash', dur: 3, lp: 3200, hp: 700, vol: 0.14, attack: 0.15 },
   tv_laugh: { k: 'wash', dur: 2.2, lp: 1400, hp: 280, vol: 0.12, attack: 0.3 },
-  heartbeat: { k: 'thud', f: 46, dur: 0.16, noise: 0.04, vol: 0.55 },
-  heartbeat_soft: { k: 'thud', f: 44, dur: 0.14, noise: 0.02, vol: 0.28 },
-  coin: { k: 'click', n: 1, vol: 0.16, bright: 1 },
-  slip: { k: 'creak', dur: 0.25, vol: 0.05, f: 300 },
-  stitch: { k: 'click', n: 1, vol: 0.08, bright: 0 },
-  notify: { k: 'seq', wave: 'sine', notes: [1760, 2349], dur: 0.06, gap: 0.07, vol: 0.06 },
+  heartbeat: { body: 1, k: 'heart', vol: 0.5 },
+  heartbeat_soft: { body: 1, k: 'heart', vol: 0.26 },
+  coin: { k: 'click', n: 1, vol: 0.1, bright: 1 },
+  slip: { k: 'creak', dur: 0.25, vol: 0.3, f: 300 },
+  stitch: { body: 1, k: 'click', n: 1, vol: 0.14, bright: 0 },
+  notify: { k: 'seq', wave: 'sine', notes: [1760, 2349], dur: 0.06, gap: 0.07, vol: 0.1 },
   bump: { k: 'thud', f: 120, dur: 0.12, noise: 0.5, vol: 0.35 },
-  tap: { k: 'click', n: 1, vol: 0.05, bright: 1 },
+  tap: { body: 1, k: 'tick', f: 1900, vol: 0.1 },
   bang: { k: 'thud', f: 60, dur: 0.35, noise: 0.6, vol: 0.55 }, // 옷장 밖에서 문이 울린다 (멀고 두껍다)
-  swing_creak: { k: 'creak', dur: 1.4, vol: 0.1, f: 520, swing: 1 },
+  swing_creak: { k: 'creak', dur: 1.4, vol: 0.35, f: 520, swing: 1 },
   footsteps_near: { k: 'steps', n: 5, gap: 0.55, jitter: 0.05, from: 0.25, to: 0.6 },
   footsteps_away: { k: 'steps', n: 6, gap: 0.55, jitter: 0.05, from: 0.5, to: 0.05 },
   footsteps_fast: { k: 'steps', n: 8, gap: 0.24, jitter: 0.03, from: 0.4, to: 0.5 },
@@ -104,13 +104,60 @@ export const SFX: Record<string, SfxSpec> = {
   subway_rumble: { k: 'wash', dur: 5, lp: 300, hp: 40, vol: 0.45, attack: 1.5 },
   tv_volume_up: { k: 'wash', dur: 3, lp: 2600, hp: 500, vol: 0.14, attack: 0.5 },
   fabric_tear: { k: 'tear', dur: 0.9, vol: 0.45 },
-  breath_inside: { k: 'breath', n: 3, rate: 1.6, vol: 0.16 },
-  breath_fast: { k: 'breath', n: 6, rate: 0.55, vol: 0.2 },
+  breath_inside: { body: 1, k: 'breath', n: 3, rate: 1.6, vol: 0.16 },
+  breath_fast: { body: 1, k: 'breath', n: 6, rate: 0.55, vol: 0.2 },
   snore: { k: 'breath', n: 2, rate: 2.4, vol: 0.12, low: 1 },
-  ringing_ear: { k: 'tone', f: 6200, dur: 5, vol: 0.06, duck: 1 },
+  ringing_ear: { k: 'tone', body: 1, f: 6200, dur: 5, vol: 0.06, duck: 1 },
   fridge_hum: { k: 'tone', f: 58, dur: 5, vol: 0.12, wave: 'triangle' },
-  fluorescent_flicker: { k: 'flicker', n: 5, vol: 0.06 },
-  cicada_night: { k: 'cicada', dur: 5, vol: 0.05 },
+  fluorescent_flicker: { k: 'flicker', n: 5, vol: 0.12 },
+  cicada_night: { k: 'cicada', dur: 5, vol: 0.2 },
+  // ── 손에 닿는 소리 (미니게임·지도) ──
+  rustle: { body: 1, k: 'rustle', dur: 0.4, vol: 0.18 }, // 천이 스친다
+  rustle_long: { body: 1, k: 'rustle', dur: 1.1, vol: 0.18, rate: 45 }, // 이불을 걷는다, 옷을 입는다
+  grab: { body: 1, k: 'rustle', dur: 0.14, vol: 0.25, bright: 1, rate: 90 }, // 움켜쥔다
+  zipper_up: { body: 1, k: 'zip', dur: 0.7, vol: 0.3, up: 1 },
+  zipper_down: { body: 1, k: 'zip', dur: 0.6, vol: 0.3 },
+  paper: { k: 'paper', vol: 0.16 }, // 종이 한 장, 책장 한 장
+  pills: { k: 'rattle', n: 10, vol: 0.07 },
+  swipe_up: { body: 1, k: 'swish', up: 1, vol: 0.2 },
+  swipe_down: { body: 1, k: 'swish', vol: 0.2 },
+  key: { body: 1, k: 'key', vol: 0.3 }, // 휴대폰 자판
+  touch: { body: 1, k: 'tick', f: 2600, vol: 0.1 }, // 화면을 톡
+  pop: { body: 1, k: 'pop', vol: 0.13 }, // 실밥이 툭
+  knock: { k: 'knock', n: 2, vol: 0.24 },
+  knock3: { k: 'knock', n: 3, gap: 0.26, vol: 0.26 },
+  strain: { body: 1, k: 'strain', vol: 0.3 }, // 천이 당겨진다
+  glass_clink: { k: 'glass', vol: 0.08 },
+  glass_break: { k: 'glass', vol: 0.2, shatter: 1 },
+  sting: { k: 'sting', vol: 0.15, dur: 2.2 }, // 등골이 선다
+  gasp: { body: 1, k: 'gasp', vol: 0.2 },
+  exhale: { body: 1, k: 'exhale', vol: 0.14, dur: 1.3 },
+  thump_soft: { body: 1, k: 'thud', f: 60, dur: 0.28, noise: 0.7, vol: 0.32 }, // 몸이 이불에 떨어진다
+  wall_bump: { body: 1, k: 'thud', f: 95, dur: 0.14, noise: 0.6, vol: 0.18 }, // 어깨가 벽에 닿는다
+  latch: { k: 'click', n: 2, vol: 0.16, bright: 0 }, // 손잡이·걸쇠
+  train_door: { k: 'wash', dur: 1.1, lp: 6000, hp: 1400, vol: 0.16, attack: 0.04 }, // 쉬익: 전동차 문
+  phone_lock: { k: 'click', n: 1, vol: 0.12, bright: 1, body: 1 }, // 화면을 끈다 (딸깍)
+  phone_down: { body: 1, k: 'thud', f: 150, dur: 0.09, noise: 0.6, vol: 0.2 }, // 휴대폰을 엎어 놓는다
+  swish: { body: 1, k: 'swish', vol: 0.2 }, // 휙 (던지고, 허공을 민다)
+  // ── 미니게임에서 쓰는 소리 ──
+  dtmf0: { k: 'dtmf', lo: 697, hi: 1209, vol: 0.06 },
+  dtmf1: { k: 'dtmf', lo: 697, hi: 1336, vol: 0.06 },
+  dtmf2: { k: 'dtmf', lo: 697, hi: 1477, vol: 0.06 },
+  dtmf3: { k: 'dtmf', lo: 770, hi: 1209, vol: 0.06 },
+  dtmf4: { k: 'dtmf', lo: 770, hi: 1336, vol: 0.06 },
+  dtmf5: { k: 'dtmf', lo: 770, hi: 1477, vol: 0.06 },
+  dtmf6: { k: 'dtmf', lo: 852, hi: 1209, vol: 0.06 },
+  dtmf7: { k: 'dtmf', lo: 852, hi: 1336, vol: 0.06 },
+  dtmf8: { k: 'dtmf', lo: 852, hi: 1477, vol: 0.06 },
+  dtmf9: { k: 'dtmf', lo: 941, hi: 1209, vol: 0.06 },
+  dtmf10: { k: 'dtmf', lo: 941, hi: 1336, vol: 0.06 },
+  dtmf11: { k: 'dtmf', lo: 941, hi: 1477, vol: 0.06 },
+  phone_err: { k: 'seq', wave: 'square', notes: [330, 262], dur: 0.09, gap: 0.1, vol: 0.05 }, // 틀렸다: 짧게 두 번 낮게
+  beep_timer: { k: 'tick', f: 1760, vol: 0.09 }, // 사진기 타이머
+  zip_tick: { body: 1, k: 'zip', dur: 0.09, vol: 0.3, up: 1 }, // 지퍼 이가 몇 개 물린다
+  zip_slip: { body: 1, k: 'zip', dur: 0.16, vol: 0.25 }, // 지퍼가 헛돌아 내려간다
+  knock1: { k: 'knock', n: 1, vol: 0.28 },
+  scratch: { body: 1, k: 'tear', dur: 0.14, vol: 0.14 }, // 손톱이 긁힌 자국을 훑는다
 };
 
 // 연출 컷: bars(검은 띠만), frame(글 사이에 끼는 사진·영상·종이), fx(화면 효과)

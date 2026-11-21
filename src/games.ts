@@ -1,7 +1,7 @@
 // 미니게임. 장면 위에 반투명 판을 깔고 그 위에서 방향키와 Z 로 한다.
 // 이기고 지는 게임이 아니다: 몸이 말을 안 듣는 감각을 손에 쥐여 주는 장치다. 실패해도 이야기는 끝나지 않는다.
 // 결과는 문자열 하나다. 대본의 선택지가 "# game: <이름> <결과>" 로 그 결과를 받는다.
-import { sfx } from './audio.ts';
+import { setTension, sfx, step as foot } from './audio.ts';
 import * as ui from './ui.ts';
 import type { GameKey } from './ui.ts';
 import { mirrorScene, videoPlayground, videoFace, groupPhoto } from './art/cuts.ts';
@@ -17,6 +17,9 @@ type Play = { step: (dt: number, t: number, k: Keys, hit: Set<GameKey>) => strin
 let cv: HTMLCanvasElement | null = null;
 let autoPlay = false; // 검사용 (?auto): 판을 잠깐 보여 준 뒤 빠른 모드의 결과로 끝낸다
 export function setGameAuto(b: boolean): void { autoPlay = b; }
+// 긴장: 판이 매 프레임 tense() 로 알려 준다. 알리지 않은 프레임(끝난 뒤)에는 저절로 0 으로 내려간다.
+let tenseNow = 0, tenseSet = false;
+const tense = (v: number): void => { tenseNow = v; tenseSet = true; };
 function canvas(): HTMLCanvasElement {
   if (cv) return cv;
   cv = document.createElement('canvas');
@@ -54,6 +57,7 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
   let hit = new Set<GameKey>();
   ui.setGameKeys((k, down, repeat) => { if (down && !repeat && !keys[k]) hit.add(k); keys[k] = down; });
   ui.hint(g.hint);
+  setTension(0); tenseSet = false;
   ui.el.stage.classList.add('game');
   el.classList.add('on');
   return new Promise((res) => {
@@ -62,10 +66,11 @@ export function playGame(id: string, opt: GameOpt = {}): Promise<string> {
       const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
       if (done === null) { done = g.step(dt, t, keys, hit); hit = new Set(); if (done === null && autoPlay && t > 2.5) done = FAST[id] || ''; }
       else out += dt;
+      setTension(done === null && tenseSet ? tenseNow : 0); tenseSet = false;
       c.clearRect(0, 0, W, H);
       g.draw(c, t);
       if (done !== null && out > 0.9) {
-        el.classList.remove('on'); ui.setGameKeys(null); ui.hint(''); ui.el.stage.classList.remove('game');
+        el.classList.remove('on'); ui.setGameKeys(null); ui.hint(''); ui.el.stage.classList.remove('game'); setTension(0);
         res(done);
         return;
       }
@@ -79,6 +84,7 @@ const FAST: Record<string, string> = { ring: 'held', dodge: 'held', zoom: 'seen'
 // ═══════════ 숨 (넷을 들이쉬고, 넷을 멈추고, 넷을 내쉰다) ═══════════
 // 가운데 원이 목표다. Z 를 누르고 있으면 내 숨(안의 원)이 차오르고, 떼면 빠진다. 목표를 따라가면 심장이 느려진다.
 function breath(opt: { ghosts?: string[]; text?: string }): Play {
+  let wasZ = false, lastBreath = -9;
   const PH = 4, R0 = 10, R1 = 40;
   let mine = R0, bpm = 138, beat = 0, cycles = 0, lastPh = -1, off = 0, ghostAt = 0, calm = 0;
   const lines = opt.ghosts && opt.ghosts.length ? opt.ghosts : ['거 봐.', '이것도 못 해.', '다 보고 있어.'];
@@ -96,6 +102,9 @@ function breath(opt: { ghosts?: string[]; text?: string }): Play {
       if (ph !== lastPh) { lastPh = ph; if (ph === 0 && tt > 1) cycles++; ui.hint(['들이쉰다 · Z 를 누르고 있는다', '멈춘다 · 그대로 누르고 있는다', '내쉰다 · Z 를 뗀다'][ph]); }
       mine += (k.z ? 1 : -1) * ((R1 - R0) / PH) * dt * 1.08;
       mine = Math.max(R0, Math.min(R1, mine));
+      if (k.z !== wasZ && tt - lastBreath > 0.35) { lastBreath = tt; sfx(k.z ? 'gasp' : 'exhale', { vol: k.z ? 0.55 : 0.75 }); } // 들이쉬고 내쉬는 내 숨
+      wasZ = k.z;
+      tense(Math.max(0, (bpm - 80) / 70));
       off = Math.abs(mine - r);
       const ok = off < 7;
       bpm += (ok ? -5.5 : 7) * dt;
@@ -104,7 +113,7 @@ function breath(opt: { ghosts?: string[]; text?: string }): Play {
       beat += dt * bpm / 60;
       if (beat >= 1) { beat -= 1; sfx(bpm > 100 ? 'heartbeat' : 'heartbeat_soft'); }
       if (bpm < 84) calm += dt; else calm = 0;
-      if (calm > 2 || cycles >= 7) return 'calm';
+      if (calm > 2 || cycles >= 7) { sfx('exhale'); return 'calm'; }
       return null;
     },
     draw(c, t) {
@@ -156,14 +165,14 @@ function paw(from: 0 | 1): Play {
       if (hit.has('z')) {
         if (stage === 0) {
           const over = Math.abs(x - bill.x) < 14 && Math.abs(y - (bill.y + 6)) < 10;
-          if (!over) return null;
+          if (!over) { sfx('grab', { vol: 0.4 }); return null; } // 허공을 쥔다
           tries++;
-          if (tries < 3) { slipT = 0.5; sfx('slip'); bill = { x: bill.x + (Math.random() < 0.5 ? -10 : 10), y: bill.y + 3 }; ui.hint(tries === 1 ? '젤리 사이로 미끄러진다' : '한 번 더'); }
-          else { sfx('coin'); return 'done'; }
+          if (tries < 3) { slipT = 0.5; sfx('slip'); sfx('paper', { vol: 0.6 }); bill = { x: bill.x + (Math.random() < 0.5 ? -10 : 10), y: bill.y + 3 }; ui.hint(tries === 1 ? '젤리 사이로 미끄러진다' : '한 번 더'); }
+          else { sfx('paper'); return 'done'; }
         } else {
           const near = coins.find((c) => Math.abs(c.x - x) < 10 && Math.abs(c.y - (y + 6)) < 9);
-          if (!near) return null;
-          tries++; sfx('slip');
+          if (!near) { sfx('grab', { vol: 0.4 }); return null; }
+          tries++; sfx('slip'); sfx('coin', { vol: 0.5 });
           near.vx = (Math.random() - 0.5) * 140; near.vy = (Math.random() - 0.3) * 80; // 굴러간다
           if (tries >= 3) { handT = 0; ui.hint('…'); }
           else ui.hint(['굴러간다', '또 굴러간다'][tries - 1]);
@@ -219,7 +228,7 @@ function stitch(): Play {
       if (pos > hi) { pos = hi; dir = -1; } if (pos < lo) { pos = lo; dir = 1; }
       if (flash > 0) flash -= dt;
       if (hit.has('z')) {
-        if (Math.abs(pos - marks[done]) < 4.5) { done++; sfx('stitch'); flash = 0.25; ui.hint(done % 2 ? '뒤로 한 땀' : '앞으로 두 땀'); }
+        if (Math.abs(pos - marks[done]) < 4.5) { done++; sfx('stitch'); sfx('rustle', { vol: 0.4 }); flash = 0.25; ui.hint(done % 2 ? '뒤로 한 땀' : '앞으로 두 땀'); }
         else { miss++; sfx('slip'); ui.hint('천천히'); }
       }
       return done >= N ? 'done' : null;
@@ -254,16 +263,21 @@ function stitch(): Play {
 // ═══════════ 가만히 있는다 (미끄럼틀 밑, 아이가 기대어 잠들었다) ═══════════
 // 아무것도 누르지 않고 버틴다. 탈 안이 데워지고, 눈구멍 가장자리가 하얗게 뜬다. 누르면 아이를 깨운다.
 function still(rain = true): Play {
+  let breathT = 1.2, beatT = 0;
   let heat = 0.35, tt = 0, said = 0;
   return {
     hint: '가만히 있는다 · 아무것도 누르지 않는다',
     step(dt, _t, _k, hit) {
       tt += dt; heat = Math.min(1, heat + dt * 0.045);
+      breathT -= dt; if (breathT <= 0) { breathT = 4.8 - heat * 1.3; sfx('breath_inside', { vol: 0.5 + heat * 0.6 }); } // 탈 안의 내 숨
+      beatT += dt * (60 + heat * 50) / 60; if (beatT >= 1) { beatT -= 1; sfx('heartbeat_soft', { vol: 0.4 + heat * 0.5 }); }
+      tense(heat * 0.55);
       if (tt > 4 && said === 0) { said = 1; ui.hint('덥다'); }
       if (tt > 9 && said === 1) { said = 2; ui.hint('팔이 저린다 · 그래도'); }
       if (tt > 14 && said === 2) { said = 3; ui.hint('…'); }
-      if (hit.size) return 'wake';
-      return tt > 17 ? 'still' : null;
+      if (hit.size) { sfx('gasp'); sfx('rustle'); return 'wake'; }
+      if (tt > 17) { sfx('exhale', { vol: 0.7 }); return 'still'; }
+      return null;
     },
     draw(c, t) {
       // 탈의 눈구멍으로 본 세상: 바깥은 까맣고, 두 구멍 가장자리가 열을 받아 하얗게 뜬다
@@ -301,9 +315,10 @@ function flood(opt: { ghosts?: string[]; text?: string }): Play {
       next -= dt;
       if (next <= 0) { ns.unshift({ y: -18, x: 0, vx: 0, text: Math.floor(Math.random() * lines.length), born: tt }); sfx('notify'); next = Math.max(0.18, 1.1 - tt * 0.06); if (Math.random() < 0.3) ui.ghost(lines[Math.floor(Math.random() * lines.length)]); }
       ns.forEach((n, i) => { n.y += (8 + i * 20 - n.y) * Math.min(1, dt * 8); n.x += n.vx * dt; });
-      if ((hit.has('left') || hit.has('right')) && ns.length) { const top = ns.find((n) => n.vx === 0); if (top) { top.vx = hit.has('left') ? -600 : 600; cleared++; } }
+      if ((hit.has('left') || hit.has('right')) && ns.length) { const top = ns.find((n) => n.vx === 0); if (top) { top.vx = hit.has('left') ? -600 : 600; cleared++; sfx('swipe_down', { vol: 0.6, pan: hit.has('left') ? -0.4 : 0.4 }); } }
+      tense(Math.min(1, ns.length / 12));
       for (let i = ns.length - 1; i >= 0; i--) if (Math.abs(ns[i].x) > 200) { ns.splice(i, 1); gone++; }
-      if (hit.has('z') || tt > 24) { off = 0; ui.hint(''); }
+      if (hit.has('z') || tt > 24) { off = 0; ui.hint(''); sfx('switch_off', { vol: 0.6 }); }
       return null;
     },
     draw(c, t) {
@@ -344,11 +359,11 @@ function type(opt: GameOpt, erase = false): Play { // erase: 다 쓰고 나서 �
     step(dt, _t, _k, hit) {
       keyT -= dt;
       if (sent >= 0) { sent += dt; return sent > 1.1 ? (erase ? 'erased' : 'sent') : null; }
-      if (back) { if (hit.size) { n--; key = Math.floor(Math.random() * 30); keyT = 0.12; sfx('tap'); if (n <= 0) { n = 0; sent = 0; ui.hint(''); } } return null; }
+      if (back) { if (hit.size) { n--; key = Math.floor(Math.random() * 30); keyT = 0.12; sfx('key', { vol: 0.8 }); if (n <= 0) { n = 0; sent = 0; ui.hint(''); } } return null; }
       if (erase && n >= TYPED.length) { back = true; ui.hint('보내지 못한다   ·   아무 키나 누르면 한 글자씩 지워진다'); return null; }
-      if (n >= TYPED.length) { if (hit.has('z')) { sent = 0; sfx('notify'); ui.hint(''); } return null; }
+      if (n >= TYPED.length) { if (hit.has('z')) { sent = 0; sfx('notify'); sfx('swipe_up', { vol: 0.5 }); ui.hint(''); } return null; }
       if (hit.size) {
-        n++; key = Math.floor(Math.random() * 30); keyT = 0.12; sfx('tap');
+        n++; key = Math.floor(Math.random() * 30); keyT = 0.12; sfx('key');
         if (n >= TYPED.length) ui.hint('다 썼다   ·   Z 를 누르면 보낸다');
         if (ghosts.length && n % 6 === 0) ui.ghost(ghosts[(said++) % ghosts.length]);
       }
@@ -419,6 +434,7 @@ function type(opt: GameOpt, erase = false): Play { // erase: 다 쓰고 나서 �
 // 옷장 안. 문틈의 빛을 오빠의 등이 막고 있다. 밖에서 문이 울린다. 숨을 참는다(Z 를 누르고 있는다).
 // 숨이 모자라 내쉬면 소리가 난다. 그때마다 등이 문에 더 세게 붙는다. 들킨 적은 없다. 오빠가 안 비켰으니까.
 function closet(opt: { ghosts?: string[]; text?: string }): Play {
+  let wasZ = false, lastB = -9;
   const ghosts = opt.ghosts || [];
   let air = 1, tt = 0, bangs = 0, nextBang = 3.2, warn = 0, shake = 0, press = 0, gasp = 0, said = 0;
   return {
@@ -428,6 +444,9 @@ function closet(opt: { ghosts?: string[]; text?: string }): Play {
       if (k.z) air = Math.max(0, air - dt * 0.16);
       else { if (air < 0.98 && Math.random() < dt * 3) gasp = 1; air = Math.min(1, air + dt * 0.5); }
       if (k.z && air <= 0) { gasp = 1; air = 0.25; sfx('breath_fast'); }
+      if (k.z !== wasZ && tt - lastB > 0.4) { lastB = tt; sfx(k.z ? 'gasp' : 'exhale', { vol: k.z ? 0.45 : 0.6 }); } // 숨을 참고, 놓는다
+      wasZ = k.z;
+      tense(Math.min(1, press * 0.5 + (warn ? 0.35 : 0.1) + (1 - air) * 0.3));
       nextBang -= dt;
       if (nextBang < 1.4 && warn === 0) { warn = 1; sfx('footsteps_near'); }
       if (nextBang <= 0) {
@@ -474,6 +493,7 @@ function closet(opt: { ghosts?: string[]; text?: string }): Play {
 // 비틀거리는 발소리가 거실을 오가며 그 쐐기를 끊는다. 그림자가 틈에 걸릴 때 숨을 쉬면 소리가 난다.
 // Z 를 누르고 있으면 숨을 참는다. 숨은 모자라고, 모자라면 터진다. 마지막에 발소리는 거실에서 멈춘다.
 function hush(): Play {
+  let wasZ = false, lastB = -9, beatT = 0;
   let air = 1, tt = 0, heard = 0, gasp = 0, shake = 0, stopT = -1, said = 0, lastStep = 0, open = 0, pass_ = -1;
   // 그림자 위치: 0 = 틈 한가운데. 세 번 지나가고, 네 번째에 틈 언저리에서 멈춘다.
   const pass = (t: number) => {
@@ -494,11 +514,15 @@ function hush(): Play {
       if (k.z) air = Math.max(0, air - dt * 0.17);
       else { if (air < 0.97 && Math.random() < dt * 3) gasp = 1; air = Math.min(1, air + dt * 0.45); }
       if (k.z && air <= 0) { gasp = 1; air = 0.2; sfx('breath_fast'); }
+      if (k.z !== wasZ && tt - lastB > 0.4) { lastB = tt; sfx(k.z ? 'gasp' : 'exhale', { vol: k.z ? 0.4 : 0.55 }); }
+      wasZ = k.z;
+      tense(stopT >= 0 ? 0.9 : near ? 0.75 + (k.z ? 0 : 0.25) : 0.25 + (1 - Math.min(1, Math.abs(x) / 2)) * 0.35);
+      if (stopT >= 0) { beatT += dt; if (beatT > 0.75) { beatT = 0; sfx('heartbeat_soft'); } } // 문 앞에 멈췄다: 내 심장 소리만 남는다
       // 그림자가 틈에 걸려 있는 동안 숨을 쉬고 있으면 (참지 않으면) 잠깐 뒤에 들린다. 한 번 지나갈 때 한 번.
       open = near && (!k.z || gasp > 0.9) ? open + dt : 0;
-      if (open > 0.35 && pass_ !== which) { pass_ = which; heard++; shake = 1; gasp = 1; sfx('heartbeat'); ui.hint(which === 2 ? '…들렸다' : '발소리가 멈칫한다'); }
+      if (open > 0.35 && pass_ !== which) { pass_ = which; heard++; shake = 1; gasp = 1; sfx('heartbeat'); if (which === 2) sfx('sting', { vol: 0.7 }); ui.hint(which === 2 ? '…들렸다' : '발소리가 멈칫한다'); }
       // 발소리: 그림자가 움직이는 동안만, 비틀거리는 박자로
-      if (tt < STOP && Math.abs(pass(tt) - pass(tt - dt)) > 1e-4 && tt - lastStep > 0.55 + Math.sin(tt * 3) * 0.2) { lastStep = tt; sfx('footsteps_near'); }
+      if (tt < STOP && Math.abs(pass(tt) - pass(tt - dt)) > 1e-4 && tt - lastStep > 0.55 + Math.sin(tt * 3) * 0.2) { lastStep = tt; foot('floor', 0.1 + (1 - Math.min(1, Math.abs(pass(tt)) / 2)) * 0.22, Math.max(-0.9, Math.min(0.9, pass(tt) / 2))); } // 한 걸음씩, 지나가는 쪽에서
       if (tt > 6 && said === 0) { said = 1; if (pass_ !== 0) ui.hint('다시 온다'); }
       if (tt > 10.6 && said === 1) { said = 2; ui.hint('또 온다 · 이번엔 느리다'); }
       if (tt > STOP + 0.3 && said === 2) { said = 3; ui.hint('멈췄다 · 문 앞이다'); }
@@ -563,6 +587,7 @@ function hush(): Play {
 // Z 를 누르고 있으면 커튼을 손가락 하나만큼 연다. 107동 어느 창에 아이가 자고 있을지 본다(오래 볼수록 띠가 찬다).
 // 놀이터의 사람이 가끔 고개를 든다. 들기 직전에 몸이 멈춘다. 그때 놓아야 한다. 열린 틈을 보면 휴대폰이 올라온다.
 function curtain(): Play {
+  let wasZ = false, lastR = -9, stepT = 0;
   let tt = 0, gap = 0, look = 0, seen = 0, phase = 2.6, state: 'idle' | 'warn' | 'up' = 'idle', flash = 0, end = -1, out = '', walk = 0, fx = 120;
   return {
     hint: 'Z 를 누르고 있으면 커튼을 연다 · 아래 사람이 걸음을 멈추면 놓는다',
@@ -570,15 +595,18 @@ function curtain(): Play {
       tt += dt; flash = Math.max(0, flash - dt * 1.5);
       if (end >= 0) { end += dt; gap = Math.max(0, gap - dt * 3); return end > 1.4 ? out : null; }
       gap = k.z ? Math.min(1, gap + dt * 4) : Math.max(0, gap - dt * 5);
+      if (k.z !== wasZ && tt - lastR > 0.25) { lastR = tt; sfx('rustle', { vol: k.z ? 0.7 : 0.45, pan: 0.2 }); } // 커튼 자락
+      wasZ = k.z;
+      tense(state === 'up' ? 0.9 : state === 'warn' ? 0.6 : 0.15 + gap * 0.3);
       if (gap > 0.6) look += dt;
       phase -= dt;
       if (phase <= 0) {
-        if (state === 'idle') { state = 'warn'; phase = 0.75; }
-        else if (state === 'warn') { state = 'up'; phase = 1.3; sfx('footsteps_near'); }
+        if (state === 'idle') { state = 'warn'; phase = 0.75; sfx('footsteps_stop', { vol: 0.4 }); }
+        else if (state === 'warn') { state = 'up'; phase = 1.3; sfx('heartbeat'); }
         else { state = 'idle'; phase = 1.8 + Math.random() * 1.6; }
       }
-      if (state === 'idle') { walk += dt; fx = 120 + Math.sin(walk * 0.6) * 34; }
-      if (state === 'up' && gap > 0.3) { seen += dt; if (seen > 0.5) { flash = 1; sfx('camera_shutter'); out = 'shot'; end = 0; ui.hint(''); } }
+      if (state === 'idle') { walk += dt; fx = 120 + Math.sin(walk * 0.6) * 34; stepT += dt; if (stepT > 0.5) { stepT = 0; foot('asphalt', 0.06, (fx - 128) / 128); } } // 창 아래를 걷는 발소리
+      if (state === 'up' && gap > 0.3) { seen += dt; if (seen > 0.5) { flash = 1; sfx('camera_shutter'); sfx('sting', { vol: 0.6 }); out = 'shot'; end = 0; ui.hint(''); } }
       if (look >= 5 || tt > 18) { out = 'hid'; end = 0; ui.hint(''); }
       return null;
     },
@@ -643,13 +671,14 @@ function dial(opt: { ghosts?: string[]; text?: string }): Play {
       if (hit.has('right')) cx = Math.min(2, cx + 1);
       if (hit.has('up')) cy = Math.max(0, cy - 1);
       if (hit.has('down')) cy = Math.min(typed.length >= 3 ? 4 : 3, cy + 1);
+      if (hit.has('left') || hit.has('right') || hit.has('up') || hit.has('down')) sfx('touch', { vol: 0.3 });
       if (hit.has('z')) {
-        if (cy === 4) { if (typed === goal) { calling = 0; sfx('ringback'); ui.hint(''); } return null; }
-        const d = PAD[cy * 3 + cx]; flash = cy * 3 + cx; flashT = 0.15; sfx('tap');
+        if (cy === 4) { if (typed === goal) { calling = 0; sfx('touch'); sfx('ringback'); ui.hint(''); } else sfx('phone_err'); return null; }
+        const d = PAD[cy * 3 + cx]; flash = cy * 3 + cx; flashT = 0.15; sfx('dtmf' + (cy * 3 + cx)); sfx('touch', { vol: 0.5 }); // 누른 자리의 신호음
         if (typed.length < 3) {
           typed += d;
           if (!goal.startsWith(typed)) { // 틀렸다: 지우고 다시
-            wrong++; typed = '';
+            wrong++; typed = ''; sfx('phone_err');
             if (ghosts.length) ui.ghost(ghosts[(said++) % ghosts.length]);
             ui.hint(wrong > 1 ? `천천히. ${spaced}` : '틀렸다. 지우고 다시');
           } else if (typed === goal) ui.hint('↓ 통화');
@@ -688,6 +717,7 @@ function dial(opt: { ghosts?: string[]; text?: string }): Play {
 // 엄지가 자꾸 빨간 끊기 쪽으로 미끄러진다. 신호음 사이 조용할 때 더 빨리 내려간다.
 // Z 를 누르고 있으면 손가락을 오므려 끌어올린다. 오래 쥐면 손이 저려서 잠깐 놓아야 한다. 신호가 다섯 번 간다.
 function ring(opt: { ghosts?: string[] }): Play {
+  let wasZ = false;
   const ghosts = opt.ghosts?.length ? opt.ghosts : ['아무도 안 받아.', '끊어. 지금 끊으면 없던 일이야.'];
   let tt = 0, d = 0.7, grip = 1, tones = 0, next = 0.4, pulse = 0, touched = 0, flash = 0, numb = 0, end = -1, said = 0, jx = 0;
   return {
@@ -703,11 +733,14 @@ function ring(opt: { ghosts?: string[] }): Play {
       }
       const silent = pulse < 0.35; // 신호음 사이가 제일 길다
       d -= dt * (silent ? 0.16 : 0.05) * (1 + Math.sin(tt * 2.3) * 0.3);
-      if (k.z && grip > 0 && numb <= 0) { d = Math.min(1, d + dt * 0.35); grip = Math.max(0, grip - dt * 0.22); if (grip <= 0) { numb = 0.9; ui.hint('손이 저린다 · 잠깐 놓는다'); } }
+      if (k.z && grip > 0 && numb <= 0) { d = Math.min(1, d + dt * 0.35); grip = Math.max(0, grip - dt * 0.22); if (grip <= 0) { numb = 0.9; sfx('strain', { vol: 0.7 }); ui.hint('손이 저린다 · 잠깐 놓는다'); } }
       else { grip = Math.min(1, grip + dt * (k.z ? 0.1 : 0.5)); numb = Math.max(0, numb - dt); }
       jx = Math.sin(tt * 15) * (0.8 + (1 - grip) * 2) + Math.sin(tt * 4.1);
+      if (k.z && !wasZ) sfx('grab', { vol: 0.35 }); // 손가락을 오므린다
+      wasZ = k.z;
+      tense(Math.max(0, Math.min(1, 1 - d)) * 0.9);
       if (d < 0.28 && said < ghosts.length && tt > 1 + said * 3) { ui.ghost(ghosts[said]); said++; }
-      if (d <= 0) { touched++; d = 0.3; flash = 1; sfx('heartbeat'); ui.hint(touched > 1 ? '또 닿았다 · 그래도 안 끊겼다' : '엄지가 닿았다 · 누르지는 않았다'); }
+      if (d <= 0) { touched++; d = 0.3; flash = 1; sfx('heartbeat'); sfx('touch', { vol: 1.4 }); ui.hint(touched > 1 ? '또 닿았다 · 그래도 안 끊겼다' : '엄지가 닿았다 · 누르지는 않았다'); }
       return null;
     },
     peek: () => ({ d, grip, tones, touched, numb: numb > 0 ? 1 : 0, end: end >= 0 ? 1 : 0 }),
@@ -740,6 +773,7 @@ function ring(opt: { ghosts?: string[] }): Play {
 // 눈길이 자꾸 아래로, 옆으로 미끄러진다. ↑ 로 고개를 들어 거울 속 얼굴(위 가운데)에 눈길을 붙들어 둔다.
 // 벗어나면 목소리가 커진다. 다 본 뒤에야(붙든 시간이 쌓이면) 끝난다. 끝까지 못 봐도 시간이 지나면 끝난다.
 function gaze(opt: { ghosts?: string[]; text?: string }): Play {
+  let beatT = 0, wasOn = false;
   const ghosts = opt.ghosts || [];
   const FX = W / 2, FY = 40; // 거울 속 얼굴 자리
   let x = FX - 30, y = H - 30, held = 0, tt = 0, said = 0, lastGhost = 0, done = -1;
@@ -756,9 +790,12 @@ function gaze(opt: { ghosts?: string[]; text?: string }): Play {
       if (k.up) y -= sp * dt; if (k.down) y += sp * dt; if (k.left) x -= sp * dt; if (k.right) x += sp * dt;
       x = Math.max(8, Math.min(W - 8, x)); y = Math.max(8, Math.min(H - 8, y));
       const on = Math.hypot(x - FX, y - FY) < 18;
+      beatT += dt * (on ? 1.1 : 1.6 + tt / 20); if (beatT >= 1) { beatT -= 1; sfx(on ? 'heartbeat_soft' : 'heartbeat', { vol: on ? 0.6 : 0.8 }); } // 눈을 피할수록 심장이 빨라진다
+      if (on !== wasOn) { wasOn = on; if (on) sfx('touch', { vol: 0.4 }); } // 눈길이 얼굴에 닿는다
+      tense(on ? 0.25 + held / 12 : 0.5 + Math.min(0.4, tt / 40));
       if (on) held += dt;
       else if (ghosts.length && tt - lastGhost > 1.6) { lastGhost = tt; ui.ghost(ghosts[(said++) % ghosts.length]); }
-      if (held > 6 || tt > 28) { done = 0; ui.hint(''); }
+      if (held > 6 || tt > 28) { done = 0; ui.hint(''); sfx('exhale'); }
       return null;
     },
     draw(c, t) {
@@ -798,8 +835,8 @@ function tilt(opt: GameOpt): Play {
       if (want < 0 && cur <= -MAX + 1) left += dt;
       if (want > 0 && cur >= MAX - 1) right += dt;
       lag += dt;
-      if (lag > 0.09) { lag = 0; if (cur !== want) { cur += Math.sign(want - cur); if (cur === want && want) sfx('tap'); } }
-      if ((left > 0.5 && right > 0.5) || tt > 22) { done = 0; ui.hint(''); }
+      if (lag > 0.09) { lag = 0; if (cur !== want) { if (cur === 0) sfx('rustle', { vol: 0.5, pan: want < 0 ? -0.5 : 0.5 }); cur += Math.sign(want - cur); if (cur === want && want) sfx('tap'); } } // 탈 목이 옷깃에 스친다
+      if ((left > 0.5 && right > 0.5) || tt > 22) { done = 0; ui.hint(''); sfx('exhale', { vol: 0.5 }); }
       return null;
     },
     draw(c) {
@@ -867,7 +904,7 @@ function dodge(opt: GameOpt): Play {
       if (spawn <= 0) {
         if (tt > 5 && Math.random() < 0.22) laugh(); else strip(false);
         if (tt > 9 && Math.random() < 0.25) strip(false);
-        spawn = Math.max(0.55, 1.25 - tt * 0.04);
+        spawn = Math.max(0.55, 1.25 - tt * 0.04); sfx('notify', { vol: 0.35, pan: Math.random() * 1.2 - 0.6 }); // 또 왔다
       }
       if (kind.length && !kindDone && tt > 8) { kindDone = true; strip(true); }
       for (const b of bs) { b.x += b.vx * dt; b.y += b.vy * dt; }
@@ -879,8 +916,9 @@ function dodge(opt: GameOpt): Play {
         if (inv > 0) continue;
         b.hit = true; hp--; inv = 1.1; shake = 0.25; sfx('hit');
         if (b.kind === 0 && said++ < 6) ui.ghost(b.t.replace('…', ''));
-        if (hp <= 0) { end = 0; out = 'hit'; ui.hint(''); sfx('heartbeat'); }
+        if (hp <= 0) { end = 0; out = 'hit'; ui.hint(''); sfx('heartbeat'); sfx('sting', { vol: 0.6 }); }
       }
+      tense(0.2 + Math.max(0, 5 - hp) * 0.16);
       if (hp > 0 && hp <= 2) { beat += dt; if (beat > 0.7) { beat = 0; sfx('heartbeat_soft'); } }
       if (end < 0 && tt > DUR) { end = 0; out = hp >= 3 ? 'held' : 'hit'; ui.hint(''); }
       return null;
@@ -943,8 +981,9 @@ function zoom(opt: GameOpt): Play {
       fx = Math.max(0, Math.min(VW, fx)); fy = Math.max(0, Math.min(VH, fy));
       const near = Math.hypot(fx - CAT.x, fy - CAT.y) < 26 / z + 8;
       if (k.z) { z = Math.min(4, z + dt * (near ? 1.4 : 0.9)); if (!near && z > 2.2) z = 2.2; hold += dt; } else z = Math.max(1, z - dt * 0.8);
-      if (k.z && Math.random() < dt * 3) sfx('tap');
+      if (k.z && Math.random() < dt * 3) sfx('touch', { vol: 0.5 });
       if ((z >= 3.9 && near) || tt > 24) { end = 0; ui.hint(''); sfx('ringing_ear'); fx = CAT.x; fy = CAT.y; z = 4; }
+      tense((z - 1) / 4);
       void hold;
       return null;
     },
@@ -993,18 +1032,19 @@ function tug(): Play {
       for (const f of fluff) { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 30 * dt; f.l -= dt; }
       for (let i = fluff.length - 1; i >= 0; i--) if (fluff[i].l <= 0) fluff.splice(i, 1);
       if (end >= 0) { end += dt; return end > 1.6 ? 'torn' : null; }
-      if (hit.has('z')) { presses++; pull = 1; mine = Math.min(1, mine + 0.12); strain = Math.max(popped / N, strain - 0.018); sfx('tap'); }
+      if (hit.has('z')) { presses++; pull = 1; mine = Math.min(1, mine + 0.12); strain = Math.max(popped / N, strain - 0.018); sfx('grab', { vol: 0.6 }); }
       mine = Math.max(0, mine - dt * 0.35);
       // 아버지는 몇 박자마다 잡아챈다
-      if (Math.random() < dt * (tt > 2 ? 1.2 : 0.5)) { yank = 1; strain += 0.1 + tt * 0.012; shake = 1; sfx('bump'); }
+      if (Math.random() < dt * (tt > 2 ? 1.2 : 0.5)) { yank = 1; strain += 0.1 + tt * 0.012; shake = 1; sfx('strain'); sfx('bump', { vol: 0.5 }); }
       strain += dt * 0.08;
       if (strain >= 1 / N * (popped + 1) * 1.0 + 0.02) {
-        popped++; shake = 0.7; sfx('hit');
+        popped++; shake = 0.7; sfx('pop'); sfx('hit', { vol: 0.5 }); // 솔기가 하나 터진다
         const sx = 150, sy = 62 + (popped * 20) / N;
         for (let i = 0; i < 4; i++) fluff.push({ x: sx, y: sy, vx: (Math.random() - 0.5) * 40, vy: -10 - Math.random() * 20, l: 1 + Math.random() });
         if (popped === 3) ui.hint('놓지 않는다');
         if (popped >= N) { end = 0; ui.hint(''); sfx('fabric_tear'); }
       }
+      tense(Math.min(1, strain));
       void presses;
       return null;
     },
@@ -1103,15 +1143,16 @@ function lurk(opt: GameOpt): Play {
       jerk -= dt;
       if (jerk <= 0) { p += 0.07 + Math.random() * 0.06; jerk = 1.2 + Math.random() * 1.6; sfx('heartbeat_soft'); }
       if (hit.has('up') && slip <= 0) {
-        p -= 0.09; lift = 0.18;
+        p -= 0.09; lift = 0.18; sfx('grab', { vol: 0.3 });
         // 너무 세게 들면 쥔 손이 풀려서 휴대폰이 미끄러진다. 엄지가 오히려 자판 쪽으로 쏠린다.
-        if (p < 0.04) { p = 0.62; slip = 0.7; slips++; sfx('hit'); ui.hint(slips >= 2 ? '한 번 더 미끄러지면 놓친다' : '너무 들었다 · 휴대폰이 미끄러진다'); if (slips >= 3) p = 1; }
+        if (p < 0.04) { p = 0.62; slip = 0.7; slips++; sfx('thump_soft'); sfx('rustle'); ui.hint(slips >= 2 ? '한 번 더 미끄러지면 놓친다' : '너무 들었다 · 휴대폰이 미끄러진다'); if (slips >= 3) p = 1; }
       }
       slip -= dt;
       p = Math.max(0, p);
       if (tt > 4 && said === 0) { said = 1; ui.hint('손이 떨린다 · 엄지를 띄운다'); }
       if (tt > 9 && said === 1) { said = 2; ui.hint('서른 명이 보고 있다'); }
-      if (p >= 1) { end = 0; out = 'typing'; ui.hint(''); sfx('hit'); }
+      tense(Math.min(1, p));
+      if (p >= 1) { end = 0; out = 'typing'; ui.hint(''); sfx('key'); sfx('sting', { vol: 0.5 }); }
       else if (tt > DUR) { end = 0; out = 'quiet'; ui.hint(''); }
       return null;
     },
@@ -1195,6 +1236,7 @@ const WATCH_SUB = [
   '영상이 유익하셨다면 구독과 좋아요 부탁드립니다.',
 ];
 function watch(opt: GameOpt): Play {
+  let lastV = 0;
   const face = canvasOf(videoFace(!!opt.droopy)), play = canvasOf(videoPlayground(!!opt.droopy));
   const PER = 1.7, DUR = WATCH_SUB.length * PER + 0.6;
   let tt = 0, end = -1, out = '', views = 412700, said = 0;
@@ -1206,8 +1248,10 @@ function watch(opt: GameOpt): Play {
       tt += dt;
       if (end >= 0) { end += dt; return end > 1.2 ? out : null; }
       views += dt * (3 + Math.random() * 9);
+      if (Math.floor(views / 4) !== lastV) { lastV = Math.floor(views / 4); sfx('touch', { vol: 0.25 }); } // 숫자가 오르는 소리
+      tense(Math.min(0.7, tt / 20));
       if (tt > 7 && said === 0) { said = 1; ui.hint('Z 를 누르면 끈다 · 숫자가 오른다'); }
-      if (hit.has('z')) { end = 0; out = 'off'; ui.hint(''); sfx('tap'); }
+      if (hit.has('z')) { end = 0; out = 'off'; ui.hint(''); sfx('touch'); sfx('switch_off', { vol: 0.5 }); }
       else if (tt > DUR) { end = 0; out = 'end'; ui.hint(''); }
       return null;
     },
@@ -1265,9 +1309,9 @@ function leave(all = false): Play {
       if (end >= 0) { end += dt; return end > 2.4 ? 'left' : null; }
       if (hit.has('z') && idx < LAST) {
         idle = 0;
-        if (!ask) { ask = true; sfx('tap'); } else { ask = false; rooms[idx].gone = 0.01; idx++; sfx('tap'); }
+        if (!ask) { ask = true; sfx('touch'); } else { ask = false; rooms[idx].gone = 0.01; idx++; sfx('touch'); sfx('swipe_up', { vol: 0.5 }); }
       }
-      if (idle > 9 && idx < LAST) { idle = 6.5; rooms[idx].gone = 0.01; idx++; ask = false; sfx('tap'); } // 손이 저절로 한다
+      if (idle > 9 && idx < LAST) { idle = 6.5; rooms[idx].gone = 0.01; idx++; ask = false; sfx('touch', { vol: 0.6 }); sfx('swipe_up', { vol: 0.4 }); } // 손이 저절로 한다
       if (idx === LAST) { end = 0; ui.hint('…'); }
       return null;
     },
@@ -1304,6 +1348,7 @@ function leave(all = false): Play {
 // 앞으로 갈 때 → , 뒤로 올 때 ← . 박자가 맞으면 높아지고, 어긋나면 줄어든다.
 // together: 옆 그네의 아이 높이에 맞춰 타면, 두 그네의 박자가 저절로 같아진다.
 function swing(together: boolean, human = false): Play {
+  let lastApex = 0;
   const OM = 2.15; // 흔들리는 빠르기 (라디안/초)
   let A = 0.08, ph = 0, tt = 0, high = 0, end = -1, out = '', sync = 0, said = 0, kick = 0, lastHalf = -1;
   let hph = Math.PI * 0.9; const HA = 0.34; // 아이 그네
@@ -1317,12 +1362,13 @@ function swing(together: boolean, human = false): Play {
       if (end >= 0) { end += dt; A = Math.max(0, A - dt * 0.05); ph += OM * dt; hph += OM * dt; return end > 1.8 ? out : null; }
       ph += OM * dt; hph += OM * dt;
       const v = Math.cos(ph); // + 면 앞으로 간다
+      const apex = Math.floor(ph / Math.PI); if (apex !== lastApex) { lastApex = apex; if (A > 0.12) sfx('swing_creak', { vol: 0.25 + A * 0.5, pan: Math.sin(ph) * 0.3 }); } // 끝에 닿을 때마다 사슬이 운다
       const push = (dir: number): void => {
         const half = Math.floor((ph + Math.PI / 2) / Math.PI); // 한 번 갔다 오는 사이의 반쪽마다 한 번만 구를 수 있다
         if (half === lastHalf) return;
         lastHalf = half;
         if (dir * v > 0.25) { A = Math.min(0.95, A + (together ? 0.09 : 0.13) * (1 - A)); kick = 0.3; sfx('swing_creak'); }
-        else A = Math.max(0.03, A - 0.04); // 거꾸로 구르면 그네가 멈칫한다
+        else { A = Math.max(0.03, A - 0.04); sfx('slip', { vol: 0.7 }); } // 거꾸로 구르면 그네가 멈칫한다
       };
       if (hit.has('right')) push(1);
       if (hit.has('left')) push(-1);
@@ -1422,6 +1468,7 @@ function swing(together: boolean, human = false): Play {
 // ═══════════ 단체 사진 (2장: 타이머 십 초) ═══════════
 // Z 를 누르고 있으면 하트를 만든 채로 버틴다. 곰이 끌어안을수록 덥고 팔이 떨린다. 셔터 전에 놓으면 나만 흔들린다.
 function photo(opt: GameOpt): Play {
+  let wasZ = false, lastR = -9, cd = -1, breathT = 2;
   let tt = 0, heat = 0.35, shake = 0, held = 0, end = -1, out = '', said = 0;
   const T = 10.5;
   const pic = canvasOf(groupPhoto(!!opt.droopy)); // 3장에 퍼지는 바로 그 사진
@@ -1435,9 +1482,14 @@ function photo(opt: GameOpt): Play {
       if (end >= 0) { end += dt; return end > 2.2 ? out : null; }
       const hug = tt > 2.2 ? 1 : 0; // 곰이 뒤에서 끌어안는다
       heat = Math.min(1, heat + dt * (0.03 + hug * 0.05));
+      if (k.z !== wasZ && tt - lastR > 0.3) { lastR = tt; sfx('rustle', { vol: k.z ? 0.6 : 0.35 }); } // 탈 팔이 손 모양을 만든다
+      wasZ = k.z;
+      breathT -= dt; if (breathT <= 0) { breathT = 4.8 - heat * 1.5; sfx('breath_inside', { vol: 0.4 + heat * 0.5 }); }
+      if (tt > 7.4) { const n = Math.floor(tt - 7.4); if (n !== cd && n < 3) { cd = n; sfx('beep_timer'); } } // 삼, 이, 일
+      tense(heat * 0.35 + shake * 0.35);
       if (k.z) { held += dt; shake = Math.min(1, shake + dt * (0.05 + heat * 0.12)); } else { held = 0; shake = Math.max(0, shake - dt * 0.6); }
       if (tt > 4 && said === 0) { said = 1; ui.hint('곰이 끌어안는다 · 덥다'); }
-      if (shake > 0.62 && said < 3) { said = 3; ui.hint('팔이 떨린다 · 잠깐 풀었다가 다시 만든다'); }
+      if (shake > 0.62 && said < 3) { said = 3; sfx('strain', { vol: 0.6 }); ui.hint('팔이 떨린다 · 잠깐 풀었다가 다시 만든다'); }
       if (tt > 7.4 && said !== 4 && said !== 0) { said = 4; ui.hint('삼. 이. 일.'); }
       if (tt > T) { end = 0; out = k.z && shake < 0.85 ? 'clear' : 'blur'; ui.hint(''); sfx('camera_shutter'); }
       return null;
@@ -1474,6 +1526,7 @@ function photo(opt: GameOpt): Play {
 // ═══════════ 물병 (2장: 머리를 벗는 방) ═══════════
 // 현우가 물병을 던진다. 손 앞에 왔을 때 Z.
 function catchb(): Play {
+  let thrown = false;
   let tt = 0, end = -1, out = '', tried = false, at = -1;
   const FLY = 1.15, START = 0.9;
   return {
@@ -1484,8 +1537,9 @@ function catchb(): Play {
       tt += dt;
       if (end >= 0) { end += dt; return end > 1.4 ? out : null; }
       const f = (tt - START) / FLY;
-      if (hit.has('z') && !tried && f > 0) { tried = true; at = f; if (f > 0.84 && f < 1.04) { end = 0; out = 'caught'; sfx('tap'); } }
-      if (f > 1.3) { end = 0; out = 'dropped'; sfx('bump'); }
+      if (f > 0 && !thrown) { thrown = true; sfx('swish', { vol: 0.8 }); } // 물병이 날아온다
+      if (hit.has('z') && !tried && f > 0) { tried = true; at = f; if (f > 0.84 && f < 1.04) { end = 0; out = 'caught'; sfx('thump_soft', { vol: 0.6 }); sfx('grab'); } else sfx('grab', { vol: 0.5 }); }
+      if (f > 1.3) { end = 0; out = 'dropped'; sfx('thump_soft'); sfx('bump', { vol: 0.6 }); }
       return null;
     },
     draw(c) {
@@ -1529,6 +1583,7 @@ function catchb(): Play {
 // → 를 누르고 있으면 지퍼가 올라간다. 털이 삐져나온 자리에서 걸린다. 걸린 자리에서 Z 로 털을 밀어 넣는다.
 // 시선이 쌓일수록 손이 떨려서 지퍼가 뒤로 밀린다.
 function zip(): Play {
+  let zt = 0, lastS = -9;
   const X0 = 40, X1 = 216, TY = 74;
   const tufts = [78, 128, 176].map((x) => ({ x, in: 0 }));
   let zx = X0, tt = 0, stare = 0.2, end = -1, out = '', snag = 0, slipT = 1.2, said = 0;
@@ -1542,11 +1597,13 @@ function zip(): Play {
       stare = Math.min(1, stare + dt * 0.07);
       const ahead = tufts.find((f) => f.in < 1 && f.x > zx - 2 && f.x - zx < 9);
       snag = ahead ? 1 : 0;
-      if (k.right && !ahead) zx += dt * 38;
-      if (hit.has('z')) { const near = tufts.find((f) => f.in < 1 && Math.abs(f.x - zx) < 14); if (near) { near.in = Math.min(1, near.in + 0.34); sfx('tap'); } }
+      if (k.right && !ahead) { zx += dt * 38; zt += dt * 38; if (zt > 6) { zt = 0; sfx('zip_tick'); } }
+      if (k.right && ahead && tt - lastS > 0.6) { lastS = tt; sfx('strain', { vol: 0.5 }); } // 털이 지퍼에 물린다
+      if (hit.has('z')) { const near = tufts.find((f) => f.in < 1 && Math.abs(f.x - zx) < 14); if (near) { near.in = Math.min(1, near.in + 0.34); sfx('rustle', { vol: 0.6 }); } }
       slipT -= dt;
-      if (slipT <= 0) { slipT = 1.9 - stare * 0.8 + Math.random() * 0.6; zx = Math.max(X0, zx - (5 + stare * 9)); sfx('bump'); if (said < 2) { said++; ui.hint(said === 1 ? '손이 떨린다 · 지퍼가 헛돈다' : '아이 엄마가 이쪽을 본다'); } }
-      if (zx >= X1) { end = 0; out = 'zipped'; ui.hint(''); sfx('coin'); }
+      if (slipT <= 0) { slipT = 1.9 - stare * 0.8 + Math.random() * 0.6; zx = Math.max(X0, zx - (5 + stare * 9)); sfx('zip_slip'); if (said < 2) { said++; ui.hint(said === 1 ? '손이 떨린다 · 지퍼가 헛돈다' : '아이 엄마가 이쪽을 본다'); } }
+      tense(stare * 0.7);
+      if (zx >= X1) { end = 0; out = 'zipped'; ui.hint(''); sfx('zipper_up', { vol: 0.6 }); }
       else if (tt > 15) { end = 0; out = 'fumbled'; ui.hint(''); }
       return null;
     },
@@ -1595,6 +1652,7 @@ function zip(): Play {
 // ═══════════ 노크 (2장: 파티룸 문 앞) ═══════════
 // Z 를 누르고 있으면 손이 올라간다. 위에서 → 로 두드린다. 손을 든 동안 무서움이 찬다. 다 차면 손이 내려간다.
 function knock(): Play {
+  let wasZ = false;
   let hand = 0, dread = 0, knocks = 0, tt = 0, end = -1, out = '', drop = 0, hitT = 0, said = 0;
   const T = 14;
   return {
@@ -1605,11 +1663,14 @@ function knock(): Play {
       tt += dt; hitT -= dt;
       if (end >= 0) { end += dt; return end > 2 ? out : null; }
       drop -= dt;
+      if (k.z && !wasZ) sfx('rustle', { vol: 0.4 }); // 손을 든다
+      wasZ = k.z;
       if (k.z && drop <= 0) { hand = Math.min(1, hand + dt * 1.1); dread = Math.min(1, dread + dt * (0.3 + hand * 0.35)); }
       else { hand = Math.max(0, hand - dt * 1.6); dread = Math.max(0, dread - dt * 0.3); }
-      if (dread >= 1 && drop <= 0) { drop = 1.4; dread = 0.7; sfx('heartbeat'); if (said < 1) { said = 1; ui.hint('내렸다 · 다시'); } }
+      if (dread >= 1 && drop <= 0) { drop = 1.4; dread = 0.7; sfx('heartbeat'); sfx('rustle', { vol: 0.5 }); if (said < 1) { said = 1; ui.hint('내렸다 · 다시'); } }
       if (drop > 0) hand = Math.max(0, hand - dt * 2.5);
-      if (hit.has('right') && hand > 0.85 && drop <= 0) { knocks++; hitT = 0.25; hand = 0.45; dread = Math.min(1, dread + 0.26); sfx('bump'); if (knocks >= 3) { end = 0; out = 'knocked'; ui.hint(''); } }
+      if (hit.has('right') && hand > 0.85 && drop <= 0) { knocks++; hitT = 0.25; hand = 0.45; dread = Math.min(1, dread + 0.26); sfx('knock1'); if (knocks >= 3) { end = 0; out = 'knocked'; ui.hint(''); } }
+      tense(dread * 0.8);
       if (end < 0 && tt > T) { end = 0; out = 'opened'; ui.hint(''); sfx('door_open'); }
       return null;
     },
@@ -1662,11 +1723,12 @@ function sleeve(): Play {
       tt += dt; yank -= dt;
       if (end >= 0) { end += dt; return end > 2.4 ? 'bared' : null; }
       mine = Math.max(0, mine - dt * 1.5);
-      if (hit.has('z')) { cuff = Math.max(0, cuff - 0.028); mine = Math.min(1, mine + 0.14); sfx('tap'); }
+      if (hit.has('z')) { cuff = Math.max(0, cuff - 0.028); mine = Math.min(1, mine + 0.14); sfx('grab', { vol: 0.55 }); }
       cuff += dt * (0.05 + tt * 0.012);
-      if (Math.random() < dt * (tt < 3 ? 0.5 : 1.3)) { cuff += 0.08 + tt * 0.01; yank = 0.2; sfx('bump'); }
+      if (Math.random() < dt * (tt < 3 ? 0.5 : 1.3)) { cuff += 0.08 + tt * 0.01; yank = 0.2; sfx('strain', { vol: 0.8 }); }
       if (tt > 3 && said === 0) { said = 1; ui.hint('사십 명이 보고 있다'); }
       if (tt > 6 && said === 1) { said = 2; ui.hint('놓지 않는다'); }
+      tense(Math.min(1, cuff));
       if (cuff >= 1) { end = 0; ui.hint(''); sfx('ringing_ear'); }
       return null;
     },
@@ -1726,8 +1788,8 @@ function album(): Play {
       if (end >= 0) { end += dt; return end > 2.6 ? 'found' : null; }
       if (hit.has('left')) cx = (cx + COLS - 1) % COLS; if (hit.has('right')) cx = (cx + 1) % COLS;
       if (hit.has('up')) cy = (cy + ROWS - 1) % ROWS; if (hit.has('down')) cy = (cy + 1) % ROWS;
-      if (hit.size && !hit.has('z')) sfx('tap');
-      if (hit.has('z')) { if (cy * COLS + cx === me) { end = 0; ui.hint(''); sfx('ringing_ear'); } else { wrong++; wrongT = 0.4; sfx('bump'); } }
+      if (hit.size && !hit.has('z')) sfx('rustle', { vol: 0.3 }); // 손끝이 종이 위를 옮겨 간다
+      if (hit.has('z')) { if (cy * COLS + cx === me) { end = 0; ui.hint(''); sfx('ringing_ear'); sfx('sting', { vol: 0.5 }); } else { wrong++; wrongT = 0.4; sfx('slip', { vol: 0.6 }); } }
       if (wrong >= 3 && said === 0) { said = 1; ui.hint('그날도 소매를 내리고 있었다'); }
       if (tt > 30 && end < 0) { cx = me % COLS; cy = Math.floor(me / COLS); end = 0; ui.hint(''); }
       return null;
@@ -1788,11 +1850,12 @@ function point(): Play {
       // 불 켜진 창 쪽에 손이 오래 머물면 누가 내려다본다
       const onLit = b >= 0 && b < B && b !== 2 && Math.abs(((x - 3) % (BW + GAP)) - BW / 2) < 14;
       if (moved) stare = Math.max(0, Math.min(1, stare + (onLit ? dt * 0.3 : -dt * 0.1))); // 손을 움직이기 전에는 아무도 안 본다
-      if (stare > 0.5 && who < 0) { who = b; whoT = 0; sfx('bump'); }
+      if (stare > 0.5 && who < 0) { who = b; whoT = 0; sfx('latch', { vol: 0.5 }); sfx('rustle', { vol: 0.6 }); sfx('heartbeat'); } // 커튼이 열린다
+      tense(stare * 0.8);
       if (who >= 0) whoT += dt;
       if (hit.has('z')) {
-        if (b === 2) { end = 0; out = stare > 0.5 ? 'seen' : 'home'; ui.hint(''); sfx('tap'); }
-        else { wrong++; stare = Math.min(1, stare + 0.2); sfx('bump'); if (said < 1) { said = 1; ui.hint('하은: 거기 아닌데요'); } }
+        if (b === 2) { end = 0; out = stare > 0.5 ? 'seen' : 'home'; ui.hint(''); sfx('grab', { vol: 0.4 }); }
+        else { wrong++; stare = Math.min(1, stare + 0.2); sfx('heartbeat_soft'); if (said < 1) { said = 1; ui.hint('하은: 거기 아닌데요'); } }
       }
       if (tt > 25) { end = 0; out = 'seen'; ui.hint(''); }
       return null;
@@ -1858,8 +1921,8 @@ function pills(): Play {
       fumble -= dt;
       if (hit.has('z') && fumble <= 0) {
         const near = Math.abs(pos - day) < 0.3 && !torn.has(day) && !dropped.has(day) && day < DAYS;
-        if (near) { torn.add(day); taken++; sfx('fabric_tear'); }
-        else { fumble = 0.4; const nd = Math.round(pos); if (!torn.has(nd) && !dropped.has(nd) && nd < DAYS) { dropped.add(nd); sfx('bump'); } } /* 서두르면 손이 미끄러져 그날 봉지를 떨어뜨린다 */
+        if (near) { torn.add(day); taken++; sfx('paper', { vol: 0.8 }); sfx('pills', { vol: 0.5 }); }
+        else { fumble = 0.4; const nd = Math.round(pos); if (!torn.has(nd) && !dropped.has(nd) && nd < DAYS) { dropped.add(nd); sfx('pills'); sfx('bump', { vol: 0.4 }); } } /* 서두르면 손이 미끄러져 그날 봉지를 떨어뜨린다 */
       }
       L += ((taken / DAYS) * 1.4 - L) * Math.min(1, dt * 0.8); L = Math.min(1, L);
       if (taken > 18 && said === 0) { said = 1; ui.hint('아침이 조금 덜 무겁다'); }
@@ -1903,13 +1966,14 @@ function pills(): Play {
 // ═══════════ 공책 (1장: 교탁 앞) ═══════════
 // 정민이가 공책을 들고 읽는다. 따라가서 손을 뻗으면 다른 애한테 던진다. 한 장씩 찢어진다.
 function grab(): Play {
+  let stepT = 0;
   const SEATS = [[40, 62], [84, 66], [172, 66], [216, 62], [60, 92], [128, 96], [196, 92]];
   let x = 128, tt = 0, holder = -1, toss = -1, from = -1, end = -1, reach = 0, flips = 0, pageT = 0, said = 0;
   const pages: { x: number; y: number; vx: number; vy: number; r: number }[] = [];
   const laughs: { x: number; y: number; t: number }[] = [];
   const holdPos = (h: number): [number, number] => (h < 0 ? [128, 30] : [SEATS[h][0], SEATS[h][1] - 14]);
   const laugh = (): void => { for (let i = 0; i < 4; i++) { const s2 = SEATS[(Math.floor(tt * 10) + i * 3) % SEATS.length]; laughs.push({ x: s2[0] + (i % 2) * 4, y: s2[1] - 12, t: 0 }); } sfx('tv_laugh'); };
-  const tear = (px2: number, py: number): void => { pages.push({ x: px2, y: py, vx: (Math.random() - 0.5) * 30, vy: -10, r: Math.random() * 3 }); sfx('fabric_tear'); };
+  const tear = (px2: number, py: number): void => { pages.push({ x: px2, y: py, vx: (Math.random() - 0.5) * 30, vy: -10, r: Math.random() * 3 }); sfx('paper'); sfx('fabric_tear', { vol: 0.5 }); };
   return {
     scale: 2,
     peek: () => { const [hx] = holdPos(holder); return { x, hx, toss: toss >= 0 ? 1 : 0, flips }; },
@@ -1921,16 +1985,17 @@ function grab(): Play {
       while (laughs.length && laughs[0].t > 1.4) laughs.shift();
       if (end >= 0) { end += dt; return end > 2.4 ? 'gone' : null; }
       if (k.left) x -= dt * 60; if (k.right) x += dt * 60; x = Math.max(16, Math.min(W - 16, x));
-      if (hit.has('up')) reach = 1;
+      if (k.left || k.right) { stepT += dt; if (stepT > 0.32) { stepT = 0; foot('floor2', 0.12); } } // 교실 바닥을 따라간다
+      if (hit.has('up')) { reach = 1; sfx('grab', { vol: 0.6 }); }
       if (toss >= 0) { toss += dt * 1.6; if (toss >= 1) { toss = -1; laugh(); } }
       else {
         const [hx, hy] = holdPos(holder);
         if (reach > 0.7 && Math.abs(hx - x) < 18) { // 닿기 직전에 던진다
           from = holder; let n = holder; while (n === holder || Math.abs(holdPos(n)[0] - x) < 30) n = Math.floor(Math.random() * SEATS.length);
-          holder = n; toss = 0; flips++; tear(hx, hy); reach = 0;
+          holder = n; toss = 0; flips++; sfx('swish', { vol: 0.7 }); tear(hx, hy); reach = 0;
           if (flips === 2 && said === 0) { said = 1; ui.hint('닿을 것 같으면 다른 데로 간다'); }
         }
-        if (pageT > 2.6) { pageT = 0; laugh(); } // 그 사이에도 한 장씩 넘기며 읽는다
+        if (pageT > 2.6) { pageT = 0; laugh(); sfx('paper', { vol: 0.5 }); } // 그 사이에도 한 장씩 넘기며 읽는다
       }
       if (flips >= 4 || tt > 16) { end = 0; ui.hint(''); }
       return null;
@@ -1986,7 +2051,7 @@ function push(): Play {
       if (hit.has('z') && lock <= 0) {
         lunge = 1;
         if (Math.sin(ph) < -0.8 && Math.cos(ph) > -0.4) { A = Math.min(0.62, A + 0.1 * (1 - A)); good++; sfx('swing_creak'); if (good === 2) ui.hint('하은: 더요! 더!'); }
-        else { A = Math.max(0.04, A - 0.03); lock = 1.2; sfx('bump'); /* 허공을 밀면 몸이 앞으로 쏠린다 */ if (said === 0) { said = 1; ui.hint('그네가 멀리 있을 때 밀면 허공을 민다'); } }
+        else { A = Math.max(0.04, A - 0.03); lock = 1.2; sfx('swish', { vol: 0.5 }); foot('sand', 0.15); /* 허공을 밀면 몸이 앞으로 쏠린다 */ if (said === 0) { said = 1; ui.hint('그네가 멀리 있을 때 밀면 허공을 민다'); } }
       }
       if (good >= 5 || tt > 16) { end = 0; ui.hint(''); }
       return null;
@@ -2030,12 +2095,13 @@ function bag(): Play {
       tt += dt; lock -= dt; flinch = Math.max(0, flinch - dt * 2.5);
       if (end >= 0) { end += dt; return end > 2 ? out : null; }
       // 토토가 가끔 내 얼굴 쪽으로 고개를 든다 (0.9초)
-      if (look > 0) look -= dt; else if (tt > nextLook) { look = 1.3; nextLook = tt + 1.3 + 1.5 + Math.random() * 1.4; sfx('tap'); } // 앞의 0.4초는 고개가 움찔하는 예고
+      if (look > 0) look -= dt; else if (tt > nextLook) { look = 1.3; nextLook = tt + 1.3 + 1.5 + Math.random() * 1.4; sfx('rustle', { vol: 0.5 }); } // 앞의 0.4초는 고개가 움찔하는 예고
       if (k.z) {
-        if (look > 0 && look < 0.85) { open = Math.max(0, Math.floor(open) - 1); lock = 1.2; flinch = 1; look = 0; snaps++; sfx('bump'); if (said === 0) { said = 1; ui.hint('눈이 마주칠 것 같으면 손이 먼저 오므라든다'); } }
-        else if (lock <= 0) open += dt * 0.7;
+        if (look > 0 && look < 0.85) { open = Math.max(0, Math.floor(open) - 1); lock = 1.2; flinch = 1; look = 0; snaps++; sfx('grab'); sfx('heartbeat_soft'); if (said === 0) { said = 1; ui.hint('눈이 마주칠 것 같으면 손이 먼저 오므라든다'); } }
+        else if (lock <= 0) { open += dt * 0.7; if (Math.floor(open) !== Math.floor(open - dt * 0.7)) sfx('strain', { vol: 0.5 }); } // 손가락 하나가 펴진다
       }
-      if (open >= 4) { end = 0; out = 'given'; sfx('fabric_tear'); ui.hint(''); }
+      tense(look > 0 ? 0.65 : 0.25);
+      if (open >= 4) { end = 0; out = 'given'; sfx('rustle_long'); ui.hint(''); }
       else if (tt > 16) { end = 0; out = 'kept'; ui.hint(''); }
       return null;
     },
@@ -2083,6 +2149,7 @@ function bag(): Play {
 // ═══════════ 손전등 (1장: 분리수거장 뒤) ═══════════
 // 빛이 바닥을 훑는다. 떨리는 몸 때문에 꼬리가 그늘 밖으로 밀려 나간다. ← 로 끌어당기면 천이 바스락거린다.
 function beam(): Play {
+  let rT = 0, gT = 0;
   const SH = 112, GY = 120; // 그늘 끝, 바닥 높이
   let len = 6, rustle = 0, tt = 0, bx = 250, end = -1, out = '', snap = -1, twitch = 1.4;
   const path = (t: number): number => { // 오른쪽에서 왼쪽으로, 멈칫, 되돌아 다시
@@ -2101,12 +2168,14 @@ function beam(): Play {
       if (end >= 0) { end += dt; return end > 2.2 ? out : null; }
       twitch -= dt; if (twitch < 0) { twitch = 1.1 + Math.random() * 1.2; len += 7 + Math.random() * 6; } // 무릎이 떨려서 꼬리가 밀려 나간다
       len += dt * 5;
-      if (k.left) { len -= dt * 34; rustle += dt * 0.75; } else rustle = Math.max(0, rustle - dt * 0.45);
+      if (k.left) { len -= dt * 34; rustle += dt * 0.75; rT -= dt; if (rT <= 0) { rT = 0.28; sfx('rustle', { vol: 0.3 + rustle * 0.6 }); } } else rustle = Math.max(0, rustle - dt * 0.45);
       len = Math.max(0, Math.min(70, len));
       bx = snap >= 0 ? bx + (Math.max(84, 96 + len) - bx) * Math.min(1, dt * 4) : path(tt);
-      if (rustle >= 1 && snap < 0) { snap = 0; sfx('bump'); ui.hint('박씨: 거기 누구 있소?'); }
+      if (rustle >= 1 && snap < 0) { snap = 0; sfx('wall_bump'); sfx('sting', { vol: 0.5 }); ui.hint('박씨: 거기 누구 있소?'); }
       if (snap >= 0) snap += dt;
       const tip = 96 + len;
+      gT += dt; if (gT > 0.62) { gT = 0; foot('concrete', 0.1, Math.max(-0.8, Math.min(0.8, (bx - 128) / 120))); } // 박씨의 발소리
+      tense(Math.min(1, 0.3 + rustle * 0.5 + Math.max(0, 1 - Math.abs(bx - tip) / 60) * 0.4));
       if (tip > SH && Math.abs(bx - tip) < 10) { end = 0; out = 'tail'; sfx('heartbeat'); ui.hint(''); }
       else if (snap > 1.2) { end = 0; out = 'tail'; sfx('heartbeat'); ui.hint(''); } // 소리를 듣고 온 빛은 그늘 안까지 들어온다
       else if (tt > 11.5) { end = 0; out = 'hidden'; ui.hint(''); }
@@ -2181,11 +2250,11 @@ function history(): Play {
     step(dt, _t, k, hit) {
       tt += dt;
       if (end >= 0) { end += dt; return end > 1.2 ? 'read' : null; }
-      if (hit.has('up') || (k.up && tt % 0.25 < dt)) { target = Math.min(maxS, target + ROW); sfx('tap'); }
-      if (hit.has('down') || (k.down && tt % 0.25 < dt)) { target = Math.max(0, target - ROW); sfx('tap'); }
+      if (hit.has('up') || (k.up && tt % 0.25 < dt)) { target = Math.min(maxS, target + ROW); sfx('swipe_down', { vol: 0.3 }); }
+      if (hit.has('down') || (k.down && tt % 0.25 < dt)) { target = Math.max(0, target - ROW); sfx('swipe_up', { vol: 0.3 }); }
       scroll += (target - scroll) * Math.min(1, dt * 10);
       if (target >= maxS && !top) { top = true; ui.hint('사 년 전까지 왔다'); }
-      if ((top && buzz < 0) || (buzz < 0 && tt > 16)) { buzz = 0; ui.hint('맨 아래에 새 말풍선 · ↓ 로 내려간다'); }
+      if ((top && buzz < 0) || (buzz < 0 && tt > 16)) { buzz = 0; sfx('notify'); ui.hint('맨 아래에 새 말풍선 · ↓ 로 내려간다'); }
       if (buzz >= 0) { buzz += dt; if (target <= 0 && scroll < 2) back = true; if (back || buzz > 8) { end = 0; ui.hint(''); } }
       return null;
     },
@@ -2238,12 +2307,12 @@ function longmsg(): Play {
       tt += dt;
       if (end >= 0) { end += dt; return end > 2.2 ? 'read' : null; }
       idle += dt;
-      if (hit.has('z') && dim > 0) { dim = 0; idle = 0; sfx('tap'); }
+      if (hit.has('z') && dim > 0) { dim = 0; idle = 0; sfx('touch'); }
       if (idle > 4.5) dim = Math.min(1, dim + dt * 0.8);
       if (dim < 0.5) {
-        if (shown === STOP - 1 && !stuck && (hit.has('down'))) { stuck = 1; ui.hint('엄지가 멈춘다 · ↓ 를 누르고 있는다'); idle = 0; }
-        else if (stuck) { if (k.down) { push += dt; idle = 0; if (push > 1.6) { stuck = 0; shown++; sfx('tap'); ui.hint('↓ 로 내린다 · 화면이 꺼지면 Z'); } } else push = Math.max(0, push - dt * 0.5); }
-        else if (hit.has('down')) { shown = Math.min(TOTO_LONG.length, shown + 1); idle = 0; sfx('tap'); }
+        if (shown === STOP - 1 && !stuck && (hit.has('down'))) { stuck = 1; sfx('heartbeat_soft'); ui.hint('엄지가 멈춘다 · ↓ 를 누르고 있는다'); idle = 0; }
+        else if (stuck) { if (k.down) { push += dt; idle = 0; if (push > 1.6) { stuck = 0; shown++; sfx('swipe_up', { vol: 0.5 }); ui.hint('↓ 로 내린다 · 화면이 꺼지면 Z'); } } else push = Math.max(0, push - dt * 0.5); }
+        else if (hit.has('down')) { shown = Math.min(TOTO_LONG.length, shown + 1); idle = 0; sfx('swipe_up', { vol: 0.4 }); }
       }
       if (shown >= TOTO_LONG.length && end < 0) { doneT += dt; if (doneT > 2) { end = 0; ui.hint(''); } }
       return null;
@@ -2289,7 +2358,8 @@ function buzz(): Play {
       if (tt > 1.6) { if (k.left) hx -= dt * 52; if (k.right) hx += dt * 52; } hx = Math.max(20, Math.min(236, hx)); if (tt > 1.6 && tt - dt <= 1.6) ui.hint('← → 로 손을 옮긴다 · Z 로 잡는다'); /* 처음 1.6초는 손이 안 나간다 */
       next -= dt;
       if (next <= 0) { n++; jit = 1; sfx('phone_buzz'); next = 0.7 + Math.random() * 0.4; phx += (Math.random() < 0.8 ? 1 : -0.6) * (8 + Math.random() * 12); phy += (Math.random() - 0.5) * 6; rot += (Math.random() - 0.5) * 0.3; phy = Math.max(52, Math.min(90, phy)); }
-      if (hit.has('z')) { grabT = 1; if (tt > 1.6 && Math.abs(hx - phx) < 9) { end = 0; out = 'caught'; ui.hint(''); sfx('tap'); } else if (tt > 1.6) { sfx('bump'); if (Math.abs(hx - phx) < 30) { phx += 10; jit = 1; } } } /* 헛손질이 휴대폰을 친다 */
+      if (hit.has('z')) { grabT = 1; if (tt > 1.6 && Math.abs(hx - phx) < 9) { end = 0; out = 'caught'; ui.hint(''); sfx('grab'); sfx('thump_soft', { vol: 0.4 }); } else if (tt > 1.6) { sfx('bump'); if (Math.abs(hx - phx) < 30) { phx += 10; jit = 1; } } } /* 헛손질이 휴대폰을 친다 */
+      tense(Math.min(1, phx / EDGE));
       if (phx > EDGE) { end = 0; out = 'fell'; ui.hint(''); sfx('hit'); }
       return null;
     },
@@ -2320,6 +2390,7 @@ function buzz(): Play {
 // ═══════════ 안감 (2장: 실밥) ═══════════
 // 실밥의 엄지가 헤드 안감을 훑는다. 납작한 것에 가까워질수록 내 손이 저절로 올라간다. ↓ 를 누르고 있으면 무릎에 붙여 둔다.
 function lining(): Play {
+  let rT = 0;
   let tt = 0, hand = 0, strain = 0, cramp = 0, thumb = 0, end = -1, out = '', said = 0;
   const LUMP = 0.72;
   return {
@@ -2332,9 +2403,11 @@ function lining(): Play {
       thumb = tt < 5 ? tt / 5 * LUMP + Math.sin(tt * 2) * 0.03 : tt < 9.5 ? LUMP + Math.sin(tt * 3) * 0.02 : LUMP + (tt - 9.5) * 0.15; // 그 자리에서 오래 머문다
       const near = Math.max(0, 1 - Math.abs(thumb - LUMP) * 4);
       const urge = 0.06 + near * 0.62;
-      if (k.down && cramp <= 0) { hand = Math.max(0, hand - dt * 0.45); strain += dt * 0.5; if (strain >= 1) { cramp = 1.3; strain = 0.5; hand = Math.min(1, hand + 0.42); sfx('bump'); if (said === 0) { said = 1; ui.hint('팔이 떨린다 · 잠깐 놓는다'); } } }
+      rT -= dt; if (rT <= 0) { rT = 0.5; sfx('rustle', { vol: 0.2 + near * 0.3 }); } // 엄지가 안감을 훑는다
+      tense(Math.min(1, hand * 0.9));
+      if (k.down && cramp <= 0) { hand = Math.max(0, hand - dt * 0.45); strain += dt * 0.5; if (strain >= 1) { cramp = 1.3; strain = 0.5; hand = Math.min(1, hand + 0.42); sfx('strain'); sfx('heartbeat_soft'); if (said === 0) { said = 1; ui.hint('팔이 떨린다 · 잠깐 놓는다'); } } }
       else { strain = Math.max(0, strain - dt * 0.5); hand += dt * urge; }
-      if (hand >= 1) { end = 0; out = 'grab'; sfx('bump'); ui.hint(''); }
+      if (hand >= 1) { end = 0; out = 'grab'; sfx('grab'); sfx('rustle'); ui.hint(''); }
       else if (tt > 11.5) { end = 0; out = 'held'; ui.hint(''); }
       return null;
     },
@@ -2371,6 +2444,7 @@ function lining(): Play {
 // ═══════════ 헤드 벗기 (1장: 분리수거장 뒤) ═══════════
 // 땀에 붙은 헤드. ← → 로 번갈아 비틀어 떼고, 헐거워지면 ↑ 로 들어 올린다.
 function headoff(): Play {
+  let rT = 0;
   let tt = 0, loose = 0, lift = 0, last = '', end = -1, heat = 0.7, jerk = 0, said = 0;
   return {
     scale: 2,
@@ -2379,11 +2453,12 @@ function headoff(): Play {
     step(dt, _t, k, hit) {
       tt += dt; heat = Math.min(1, heat + dt * 0.02); jerk = Math.max(0, jerk - dt * 3);
       if (end >= 0) { end += dt; return end > 1.6 ? 'off' : null; }
-      for (const d of ['left', 'right'] as const) if (hit.has(d)) { if (last && last !== d) { loose = Math.min(1, loose + 0.08); sfx('tap'); } last = d; }
+      for (const d of ['left', 'right'] as const) if (hit.has(d)) { if (last && last !== d) { loose = Math.min(1, loose + 0.08); sfx('strain', { vol: 0.45 }); sfx('rustle', { vol: 0.4 }); } last = d; }
       loose = Math.max(0, loose - dt * 0.06);
-      if (k.up) { if (loose > 0.6) { lift += dt * 0.7; } else if (hit.has('up')) { jerk = 1; sfx('bump'); if (said === 0) { said = 1; ui.hint('땀에 붙었다 · 먼저 비튼다'); } } }
+      if (k.up) { if (loose > 0.6) { lift += dt * 0.7; rT -= dt; if (rT <= 0) { rT = 0.3; sfx('rustle', { vol: 0.5 }); } } else if (hit.has('up')) { jerk = 1; sfx('strain', { vol: 0.8 }); if (said === 0) { said = 1; ui.hint('땀에 붙었다 · 먼저 비튼다'); } } }
       else lift = Math.max(0, lift - dt * 0.8);
-      if (lift >= 1 || tt > 15) { end = 0; ui.hint(''); sfx('breath_inside'); }
+      tense(heat * 0.4);
+      if (lift >= 1 || tt > 15) { end = 0; ui.hint(''); sfx('rustle_long'); sfx('gasp'); } // 벗겨진다: 바깥 공기
       return null;
     },
     draw(c, t) {
@@ -2442,8 +2517,8 @@ function tape(): Play {
       tt += dt;
       if (end >= 0) { end += dt; return end > 2 ? 'matched' : null; }
       if (hit.has('left')) dx--; if (hit.has('right')) dx++; if (hit.has('up')) dy--; if (hit.has('down')) dy++;
-      if (hit.size && !hit.has('z')) sfx('tap');
-      if (hit.has('z')) { if (dx === 0 && dy === 0) { pressed = 1; end = 0; sfx('fabric_tear'); ui.hint(''); } else { sfx('bump'); if (said === 0) { said = 1; ui.hint('찢어진 반쪽을 맞춘다 · 글자 줄이 이어지게'); } } }
+      if (hit.size && !hit.has('z')) sfx('paper', { vol: 0.3 });
+      if (hit.has('z')) { if (dx === 0 && dy === 0) { pressed = 1; end = 0; sfx('paper'); sfx('thump_soft', { vol: 0.3 }); ui.hint(''); } else { sfx('paper', { vol: 0.5 }); if (said === 0) { said = 1; ui.hint('찢어진 반쪽을 맞춘다 · 글자 줄이 이어지게'); } } }
       if (tt > 24 && end < 0) { dx = 0; dy = 0; end = 0; ui.hint(''); }
       return null;
     },
@@ -2490,23 +2565,24 @@ function book(ok: boolean): Play {
       tt += dt;
       if (pressed >= 0) { pressed += dt; return pressed > 2.6 ? 'booked' : null; }
       if (off >= 0) { off += dt; return off > 1.8 ? 'off' : null; }
-      if (back) { d = Math.min(1, d + dt * 0.5); if (d >= 1) { off = 0; ui.hint(''); } return null; }
+      if (back) { d = Math.min(1, d + dt * 0.5); if (d >= 1) { off = 0; ui.hint(''); sfx('switch_off', { vol: 0.5 }); } return null; }
+      tense((1 - d) * (ok ? 0.45 : 0.85));
       if (k.z && !(ok && tries === 0 && stall > 2.2)) {
         idle = 0;
         const floor = ok && tries >= 1 ? 0 : STOP;
         d = Math.max(floor, d - dt * (ok && tries >= 1 ? 0.55 : 0.42));
-        if (d <= floor && floor === 0) { pressed = 0; sfx('tap'); ui.hint(''); return null; }
+        if (d <= floor && floor === 0) { pressed = 0; sfx('touch', { vol: 1.3 }); sfx('notify'); ui.hint(''); return null; }
         if (d <= STOP) {
           stall += dt;
-          if (!ok && stall > said * 1.5 + 0.4 && said < VO.length) { ui.hint(VO[said]); said++; }
-          if (!ok && stall > VO.length * 1.5 + 1) { back = true; ui.hint('엄지가 올라간다'); }
+          if (!ok && stall > said * 1.5 + 0.4 && said < VO.length) { ui.hint(VO[said]); said++; sfx('heartbeat_soft'); }
+          if (!ok && stall > VO.length * 1.5 + 1) { back = true; sfx('exhale', { vol: 0.6 }); ui.hint('엄지가 올라간다'); }
           if (ok && tries === 0 && stall > 1.2 && said === 0) { said = 1; ui.hint('닿기만 했다 · 한 번 떼었다가 다시 누른다'); }
         }
       } else {
-        if (ok && tries === 0 && stall > 0.6 && !k.z) { tries = 1; stall = 0; ui.hint('다시 · Z 를 누르고 있는다'); }
+        if (ok && tries === 0 && stall > 0.6 && !k.z) { tries = 1; stall = 0; sfx('touch', { vol: 0.5 }); ui.hint('다시 · Z 를 누르고 있는다'); }
         if (!ok && stall > 0 && !k.z) stall = Math.max(0.01, stall); // 3장: 떼어도 목소리는 이어진다
         d = Math.min(1, d + dt * 0.5); idle += dt;
-        if (!ok && (idle > 6 || tt > 16)) { back = true; ui.hint('화면이 어두워진다'); }
+        if (!ok && (idle > 6 || tt > 16)) { back = true; sfx('exhale', { vol: 0.5 }); ui.hint('화면이 어두워진다'); }
       }
       return null;
     },
@@ -2544,6 +2620,7 @@ function book(ok: boolean): Play {
 // 맨 아래 윤서의 새 말풍선. Z 를 꾹 누르면 붙잡는 칸이 찬다. 다 차기 직전에 지워진다.
 // 지워진 뒤에도 누르고 있으면 글자가 눈에 남는다. 떼면 천천히 흐려진다.
 function erase(): Play {
+  let kT = 0;
   let tt = 0, held = 0, gone = -1, ghost = 0, end = -1;
   const MSG = '제발 죽든지, 그런 짓 좀 하지 말든지 해.';
   return {
@@ -2554,8 +2631,9 @@ function erase(): Play {
       tt += dt;
       if (end >= 0) { end += dt; return end > 1 ? 'gone' : null; }
       if (gone < 0) {
-        if (k.z) held += dt; else held = Math.max(0, held - dt * 0.6);
-        if (held > 2.6 || tt > 8) { gone = 0; ghost = k.z ? 1 : 0.5; sfx('tap'); ui.hint('지워졌다 · 그래도 읽었다'); }
+        if (k.z) { held += dt; kT -= dt; if (kT <= 0) { kT = 0.2; sfx('touch', { vol: 0.35 + held * 0.15 }); } } else held = Math.max(0, held - dt * 0.6);
+        tense(Math.min(1, held / 2.6) * 0.6);
+        if (held > 2.6 || tt > 8) { gone = 0; ghost = k.z ? 1 : 0.5; sfx('swipe_up', { vol: 0.6 }); sfx('heartbeat_soft'); ui.hint('지워졌다 · 그래도 읽었다'); }
       } else {
         gone += dt; ghost = k.z ? Math.min(1, ghost + dt) : Math.max(0, ghost - dt * 0.3);
         if (gone > 5) { end = 0; ui.hint(''); }
@@ -2613,11 +2691,11 @@ function dates(): Play {
       tt += dt;
       if (end >= 0) { end += dt; return end > 1.6 ? 'counted' : null; }
       rep -= dt;
-      if (hit.has('down') || (k.down && rep <= 0)) { fy = Math.min(CLOSET_DATES.length - 1, fy + 1); rep = 0.22; }
-      if (hit.has('up') || (k.up && rep <= 0)) { fy = Math.max(0, fy - 1); rep = 0.22; }
+      if (hit.has('down') || (k.down && rep <= 0)) { fy = Math.min(CLOSET_DATES.length - 1, fy + 1); rep = 0.22; sfx('scratch', { vol: 0.4 }); }
+      if (hit.has('up') || (k.up && rep <= 0)) { fy = Math.max(0, fy - 1); rep = 0.22; sfx('scratch', { vol: 0.4 }); }
       if (hit.has('z')) {
-        if (fy === counted) { counted++; flash = 0; sfx('tap'); if (counted >= STOPN) { end = 0; ui.hint('스무 개 넘게 세다가 그만둔다'); } }
-        else ui.hint(fy > counted ? '건너뛰었다 · 위로' : '이미 셌다 · 아래로');
+        if (fy === counted) { counted++; flash = 0; sfx('scratch'); if (counted >= STOPN) { end = 0; sfx('exhale', { vol: 0.5 }); ui.hint('스무 개 넘게 세다가 그만둔다'); } }
+        else { sfx('slip', { vol: 0.5 }); ui.hint(fy > counted ? '건너뛰었다 · 위로' : '이미 셌다 · 아래로'); }
       }
       if (flash >= 0) flash += dt;
       view += ((fy - 4) * ROW - view) * Math.min(1, dt * 6); if (view < 0) view = 0;
@@ -2667,9 +2745,10 @@ function leak(): Play {
       if (end >= 0) { end += dt; return end > 1.8 ? 'seen' : null; }
       slip = Math.max(0, slip - dt);
       const holding = k.up && slip <= 0;
-      if (holding) { strain += dt * 0.42; wait -= dt * 0.25; if (strain >= 1) { strain = 0; slip = 0.8; wait = Math.min(wait, 0.05); sfx('tap'); ui.hint('엄지가 미끄러진다'); } }
+      if (holding) { strain += dt * 0.42; wait -= dt * 0.25; if (strain >= 1) { strain = 0; slip = 0.8; wait = Math.min(wait, 0.05); sfx('swipe_up', { vol: 0.5 }); ui.hint('엄지가 미끄러진다'); } }
       else { strain = Math.max(0, strain - dt * 0.5); wait -= dt; }
-      if (wait <= 0 && shown < LEAK.length) { shown++; wait = 1.5; sfx('tap'); if (shown === LEAK.length) { end = 0; ui.hint('다 올라왔다'); } }
+      tense(shown / LEAK.length * 0.8);
+      if (wait <= 0 && shown < LEAK.length) { shown++; wait = 1.5; sfx('notify', { vol: 0.6 }); if (shown === LEAK.length) { end = 0; ui.hint('다 올라왔다'); } }
       return null;
     },
     draw(c, t) {
@@ -2712,11 +2791,12 @@ function react(opt: GameOpt): Play {
     hint: 'Z 를 꾹 누르면 반응이 뜬다 · ← → 로 고르고 Z',
     step(dt, _t, k, hit) {
       if (done >= 0) { done += dt; return done > 1.4 ? 'heart' : null; }
-      if (!open) { if (k.z) { held += dt; if (held > 0.6) { open = true; needUp = true; sfx('tap'); } } else held = 0; return null; }
+      if (!open) { if (k.z) { held += dt; if (held > 0.6) { open = true; needUp = true; sfx('touch'); sfx('pop', { vol: 0.4 }); } } else held = 0; return null; }
       if (!k.z) needUp = false;
       if (hit.has('left')) sel = (sel + ICONS.length - 1) % ICONS.length;
       if (hit.has('right')) sel = (sel + 1) % ICONS.length;
-      if (hit.has('z') && !needUp) { done = 0; sfx('tap'); }
+      if (hit.has('left') || hit.has('right')) sfx('touch', { vol: 0.4 });
+      if (hit.has('z') && !needUp) { done = 0; sfx('touch'); sfx('pop', { vol: 0.6 }); }
       return null;
     },
     draw(c, t) {

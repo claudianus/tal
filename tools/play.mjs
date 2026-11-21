@@ -25,7 +25,7 @@ const idx = Number(process.argv[2] || 0);
 const [title, next] = CHAPTERS[idx];
 const MIN = Number(process.env.MIN || 25);
 const dir = mkdtempSync(join(tmpdir(), 'tal-play-'));
-const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${dir}`, '--no-first-run', '--mute-audio', '--window-size=1280,800', 'about:blank'], { stdio: 'ignore' });
+const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${dir}`, '--no-first-run', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--window-size=1280,800', 'about:blank'], { stdio: 'ignore' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let ws, seq = 0;
 const pending = new Map();
@@ -35,13 +35,14 @@ const evalJs = async (expr, timeout = 60000) => {
   if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
   return r.result.value;
 };
+const errs = []; // 페이지에서 난 오류 (소리·그림 쪽 오류는 판을 멈추지 않을 수도 있다)
 try {
   let target;
   for (let i = 0; i < 50 && !target; i++) { try { target = (await (await fetch(`http://127.0.0.1:${PORT}/json`)).json()).find((t) => t.type === 'page'); } catch { await sleep(200); } }
   if (!target) throw new Error('Chrome 이 뜨지 않았다');
   ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((r) => ws.addEventListener('open', r));
-  ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.rej(new Error(m.error.message)) : p.res(m.result); } });
+  ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); if (m.method === 'Runtime.exceptionThrown') errs.push(m.params.exceptionDetails.exception?.description?.split('\n')[0] || m.params.exceptionDetails.text); const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.rej(new Error(m.error.message)) : p.res(m.result); } });
   await send('Runtime.enable');
   await send('Page.navigate', { url: URL });
   await sleep(1500);
@@ -49,7 +50,8 @@ try {
   await evalJs(`(async () => { for (let i = 0; i < 200 && !(window.talBegin && window.__kb); i++) await new Promise(r => setTimeout(r, 100)); ${process.env.ROAM ? 'window.__roamy = true;' : ''} window.talBegin({ mode: 'chapter', title: ${JSON.stringify(title)} }); await new Promise(r => setTimeout(r, 2500)); window.__play_ = window.__kb({ ms: ${MIN * 60000}, gap: 110, stop: ${next} }); return 1; })()`, 30000);
   const r = await evalJs(`(async () => { const r = await window.__play_; return { stop: r.stop, hint: r.hint, log: r.log, roam: window.__roamLog, tail: document.body.innerText.slice(-160).replace(/\\s+/g, ' ') }; })()`, (MIN * 60 + 60) * 1000);
   const n = (p) => r.log.filter((x) => x.startsWith(p)).length;
-  const ok = r.stop === 'text' && n('M:') === 0; // 메뉴가 한 번이라도 뜨면 실패
+  const ok = r.stop === 'text' && n('M:') === 0 && !errs.length; // 메뉴가 한 번이라도 뜨거나 오류가 나면 실패
+  if (errs.length) console.log('  오류 ' + errs.length + ': ' + [...new Set(errs)].slice(0, 3).join(' | '));
   console.log(`${ok ? 'OK  ' : 'FAIL'} ${title}  ${((Date.now() - t0) / 1000).toFixed(0)}s  게임 ${n('G:')} · 걷기·몸짓 ${n('W:')} · 메뉴 ${n('M:')}  끝 ${r.stop}${r.stop === 'text' ? '' : '  화면 «' + r.tail + '»' + (r.hint ? '  힌트 ' + r.hint : '')}`);
   if (r.roam) console.log(`  걸으며 듣기: 시도 ${r.roam.tries} · 걸음 ${r.roam.walk} · 돌아봄 ${r.roam.turn} · 들여다봄 ${r.roam.peer}`);
   console.log('  ' + r.log.join(' '));
